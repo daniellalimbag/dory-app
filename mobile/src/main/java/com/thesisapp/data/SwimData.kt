@@ -9,7 +9,6 @@ import kotlinx.serialization.Serializable
 data class SwimData(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val sessionId: Int,
-    val swimmerId: Int, // Foreign key to swimmers table
     val timestamp: Long = System.currentTimeMillis(),
 
     // Accelerometer

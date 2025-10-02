@@ -43,7 +43,6 @@ class TrackSwimmerActivity : AppCompatActivity() {
     private lateinit var classifier: StrokeClassifier
     private lateinit var db: AppDatabase
     private val liveSensorData = MutableStateFlow<SwimData?>(null)
-    private var currentSwimmerId: Int = -1
 
     init {
         try {
@@ -64,12 +63,6 @@ class TrackSwimmerActivity : AppCompatActivity() {
         enableEdgeToEdge()
         setContentView(R.layout.track_swimmer)
 
-        // Load current swimmer ID
-        lifecycleScope.launch(Dispatchers.IO) {
-            val swimmer = db.swimmerDao().getAllSwimmers().firstOrNull()
-            currentSwimmerId = swimmer?.id ?: -1
-        }
-
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -85,8 +78,7 @@ class TrackSwimmerActivity : AppCompatActivity() {
                         sensorDataFlow = liveSensorData,
                         phoneSender = sender,
                         predictedLabel = receiver.predictedLabel,
-                        db = db,
-                        swimmerId = currentSwimmerId
+                        db = db
                     )
                 }
             }
@@ -108,8 +100,7 @@ fun RealtimeSensorScreen(
     sensorDataFlow: Flow<SwimData?>,
     phoneSender: PhoneSender,
     predictedLabel: State<String>,
-    db: AppDatabase,
-    swimmerId: Int
+    db: AppDatabase
 ) {
     val sensorData by sensorDataFlow.collectAsState(initial = null)
     var isRecording by remember { mutableStateOf(false) }
@@ -118,24 +109,14 @@ fun RealtimeSensorScreen(
 
     var startTime by remember { mutableStateOf(0L) }
     var newSessionId = 0
-    var currentSwimmer by remember { mutableStateOf<Swimmer?>(null) }
-
-    // Load current swimmer information
-    LaunchedEffect(swimmerId) {
-        if (swimmerId != -1) {
-            val swimmer = db.swimmerDao().getSwimmerById(swimmerId)
-            currentSwimmer = swimmer
-        }
-    }
 
     LaunchedEffect(sensorData) {
         sensorData?.let { data ->
             if (data.timestamp <= startTime) return@LaunchedEffect
 
-            if (isRecording && swimmerId != -1) {
+            if (isRecording) {
                 val swim = SwimData(
                     sessionId = newSessionId,
-                    swimmerId = swimmerId,
                     timestamp = System.currentTimeMillis(),
                     accel_x = data.accel_x,
                     accel_y = data.accel_y,
@@ -165,17 +146,6 @@ fun RealtimeSensorScreen(
             ReturnButton()
 
             Spacer(modifier = Modifier.height(12.dp))
-
-            // Display current swimmer information
-            currentSwimmer?.let { swimmer ->
-                Text(
-                    "Tracking: ${swimmer.name} (${swimmer.category})",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
 
             Text("LATEST SENSOR DATA", color = Color.White)
 

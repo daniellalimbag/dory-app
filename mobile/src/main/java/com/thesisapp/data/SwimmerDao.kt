@@ -9,9 +9,6 @@ interface SwimmerDao {
     @Query("SELECT * FROM swimmers")
     fun getAllSwimmers(): List<Swimmer>
 
-    @Query("SELECT * FROM swimmers WHERE id = :id")
-    suspend fun getSwimmerById(id: Int): Swimmer?
-
     @Insert
     fun insertSwimmer(swimmer: Swimmer)
 
