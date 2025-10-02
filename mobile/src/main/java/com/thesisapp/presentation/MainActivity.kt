@@ -42,59 +42,12 @@ class MainActivity : AppCompatActivity() {
 
         btnConnect.setOnClickListener {
             it.animateClick()
-            if (isSmartwatchConnected) {
-                val alertDialog = AlertDialog.Builder(this)
-                    .setTitle("Manual Disconnect Required")
-                    .setMessage("To disconnect your smartwatch, please turn off Bluetooth or open the Pixel Watch app to manage the connection.")
-                    .setPositiveButton("Open Pixel Watch App", null)
-                    .setNegativeButton("Cancel", null)
-                    .create()
-
-                alertDialog.setOnShowListener {
-                    val btnOpen = alertDialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                    val btnCancel = alertDialog.getButton(AlertDialog.BUTTON_NEGATIVE)
-
-                    btnOpen.setOnClickListener {
-                        it.animateClick()
-                        val intent = packageManager.getLaunchIntentForPackage("com.google.android.apps.wear.companion")
-                        if (intent != null) {
-                            startActivity(intent)
-                        } else {
-                            Toast.makeText(this, "Pixel Watch app not found", Toast.LENGTH_SHORT).show()
-                        }
-                        alertDialog.dismiss()
-                    }
-
-                    btnCancel.setOnClickListener {
-                        it.animateClick()
-                        alertDialog.dismiss()
-                    }
-                }
-
-                alertDialog.show()
-            } else {
-                handleSmartwatchConnection()
-            }
+            startActivity(Intent(this, ConnectActivity::class.java))
         }
 
         btnSwimmers.setOnClickListener {
             it.animateClick()
-            if (isSmartwatchConnected) {
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val swimmers = db.swimmerDao().getAllSwimmers()
-
-                    withContext(Dispatchers.Main) {
-                        val intent = if (swimmers.isNotEmpty()) {
-                            Intent(this@MainActivity, TrackSwimmerActivity::class.java)
-                        } else {
-                            Intent(this@MainActivity, TrackNoSwimmerActivity::class.java)
-                        }
-                        startActivity(intent)
-                    }
-                }
-            } else {
-                Toast.makeText(this, "Please connect your smartwatch first", Toast.LENGTH_SHORT).show()
-            }
+            startActivity(Intent(this, SwimmersActivity::class.java))
         }
 
         btnSessions.setOnClickListener {
@@ -140,15 +93,9 @@ class MainActivity : AppCompatActivity() {
         if (isSmartwatchConnected) {
             btnConnect.text = "Disconnect"
             btnConnect.backgroundTintList = ContextCompat.getColorStateList(this, R.color.disconnect)
-
-            btnSwimmers.isEnabled = true
-            btnSwimmers.alpha = 1.0f
         } else {
             btnConnect.text = "Connect"
             btnConnect.backgroundTintList = ContextCompat.getColorStateList(this, R.color.button)
-
-            btnSwimmers.isEnabled = false
-            btnSwimmers.alpha = 0.5f
         }
     }
 
