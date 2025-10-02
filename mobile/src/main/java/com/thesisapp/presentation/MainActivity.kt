@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.widget.Button
 import android.widget.Toast
+import com.google.android.material.card.MaterialCardView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -22,7 +23,8 @@ import kotlinx.coroutines.withContext
 class MainActivity : AppCompatActivity() {
 
     private lateinit var btnConnect: Button
-    private lateinit var btnStartTracking: Button
+    private lateinit var btnSwimmers: MaterialCardView
+    private lateinit var btnSessions: MaterialCardView
     private var isSmartwatchConnected = false
     private lateinit var db: AppDatabase
 
@@ -31,9 +33,8 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main_dashboard)
 
         btnConnect = findViewById(R.id.btnConnect)
-        btnStartTracking = findViewById(R.id.btnStartTracking)
-        val btnViewHistory = findViewById<Button>(R.id.btnViewHistory)
-        val btnSettings = findViewById<Button>(R.id.btnSettings)
+        btnSwimmers = findViewById(R.id.btnSwimmers)
+        btnSessions = findViewById(R.id.btnSessions)
 
         db = AppDatabase.getInstance(applicationContext)
 
@@ -76,7 +77,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        btnStartTracking.setOnClickListener {
+        btnSwimmers.setOnClickListener {
             it.animateClick()
             if (isSmartwatchConnected) {
                 lifecycleScope.launch(Dispatchers.IO) {
@@ -91,17 +92,14 @@ class MainActivity : AppCompatActivity() {
                         startActivity(intent)
                     }
                 }
+            } else {
+                Toast.makeText(this, "Please connect your smartwatch first", Toast.LENGTH_SHORT).show()
             }
         }
 
-        btnViewHistory.setOnClickListener {
+        btnSessions.setOnClickListener {
             it.animateClick()
             startActivity(Intent(this, HistoryListActivity::class.java))
-        }
-
-        btnSettings.setOnClickListener {
-            it.animateClick()
-            startActivity(Intent(this, SettingsActivity::class.java))
         }
     }
 
@@ -140,19 +138,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateSmartwatchButton() {
         if (isSmartwatchConnected) {
-            btnConnect.text = "Disconnect Smartwatch"
+            btnConnect.text = "Disconnect"
             btnConnect.backgroundTintList = ContextCompat.getColorStateList(this, R.color.disconnect)
 
-            btnStartTracking.isEnabled = true
-            btnStartTracking.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_swim_on, 0, 0, 0)
-            btnStartTracking.setTextColor(ContextCompat.getColor(this, R.color.black))
+            btnSwimmers.isEnabled = true
+            btnSwimmers.alpha = 1.0f
         } else {
-            btnConnect.text = "Connect Smartwatch"
-            btnConnect.backgroundTintList = ContextCompat.getColorStateList(this, R.color.connect)
+            btnConnect.text = "Connect"
+            btnConnect.backgroundTintList = ContextCompat.getColorStateList(this, R.color.button)
 
-            btnStartTracking.isEnabled = false
-            btnStartTracking.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_swim_off, 0, 0, 0)
-            btnStartTracking.setTextColor(ContextCompat.getColor(this, R.color.disabled_text))
+            btnSwimmers.isEnabled = false
+            btnSwimmers.alpha = 0.5f
         }
     }
 

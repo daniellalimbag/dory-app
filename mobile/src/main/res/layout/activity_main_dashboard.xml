@@ -1,109 +1,141 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background"
-    android:gravity="center_horizontal"
-    android:orientation="vertical"
-    android:padding="14dp">
+    android:background="@color/white"
+    android:padding="24dp">
 
+    <!-- Header: Logo + Dory -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="80dp"
-        android:gravity="center"
-        android:orientation="horizontal">
+        android:id="@+id/headerLayout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="32dp">
 
         <ImageView
-            android:layout_width="60dp"
-            android:layout_height="60dp"
+            android:id="@+id/logo"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:src="@drawable/logo" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
-            android:text="DASHBOARD"
-            android:textColor="@color/black"
-            android:textSize="28dp"
+            android:layout_marginStart="12dp"
+            android:text="Dory"
+            android:textColor="#5A9FD4"
+            android:textSize="32sp"
             android:textStyle="bold" />
     </LinearLayout>
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@color/divider" />
-
-    <Button
+    <!-- Connect Button -->
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnConnect"
-        android:layout_width="235dp"
-        android:layout_height="235dp"
-        android:layout_marginTop="30dp"
-        android:backgroundTint="@color/connect"
-        android:drawableTop="@drawable/ic_watch"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:layout_marginTop="40dp"
+        android:layout_marginBottom="50dp"
+        android:backgroundTint="#5A9FD4"
         android:gravity="center"
-        android:paddingTop="10dp"
-        android:text="Connect Smartwatch"
-        android:textAlignment="center"
-        android:textColor="@color/black"
-        android:textSize="20dp"
-        android:textStyle="bold" />
+        android:text="Connect"
+        android:textColor="@color/white"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:cornerRadius="100dp"
+        app:icon="@drawable/ic_watch"
+        app:iconGravity="textTop"
+        app:iconPadding="8dp"
+        app:iconSize="72dp"
+        app:iconTint="@color/white"
+        app:layout_constraintTop_toBottomOf="@id/headerLayout"
+        app:layout_constraintBottom_toTopOf="@id/btnSwimmers"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    <GridLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:alignmentMode="alignMargins"
-        android:columnCount="2"
-        android:rowCount="2"
-        android:rowOrderPreserved="false"
-        android:useDefaultMargins="true">
+    <!-- Swimmers Button -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/btnSwimmers"
+        android:layout_width="0dp"
+        android:layout_height="100dp"
+        android:layout_marginTop="50dp"
+        android:layout_marginBottom="50dp"
+        android:clickable="true"
+        android:focusable="true"
+        app:cardCornerRadius="20dp"
+        app:cardBackgroundColor="#F5C842"
+        app:layout_constraintTop_toBottomOf="@id/btnConnect"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnStartTracking"
-            android:layout_width="310dp"
-            android:layout_height="100dp"
-            android:layout_columnSpan="2"
-            android:layout_gravity="center"
-            android:backgroundTint="@color/dashboard_button"
-            android:drawableLeft="@drawable/ic_swim_off"
-            android:enabled="false"
-            android:text="Start Tracking"
-            android:textColor="@color/disabled_text"
-            android:textSize="20dp"
-            android:textStyle="bold"
-            app:cornerRadius="15dp"
-            app:iconGravity="start" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnViewHistory"
-            android:layout_width="140dp"
-            android:layout_height="140dp"
-            android:layout_gravity="center"
-            android:layout_margin="8dp"
-            android:backgroundTint="@color/dashboard_button"
-            android:drawableTop="@drawable/ic_history"
-            android:text="View History"
-            android:textColor="@color/black"
-            android:textSize="14dp"
-            android:textStyle="bold"
-            app:cornerRadius="15dp"
-            app:iconGravity="start" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Swimmers"
+                android:textColor="@color/black"
+                android:textSize="20sp"
+                android:textStyle="bold" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSettings"
-            android:layout_width="140dp"
-            android:layout_height="140dp"
-            android:layout_gravity="center"
-            android:layout_margin="8dp"
-            android:backgroundTint="@color/dashboard_button"
-            android:drawableTop="@drawable/ic_settings"
-            android:paddingTop="10dp"
-            android:text="Settings"
-            android:textColor="@color/black"
-            android:textSize="14dp"
-            android:textStyle="bold"
-            app:cornerRadius="15dp"
-            app:iconGravity="start" />
-    </GridLayout>
-</LinearLayout>
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="50dp"
+                android:src="@drawable/ic_people"
+                android:tint="@color/black"
+                android:layout_marginStart="70dp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Sessions Button -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/btnSessions"
+        android:layout_width="0dp"
+        android:layout_height="100dp"
+        android:layout_marginTop="50dp"
+        android:clickable="true"
+        android:focusable="true"
+        app:cardCornerRadius="20dp"
+        app:cardBackgroundColor="#F5C842"
+        app:layout_constraintTop_toBottomOf="@id/btnSwimmers"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sessions"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="@color/black" />
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="50dp"
+                android:src="@drawable/ic_history"
+                android:tint="@color/black"
+                android:layout_marginStart="70dp" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
