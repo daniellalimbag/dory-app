@@ -42,7 +42,7 @@
         android:layout_height="200dp"
         android:layout_marginTop="40dp"
         android:layout_marginBottom="50dp"
-        android:backgroundTint="#5A9FD4"
+        android:backgroundTint="#4683EC"
         android:gravity="center"
         android:text="Connect"
         android:textColor="@color/white"
