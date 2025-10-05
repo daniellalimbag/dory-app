@@ -1,6 +1,106 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    android:padding="24dp">
+
+    <!-- Content Group (All centered vertically + horizontally) -->
+    <LinearLayout
+        android:id="@+id/contentLayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:layout_marginHorizontal="16dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Title -->
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Pair Smartwatch"
+            android:textColor="@color/black"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Connection Status -->
+        <TextView
+            android:id="@+id/tvStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Not connected"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/text"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Progress Bar -->
+        <ProgressBar
+            android:id="@+id/progressPair"
+            style="@android:style/Widget.DeviceDefault.Light.ProgressBar.Large"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:indeterminate="true"
+            android:visibility="gone"
+            android:layout_marginBottom="12dp" />
+
+        <!-- Hint -->
+        <TextView
+            android:id="@+id/tvHint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textColor="@color/sub"
+            android:gravity="center"
+            android:layout_marginBottom="20dp" />
+
+        <!-- Connect Button -->
+
+        <!-- Track Swimmer Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnConnectNow"
+            android:layout_width="220dp"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:minWidth="200dp"
+            android:minHeight="80dp"
+            android:text="Connect"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="18sp"
+            app:backgroundTint="@color/button"
+            app:cornerRadius="20dp"
+            app:icon="@drawable/ic_watch"
+            app:iconGravity="textStart"
+            app:iconPadding="12dp"
+            app:iconSize="36dp"
+            app:iconTint="@android:color/white" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTrackSwimmer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:minWidth="200dp"
+            android:minHeight="80dp"
+            android:text="Track Swimmer"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="18sp"
+            app:backgroundTint="@color/button"
+            app:cornerRadius="20dp"
+            app:icon="@drawable/ic_swimmer"
+            app:iconGravity="textStart"
+            app:iconPadding="12dp"
+            app:iconSize="36dp"
+            app:iconTint="@android:color/white" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
