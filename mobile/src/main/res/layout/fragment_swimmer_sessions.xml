@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/background">
+
+    <!-- Filter/Sort Controls -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Sessions"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/text" />
+
+        <Button
+            android:id="@+id/btnFilterPerson"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="👤 Filter"
+            android:textSize="12sp"
+            android:backgroundTint="@color/dashboard_button"
+            android:textColor="@color/text"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btnSortDate"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="📅 Sort"
+            android:textSize="12sp"
+            android:backgroundTint="@color/dashboard_button"
+            android:textColor="@color/text" />
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/divider" />
+
+    <!-- No Sessions State -->
+    <LinearLayout
+        android:id="@+id/noSessionsLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="32dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🏊"
+            android:textSize="64sp"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/no_sessions"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/text"
+            android:gravity="center"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/no_sessions_message"
+            android:textSize="14sp"
+            android:textColor="@color/track"
+            android:gravity="center" />
+
+    </LinearLayout>
+
+    <!-- Sessions List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/sessionsRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="8dp"
+        android:clipToPadding="false" />
+
+</LinearLayout>

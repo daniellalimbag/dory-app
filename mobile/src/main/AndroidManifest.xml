@@ -38,6 +38,7 @@
         <activity android:name=".presentation.SettingsExportActivity" />
         <activity android:name=".presentation.ConnectActivity" />
         <activity android:name=".presentation.SwimmersActivity" />
+        <activity android:name=".presentation.SwimmerProfileActivity" />
     </application>
 
 

@@ -6,8 +6,10 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.button.MaterialButton
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -25,8 +27,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnConnect: Button
     private lateinit var btnSwimmers: MaterialCardView
     private lateinit var btnSessions: MaterialCardView
+    private lateinit var btnEnrollSwimmer: MaterialButton
+    private lateinit var tvSwimmerCount: TextView
+    private lateinit var tvSessionCount: TextView
     private var isSmartwatchConnected = false
     private lateinit var db: AppDatabase
+
+    // Dummy data for UI
+    private var swimmerCount = 5
+    private val sessionCount = 12
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,8 +44,14 @@ class MainActivity : AppCompatActivity() {
         btnConnect = findViewById(R.id.btnConnect)
         btnSwimmers = findViewById(R.id.btnSwimmers)
         btnSessions = findViewById(R.id.btnSessions)
+        btnEnrollSwimmer = findViewById(R.id.btnEnrollSwimmer)
+        tvSwimmerCount = findViewById(R.id.tvSwimmerCount)
+        tvSessionCount = findViewById(R.id.tvSessionCount)
 
         db = AppDatabase.getInstance(applicationContext)
+
+        // Set dummy data
+        updateCounts()
 
         updateSmartwatchButton()
 
@@ -54,6 +69,36 @@ class MainActivity : AppCompatActivity() {
             it.animateClick()
             startActivity(Intent(this, HistoryListActivity::class.java))
         }
+
+        btnEnrollSwimmer.setOnClickListener {
+            it.animateClick()
+            // Navigate to enrollment screen
+            startActivity(Intent(this, TrackAddSwimmerActivity::class.java))
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh swimmer count when returning to this activity
+        loadSwimmerCount()
+        // Check smartwatch connection
+        checkSmartwatchConnection()
+    }
+
+    private fun loadSwimmerCount() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val swimmers = db.swimmerDao().getAllSwimmers()
+            withContext(Dispatchers.Main) {
+                // If database is empty, show dummy data count (5 swimmers)
+                swimmerCount = if (swimmers.isEmpty()) 5 else swimmers.size
+                updateCounts()
+            }
+        }
+    }
+
+    private fun updateCounts() {
+        tvSwimmerCount.text = swimmerCount.toString()
+        tvSessionCount.text = sessionCount.toString()
     }
 
     private fun handleSmartwatchConnection() {
@@ -99,10 +144,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        checkSmartwatchConnection()
-    }
 
     private fun checkSmartwatchConnection() {
         val pixelWatchPackage = "com.google.android.apps.wear.companion"

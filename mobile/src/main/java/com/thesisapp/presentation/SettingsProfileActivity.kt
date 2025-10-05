@@ -11,6 +11,9 @@ import com.thesisapp.utils.animateClick
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.Period
+import java.time.format.DateTimeFormatter
 
 class SettingsProfileActivity : AppCompatActivity() {
 
@@ -19,9 +22,11 @@ class SettingsProfileActivity : AppCompatActivity() {
         setContentView(R.layout.settings_profile)
 
         val txtName = findViewById<TextView>(R.id.txtName)
-        val txtAge = findViewById<TextView>(R.id.txtAge)
+        val txtBirthday = findViewById<TextView>(R.id.txtBirthday)
+        val txtHeight = findViewById<TextView>(R.id.txtHeight)
+        val txtWeight = findViewById<TextView>(R.id.txtWeight)
         val txtWingspan = findViewById<TextView>(R.id.txtWingspan)
-        val txtCategory = findViewById<TextView>(R.id.txtCategory)
+        val txtSex = findViewById<TextView>(R.id.txtSex)
 
         val btnReturn = findViewById<ImageButton>(R.id.btnReturn)
         btnReturn.setOnClickListener {
@@ -34,17 +39,31 @@ class SettingsProfileActivity : AppCompatActivity() {
 
             withContext(Dispatchers.Main) {
                 if (swimmer != null) {
-                    txtName.text = "${swimmer.name}"
-                    txtAge.text = "${swimmer.age}"
-                    txtWingspan.text = "${swimmer.wingspan}"
-                    txtCategory.text = "${swimmer.category}"
+                    txtName.text = swimmer.name
+                    txtBirthday.text = "${swimmer.birthday} (Age: ${calculateAge(swimmer.birthday)})"
+                    txtHeight.text = "${swimmer.height} cm"
+                    txtWeight.text = "${swimmer.weight} kg"
+                    txtWingspan.text = "${swimmer.wingspan} cm"
+                    txtSex.text = swimmer.sex
                 } else {
                     txtName.text = "No swimmer profile found"
-                    txtAge.text = ""
+                    txtBirthday.text = ""
+                    txtHeight.text = ""
+                    txtWeight.text = ""
                     txtWingspan.text = ""
-                    txtCategory.text = ""
+                    txtSex.text = ""
                 }
             }
+        }
+    }
+
+    private fun calculateAge(birthday: String): Int {
+        return try {
+            val birthDate = LocalDate.parse(birthday, DateTimeFormatter.ISO_LOCAL_DATE)
+            val currentDate = LocalDate.now()
+            Period.between(birthDate, currentDate).years
+        } catch (e: Exception) {
+            0
         }
     }
 }

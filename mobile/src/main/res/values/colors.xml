@@ -2,36 +2,57 @@
     <!-- Default theme colors -->
     <color name="black">#000000</color>
     <color name="white">#FFFFFF</color>
-    <color name="background">#F5FFFD</color>
-    <color name="divider">#393E46</color>
-    <color name="text">#2C6D6A</color>
+    <color name="background">#F8FBFF</color>
+    <color name="divider">#E5E9F0</color>
+    <color name="text">#1A3E5C</color>
+    <color name="text_secondary">#5F7C8A</color>
+
+    <!-- Primary Brand Colors -->
+    <color name="primary">#2B8FE8</color>
+    <color name="primary_dark">#1E6FB8</color>
+    <color name="primary_light">#5CA8EF</color>
+    <color name="accent">#24BFBF</color>
+    <color name="accent_light">#4DD4D4</color>
 
     <!-- _MAIN_DASHBOARD -->
-    <color name="connect">#BAF2F2</color>
-    <color name="disconnect">#A4ECC2</color>
-    <color name="dashboard_button">#CEE5FA</color>
+    <color name="connect">#3B9FFF</color>
+    <color name="disconnect">#4ECB71</color>
+    <color name="dashboard_button">#E8F3FF</color>
     <color name="disabled">#C6D6E5</color>
     <color name="disabled_text">#838E98</color>
 
     <!-- CONNECT_WATCH -->
     <color name="button">#24BFBF</color>
-    <color name="progress">#CAE1F0</color>
-    <color name="done">#24BFBF</color>
+    <color name="progress">#D6EBFF</color>
+    <color name="done">#34A853</color>
 
     <!-- TRACKING -->
-    <color name="notify">#D3EDE8</color>
+    <color name="notify">#E8F5F3</color>
     <color name="notify_text">#34A853</color>
     <color name="register">#9E9C9C</color>
-    <color name="sub">#969E98</color>
-    <color name="track">#737C88</color>
+    <color name="sub">#7A8A99</color>
+    <color name="track">#556B7C</color>
 
     <!-- HISTORY -->
-    <color name="link_blue">#22A7A7</color>
-    <color name="details">#729391</color>
+    <color name="link_blue">#2B8FE8</color>
+    <color name="details">#5F7C8A</color>
 
     <!-- SETTINGS -->
-    <color name="stroke">#A15C5D</color>
-    <color name="export">#455E81</color>
-    <color name="session">#6B6868</color>
-    <color name="confirm">#95A9C4</color>
+    <color name="stroke">#E85D5E</color>
+    <color name="export">#5171A5</color>
+    <color name="session">#6B7C8C</color>
+    <color name="confirm">#7BA3D1</color>
+
+    <!-- Card Colors -->
+    <color name="card_swimmers">#E8F3FF</color>
+    <color name="card_sessions">#E0F7F7</color>
+
+    <!-- Status Colors -->
+    <color name="success">#34A853</color>
+    <color name="warning">#FBBC04</color>
+    <color name="error">#EA4335</color>
+
+    <!-- Overlays & Shadows -->
+    <color name="overlay">#40000000</color>
+    <color name="shadow">#20000000</color>
 </resources>

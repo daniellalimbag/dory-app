@@ -24,9 +24,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
-            android:text="History"
+            android:text="Sessions"
             android:textColor="@color/black"
-            android:textSize="28dp"
+            android:textSize="28sp"
             android:textStyle="bold" />
     </LinearLayout>
 
@@ -35,13 +35,44 @@
         android:layout_height="1dp"
         android:background="@color/divider" />
 
+    <!-- Filter/Sort Controls -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="center_vertical">
+
+        <Button
+            android:id="@+id/btnFilterPerson"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="👤 Filter Swimmer"
+            android:textSize="12sp"
+            android:backgroundTint="@color/dashboard_button"
+            android:textColor="@color/text"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/btnSortDate"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="📅 Sort by Date"
+            android:textSize="12sp"
+            android:backgroundTint="@color/dashboard_button"
+            android:textColor="@color/text" />
+
+    </LinearLayout>
+
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="30dp"
+        android:layout_marginTop="8dp"
         android:text="List of Sessions"
         android:textColor="@color/text"
-        android:textSize="20dp"
+        android:textSize="20sp"
         android:textStyle="bold" />
 
     <androidx.recyclerview.widget.RecyclerView

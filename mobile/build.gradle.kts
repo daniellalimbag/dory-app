@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose) version "2.0.21"
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("kotlin-parcelize")
 }
 
 android {

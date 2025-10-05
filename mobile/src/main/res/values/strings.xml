@@ -1,3 +1,55 @@
 <resources>
     <string name="app_name">DORY</string>
+    <string name="swimmers_icon">Swimmers icon</string>
+    <string name="sessions_icon">Sessions icon</string>
+    <string name="swimmers_title">Swimmers</string>
+    <string name="enroll_swimmer">Enroll Swimmer</string>
+    <string name="swimmer_age">Age: %d</string>
+    <string name="swimmer_height">Height: %.1f cm</string>
+    <string name="swimmer_weight">Weight: %.1f kg</string>
+    <string name="swimmer_sex">Sex: %s</string>
+    <string name="swimmer_wingspan">Wingspan: %.1f cm</string>
+    <string name="no_swimmers">No swimmers enrolled yet</string>
+
+    <!-- Swimmer Profile -->
+    <string name="tab_profile">Profile</string>
+    <string name="tab_stats">Stats</string>
+    <string name="tab_sessions">Sessions</string>
+    <string name="years_old">%d years old</string>
+    <string name="category_label">Category: %s</string>
+
+    <!-- Sessions -->
+    <string name="no_sessions">No sessions recorded</string>
+    <string name="no_sessions_message">Start tracking to see sessions here</string>
+    <string name="session_count">%d sessions</string>
+
+    <!-- Stats Labels -->
+    <string name="heart_metrics">Heart Metrics</string>
+    <string name="swimming_metrics">Swimming Metrics</string>
+    <string name="avg_heart_rate">Avg Heart Rate</string>
+    <string name="heart_rate_zone">Heart Rate Zone</string>
+    <string name="swimming_velocity">Swimming Velocity</string>
+    <string name="stroke_rate">Stroke Rate</string>
+    <string name="stroke_length">Stroke Length</string>
+    <string name="swimming_index">Swimming Index</string>
+
+    <!-- Units -->
+    <string name="bpm">%d bpm</string>
+    <string name="zone_label">Zone %d</string>
+    <string name="meters_per_sec">%.2f m/s</string>
+    <string name="strokes_per_min">%.1f strokes/min</string>
+    <string name="meters_unit">%.2f m</string>
+    <string name="index_unit">%.2f</string>
+
+    <!-- Stroke Types -->
+    <string name="freestyle">Freestyle</string>
+    <string name="backstroke">Backstroke</string>
+    <string name="breaststroke">Breaststroke</string>
+    <string name="butterfly">Butterfly</string>
+
+    <!-- No Data -->
+    <string name="no_data_available">No data available</string>
+    <string name="no_recent_sessions">No sessions in the last 2 months</string>
+    <string name="start_tracking">Start tracking sessions to see statistics</string>
+    <string name="last_two_months">Last 2 Months Average</string>
 </resources>
