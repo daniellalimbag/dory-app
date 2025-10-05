@@ -6,6 +6,18 @@
     android:background="@color/background"
     android:padding="24dp">
 
+    <!-- Back Button -->
+    <ImageButton
+        android:id="@+id/btnBack"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="Back"
+        android:src="@drawable/ic_back"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:tint="@color/black" />
+
     <!-- Content Group (All centered vertically + horizontally) -->
     <LinearLayout
         android:id="@+id/contentLayout"
@@ -70,15 +82,15 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
             android:minWidth="200dp"
-            android:minHeight="80dp"
+            android:minHeight="100dp"
             android:text="Connect"
             android:textAllCaps="false"
             android:textColor="@android:color/white"
             android:textSize="18sp"
-            app:backgroundTint="@color/button"
+            app:backgroundTint="#4683EC"
             app:cornerRadius="20dp"
             app:icon="@drawable/ic_watch"
-            app:iconGravity="textStart"
+            app:iconGravity="start"
             app:iconPadding="12dp"
             app:iconSize="36dp"
             app:iconTint="@android:color/white" />
@@ -86,18 +98,18 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnTrackSwimmer"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="100dp"
             android:layout_marginBottom="16dp"
             android:minWidth="200dp"
-            android:minHeight="80dp"
+            android:minHeight="100dp"
             android:text="Track Swimmer"
             android:textAllCaps="false"
             android:textColor="@android:color/white"
             android:textSize="18sp"
-            app:backgroundTint="@color/button"
+            app:backgroundTint="#4683EC"
             app:cornerRadius="20dp"
             app:icon="@drawable/ic_swimmer"
-            app:iconGravity="textStart"
+            app:iconGravity="start"
             app:iconPadding="12dp"
             app:iconSize="36dp"
             app:iconTint="@android:color/white" />

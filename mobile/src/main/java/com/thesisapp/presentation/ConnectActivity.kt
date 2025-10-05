@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -41,6 +42,12 @@ class ConnectActivity : AppCompatActivity() {
         tvStatus = findViewById(R.id.tvStatus)
         progress = findViewById(R.id.progressPair)
         tvHint = findViewById(R.id.tvHint)
+        val btnBack = findViewById<ImageButton>(R.id.btnBack)
+
+        btnBack.setOnClickListener {
+            it.animateClick()
+            finish()
+        }
 
         db = AppDatabase.getInstance(applicationContext)
 
