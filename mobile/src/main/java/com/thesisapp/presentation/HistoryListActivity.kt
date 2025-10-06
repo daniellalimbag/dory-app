@@ -15,6 +15,7 @@ class HistoryListActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var btnReturn: ImageButton
     private lateinit var db: AppDatabase
+    private lateinit var adapter: HistoryListAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,7 +24,16 @@ class HistoryListActivity : AppCompatActivity() {
         btnReturn = findViewById(R.id.btnReturn)
         recyclerView = findViewById(R.id.recyclerViewSessions)
         recyclerView.layoutManager = LinearLayoutManager(this)
+
         db = AppDatabase.getInstance(this)
+
+        adapter = HistoryListAdapter { session ->
+            val intent = Intent(this, HistorySessionActivity::class.java).apply {
+                putExtra("sessionId", session.sessionId)
+            }
+            startActivity(intent)
+        }
+        recyclerView.adapter = adapter
 
         loadSessionSummaries()
 
@@ -34,18 +44,11 @@ class HistoryListActivity : AppCompatActivity() {
     }
 
     private fun loadSessionSummaries() {
-        Thread {
-            // getSessionSummaries() returns List<MlResult> with unique sessions
-            val sessions = db.mlResultDao().getSessionSummaries()
-
-            runOnUiThread {
-                recyclerView.adapter = HistoryListAdapter(sessions) { session ->
-                    val intent = Intent(this, HistorySessionActivity::class.java).apply {
-                        putExtra("sessionId", session.sessionId)
-                    }
-                    startActivity(intent)
-                }
+        lifecycleScope.launch {
+            val sessions = withContext(Dispatchers.IO) {
+                db.mlResultDao().getSessionSummaries()
             }
-        }.start()
+            adapter.submitList(sessions)
+        }
     }
 }

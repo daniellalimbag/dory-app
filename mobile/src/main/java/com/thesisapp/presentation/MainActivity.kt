@@ -20,7 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class MainActivity : AppCompatActivity() {
+class    MainActivity : AppCompatActivity() {
 
     private lateinit var btnConnect: Button
     private lateinit var btnSwimmers: MaterialCardView

@@ -10,6 +10,9 @@ import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.utils.animateClick
 import kotlinx.coroutines.launch
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class HistorySessionActivity : AppCompatActivity() {
 
@@ -52,35 +55,30 @@ class HistorySessionActivity : AppCompatActivity() {
 
     private fun loadSession(sessionId: Int) {
         val db = AppDatabase.getInstance(this)
-
-        Thread {
-            val result = db.mlResultDao().getBySessionId(sessionId)
-            result?.let { mlResult ->
-                runOnUiThread {
-                    txtDate.text = mlResult.date
-                    txtStart.text = mlResult.timeStart
-                    txtEnd.text = mlResult.timeEnd
-
-                    txtDuration.text = "${calculateDuration(mlResult.timeStart, mlResult.timeEnd)}"
-
-                    txtStrokeBack.text = "${mlResult.backstroke}%"
-                    txtStrokeBreast.text = "${mlResult.breaststroke}%"
-                    txtStrokeFly.text = "${mlResult.butterfly}%"
-                    txtStrokeFree.text = "${mlResult.freestyle}%"
-
-                    inputNotes.setOnFocusChangeListener { _, hasFocus ->
-                        if (!hasFocus) {
-                            val newNotes = inputNotes.text.toString()
-                            if (newNotes != mlResult.notes) {
-                                lifecycleScope.launch {
-                                    db.mlResultDao().update(mlResult.copy(notes = newNotes))
-                                }
+        lifecycleScope.launch {
+            val mlResult = withContext(Dispatchers.IO) { db.mlResultDao().getBySessionId(sessionId) }
+            mlResult?.let {
+                txtDate.text = it.date
+                txtStart.text = it.timeStart
+                txtEnd.text = it.timeEnd
+                txtDuration.text = calculateDuration(it.timeStart, it.timeEnd)
+                txtStrokeBack.text = "${it.backstroke}%"
+                txtStrokeBreast.text = "${it.breaststroke}%"
+                txtStrokeFly.text = "${it.butterfly}%"
+                txtStrokeFree.text = "${it.freestyle}%"
+                inputNotes.setText(it.notes)
+                inputNotes.setOnFocusChangeListener { _, hasFocus ->
+                    if (!hasFocus) {
+                        val newNotes = inputNotes.text.toString()
+                        if (newNotes != it.notes) {
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                db.mlResultDao().update(it.copy(notes = newNotes))
                             }
                         }
                     }
                 }
             }
-        }.start()
+        }
     }
 
     private fun calculateDuration(start: String, end: String): String {
