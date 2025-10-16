@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_switch_team"
+        android:title="Switch Team"
+        android:showAsAction="never" />
+    <item
+        android:id="@+id/action_create_team"
+        android:title="Create Team"
+        android:showAsAction="never" />
+    <item
+        android:id="@+id/action_add_team_via_code"
+        android:title="Add Team via Code"
+        android:showAsAction="never" />
+    <item
+        android:id="@+id/action_logout"
+        android:title="Logout"
+        android:showAsAction="never" />
+    <item
+        android:id="@+id/action_switch_user"
+        android:title="Switch User"
+        android:showAsAction="never" />
+</menu>
+
