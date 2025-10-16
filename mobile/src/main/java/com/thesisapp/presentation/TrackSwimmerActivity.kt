@@ -44,6 +44,8 @@ class TrackSwimmerActivity : AppCompatActivity() {
     private lateinit var db: AppDatabase
     private val liveSensorData = MutableStateFlow<SwimData?>(null)
 
+    private var swimmerId: Int = -1
+
     init {
         try {
             System.loadLibrary("filament-jni")
@@ -63,6 +65,13 @@ class TrackSwimmerActivity : AppCompatActivity() {
         enableEdgeToEdge()
         setContentView(R.layout.track_swimmer)
 
+        swimmerId = intent.getIntExtra("SWIMMER_ID", -1)
+        if (swimmerId <= 0) {
+            Toast.makeText(this, "No swimmer selected", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -78,7 +87,8 @@ class TrackSwimmerActivity : AppCompatActivity() {
                         sensorDataFlow = liveSensorData,
                         phoneSender = sender,
                         predictedLabel = receiver.predictedLabel,
-                        db = db
+                        db = db,
+                        swimmerId = swimmerId
                     )
                 }
             }
@@ -92,7 +102,7 @@ class TrackSwimmerActivity : AppCompatActivity() {
 }
 
 fun Float?.format(decimals: Int = 2): String {
-    return if (this == null) "--" else String.format(Locale.US, "%.${decimals}f", this)
+    return if (this == null) "--" else String.format(Locale.US, "% .${decimals}f", this)
 }
 
 @Composable
@@ -100,7 +110,8 @@ fun RealtimeSensorScreen(
     sensorDataFlow: Flow<SwimData?>,
     phoneSender: PhoneSender,
     predictedLabel: State<String>,
-    db: AppDatabase
+    db: AppDatabase,
+    swimmerId: Int
 ) {
     val sensorData by sensorDataFlow.collectAsState(initial = null)
     var isRecording by remember { mutableStateOf(false) }
@@ -221,9 +232,9 @@ fun RealtimeSensorScreen(
 
                                     val percentages = calculateStrokePercentages(strokeResults)
 
-                                    // Assign 0f to stroke percentages since no label info available
                                     val mlResult = MlResult(
                                         sessionId = newSessionId,
+                                        swimmerId = swimmerId,
                                         date = date,
                                         timeStart = timeStart,
                                         timeEnd = timeEnd,
@@ -235,7 +246,6 @@ fun RealtimeSensorScreen(
                                     )
 
                                     db.mlResultDao().insert(mlResult)
-
 
                                 }
                             }

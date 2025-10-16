@@ -18,6 +18,9 @@ import com.google.android.gms.wearable.Wearable
 import com.google.android.material.button.MaterialButton
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
+import com.thesisapp.data.Swimmer
+import com.thesisapp.utils.AuthManager
+import com.thesisapp.utils.UserRole
 import com.thesisapp.utils.animateClick
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -67,18 +70,61 @@ class ConnectActivity : AppCompatActivity() {
             it.animateClick()
             if (isSmartwatchConnected) {
                 lifecycleScope.launch(Dispatchers.IO) {
-                    val swimmers = db.swimmerDao().getAllSwimmers()
-                    withContext(Dispatchers.Main) {
-                        val intent = if (swimmers.isNotEmpty()) {
-                            Intent(this@ConnectActivity, TrackSwimmerActivity::class.java)
-                        } else {
-                            Intent(this@ConnectActivity, TrackNoSwimmerActivity::class.java)
+                    val user = AuthManager.currentUser(this@ConnectActivity)
+                    val teamId = AuthManager.currentTeamId(this@ConnectActivity)
+                    if (user == null) {
+                        withContext(Dispatchers.Main) {
+                            startActivity(Intent(this@ConnectActivity, AuthActivity::class.java))
                         }
-                        startActivity(intent)
+                        return@launch
+                    }
+                    if (user.role == UserRole.SWIMMER) {
+                        val swimmerId = AuthManager.getLinkedSwimmerId(this@ConnectActivity, user.email, teamId)
+                        withContext(Dispatchers.Main) {
+                            if (swimmerId == null) {
+                                Toast.makeText(this@ConnectActivity, "Please enroll into a team first", Toast.LENGTH_SHORT).show()
+                                startActivity(Intent(this@ConnectActivity, EnrollViaCodeActivity::class.java))
+                            } else {
+                                val intent = Intent(this@ConnectActivity, TrackSwimmerActivity::class.java)
+                                intent.putExtra("SWIMMER_ID", swimmerId)
+                                startActivity(intent)
+                            }
+                        }
+                    } else { // Coach
+                        if (teamId == null) {
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(this@ConnectActivity, "Select or create a team first", Toast.LENGTH_SHORT).show()
+                                startActivity(Intent(this@ConnectActivity, CreateTeamActivity::class.java))
+                            }
+                            return@launch
+                        }
+                        val swimmers = db.swimmerDao().getSwimmersForTeam(teamId)
+                        withContext(Dispatchers.Main) {
+                            if (swimmers.isEmpty()) {
+                                val intent = Intent(this@ConnectActivity, TrackNoSwimmerActivity::class.java)
+                                startActivity(intent)
+                            } else {
+                                showSwimmerPicker(swimmers)
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+
+    private fun showSwimmerPicker(swimmers: List<Swimmer>) {
+        val names = swimmers.map { it.name }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle("Select Swimmer")
+            .setItems(names) { _, which ->
+                val chosen = swimmers[which]
+                val intent = Intent(this, TrackSwimmerActivity::class.java)
+                intent.putExtra("SWIMMER_ID", chosen.id)
+                startActivity(intent)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun showManualDisconnectDialog() {

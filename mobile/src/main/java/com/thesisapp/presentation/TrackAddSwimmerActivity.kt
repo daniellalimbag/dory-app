@@ -11,6 +11,8 @@ import com.google.android.material.textfield.TextInputEditText
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.Swimmer
+import com.thesisapp.utils.AuthManager
+import com.thesisapp.utils.CodeGenerator
 import com.thesisapp.utils.animateClick
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +53,12 @@ class TrackAddSwimmerActivity : AppCompatActivity() {
         setupBirthdayPickers()
 
         val db = AppDatabase.getInstance(this)
+        val teamId = AuthManager.currentTeamId(this)
+        if (teamId == null) {
+            Toast.makeText(this, "No team selected. Create or select a team first.", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
 
         btnSave.setOnClickListener {
             it.animateClick()
@@ -115,20 +123,24 @@ class TrackAddSwimmerActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
+            val code = CodeGenerator.code(6)
+
             // Create swimmer object
             val swimmer = Swimmer(
                 name = name,
+                teamId = teamId,
                 birthday = birthday,
                 height = height,
                 weight = weight,
                 sex = sex,
-                wingspan = wingspan
+                wingspan = wingspan,
+                code = code
             )
 
             // Save to database
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    db.swimmerDao().insertSwimmer(swimmer)
+                    val newId = db.swimmerDao().insertSwimmer(swimmer).toInt()
 
                     withContext(Dispatchers.Main) {
                         Toast.makeText(
@@ -137,6 +149,9 @@ class TrackAddSwimmerActivity : AppCompatActivity() {
                             Toast.LENGTH_LONG
                         ).show()
 
+                        val intent = android.content.Intent(this@TrackAddSwimmerActivity, TrackSwimmerSuccessActivity::class.java)
+                        intent.putExtra("SWIMMER_CODE", code)
+                        startActivity(intent)
                         finish()
                     }
                 } catch (e: Exception) {

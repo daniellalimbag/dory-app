@@ -13,6 +13,10 @@
         android:title="Add Team via Code"
         android:showAsAction="never" />
     <item
+        android:id="@+id/action_manage_coaches"
+        android:title="Manage Coaches"
+        android:showAsAction="never" />
+    <item
         android:id="@+id/action_logout"
         android:title="Logout"
         android:showAsAction="never" />

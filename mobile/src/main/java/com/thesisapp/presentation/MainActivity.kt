@@ -5,6 +5,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
+import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -17,6 +20,9 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.wearable.Wearable
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
+import com.thesisapp.data.Team
+import com.thesisapp.utils.AuthManager
+import com.thesisapp.utils.UserRole
 import com.thesisapp.utils.animateClick
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -32,6 +38,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvSessionCount: TextView
     private var isSmartwatchConnected = false
     private lateinit var db: AppDatabase
+    private lateinit var tvTeamSwitcher: TextView
+    private lateinit var tvAccount: TextView
+
+    // Empty state views
+    private lateinit var emptyContainer: View
+    private lateinit var tvEmptyTitle: TextView
+    private lateinit var btnEmptyPrimary: MaterialButton
+    private lateinit var btnEmptySecondary: MaterialButton
 
     // Dummy data for UI
     private var swimmerCount = 5
@@ -40,6 +54,15 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main_dashboard)
+
+        tvTeamSwitcher = findViewById(R.id.tvTeamSwitcher)
+        tvAccount = findViewById(R.id.tvAccount)
+
+        // Empty state
+        emptyContainer = findViewById(R.id.emptyStateContainer)
+        tvEmptyTitle = findViewById(R.id.tvEmptyTitle)
+        btnEmptyPrimary = findViewById(R.id.btnEmptyPrimary)
+        btnEmptySecondary = findViewById(R.id.btnEmptySecondary)
 
         btnConnect = findViewById(R.id.btnConnect)
         btnSwimmers = findViewById(R.id.btnSwimmers)
@@ -55,6 +78,9 @@ class MainActivity : AppCompatActivity() {
 
         updateSmartwatchButton()
 
+        tvTeamSwitcher.setOnClickListener { showSwitchTeamDialog(withCreateOption = true) }
+        tvAccount.setOnClickListener { showAccountMenu() }
+
         btnConnect.setOnClickListener {
             it.animateClick()
             startActivity(Intent(this, ConnectActivity::class.java))
@@ -62,7 +88,30 @@ class MainActivity : AppCompatActivity() {
 
         btnSwimmers.setOnClickListener {
             it.animateClick()
-            startActivity(Intent(this, SwimmersActivity::class.java))
+            val user = AuthManager.currentUser(this)
+            if (user?.role == UserRole.SWIMMER) {
+                val teamId = AuthManager.currentTeamId(this)
+                val swimmerId = AuthManager.getLinkedSwimmerId(this, user.email, teamId)
+                if (teamId == null || swimmerId == null) {
+                    startActivity(Intent(this, EnrollViaCodeActivity::class.java))
+                } else {
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        val swimmer = db.swimmerDao().getById(swimmerId)
+                        withContext(Dispatchers.Main) {
+                            if (swimmer != null) {
+                                val intent = Intent(this@MainActivity, SwimmerProfileActivity::class.java).apply {
+                                    putExtra(SwimmerProfileActivity.EXTRA_SWIMMER, swimmer)
+                                }
+                                startActivity(intent)
+                            } else {
+                                Toast.makeText(this@MainActivity, "No swimmer linked", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+            } else {
+                startActivity(Intent(this, SwimmersActivity::class.java))
+            }
         }
 
         btnSessions.setOnClickListener {
@@ -72,8 +121,12 @@ class MainActivity : AppCompatActivity() {
 
         btnEnrollSwimmer.setOnClickListener {
             it.animateClick()
-            // Navigate to enrollment screen
-            startActivity(Intent(this, TrackAddSwimmerActivity::class.java))
+            val role = AuthManager.currentUser(this)?.role
+            if (role == UserRole.COACH) {
+                startActivity(Intent(this, TrackAddSwimmerActivity::class.java))
+            } else {
+                startActivity(Intent(this, EnrollViaCodeActivity::class.java))
+            }
         }
     }
 
@@ -83,14 +136,117 @@ class MainActivity : AppCompatActivity() {
         loadSwimmerCount()
         // Check smartwatch connection
         checkSmartwatchConnection()
+        updateTopRow()
+        updateEmptyState()
+        updateButtonText()
+    }
+
+    private fun updateButtonText() {
+        val role = AuthManager.currentUser(this)?.role
+        if (role == UserRole.COACH) {
+            btnEnrollSwimmer.text = getString(R.string.enroll_swimmer)
+        } else {
+            btnEnrollSwimmer.text = getString(R.string.enroll_in_team)
+        }
+    }
+
+    private fun updateEmptyState() {
+        val user = AuthManager.currentUser(this)
+        if (user == null) return
+        val hasTeams = when (user.role) {
+            UserRole.COACH -> AuthManager.getCoachTeams(this, user.email).isNotEmpty()
+            UserRole.SWIMMER -> AuthManager.getSwimmerTeams(this, user.email).isNotEmpty()
+        }
+        if (hasTeams) {
+            // Swimmers should go directly to their profile/stats view
+            if (user.role == UserRole.SWIMMER) {
+                val teamId = AuthManager.currentTeamId(this)
+                val swimmerId = AuthManager.getLinkedSwimmerId(this, user.email, teamId)
+                if (swimmerId != null) {
+                    // Redirect to swimmer profile with tabs (Stats, Sessions, Profile)
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        val swimmer = db.swimmerDao().getById(swimmerId)
+                        withContext(Dispatchers.Main) {
+                            if (swimmer != null) {
+                                val intent = Intent(this@MainActivity, SwimmerProfileActivity::class.java).apply {
+                                    putExtra(SwimmerProfileActivity.EXTRA_SWIMMER, swimmer)
+                                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                }
+                                startActivity(intent)
+                                finish()
+                            }
+                        }
+                    }
+                    return
+                }
+            }
+            
+            // For coaches, show normal dashboard
+            emptyContainer.visibility = View.GONE
+            // Show main content
+            findViewById<View>(R.id.logo).visibility = View.VISIBLE
+            btnConnect.visibility = View.VISIBLE
+            btnSessions.visibility = View.VISIBLE
+
+            // Swimmers should NOT see the swimmers list - that's for coaches only
+            if (user.role == UserRole.COACH) {
+                btnSwimmers.visibility = View.VISIBLE
+                btnEnrollSwimmer.visibility = View.VISIBLE
+            } else {
+                btnSwimmers.visibility = View.GONE
+                btnEnrollSwimmer.visibility = View.GONE
+            }
+            return
+        }
+        // Show empty state
+        emptyContainer.visibility = View.VISIBLE
+        findViewById<View>(R.id.logo).visibility = View.GONE
+        btnConnect.visibility = View.GONE
+        btnSwimmers.visibility = View.GONE
+        btnSessions.visibility = View.GONE
+        btnEnrollSwimmer.visibility = View.GONE
+
+        if (user.role == UserRole.COACH) {
+            tvEmptyTitle.text = getString(R.string.no_classes_coach)
+            btnEmptyPrimary.text = getString(R.string.create_class)
+            btnEmptySecondary.text = getString(R.string.join_class_via_code)
+            btnEmptyPrimary.setOnClickListener { startActivity(Intent(this, CreateTeamActivity::class.java)) }
+            btnEmptySecondary.setOnClickListener { startActivity(Intent(this, JoinTeamByCodeActivity::class.java)) }
+            btnEmptySecondary.visibility = View.VISIBLE
+        } else {
+            // Swimmer with no teams: show only ONE button to enroll
+            tvEmptyTitle.text = getString(R.string.no_classes_swimmer)
+            btnEmptyPrimary.text = getString(R.string.enroll_in_team)
+            btnEmptyPrimary.setOnClickListener { startActivity(Intent(this, EnrollViaCodeActivity::class.java)) }
+            btnEmptySecondary.visibility = View.GONE // Hide second button for swimmers
+        }
+    }
+
+    private fun updateTopRow() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val user = AuthManager.currentUser(this@MainActivity)
+            val teamId = AuthManager.currentTeamId(this@MainActivity)
+            val teamName = if (teamId != null) db.teamDao().getById(teamId)?.name else null
+            withContext(Dispatchers.Main) {
+                tvTeamSwitcher.text = (teamName ?: "Select team") + " \u25BC"
+                tvAccount.text = user?.let { "${it.email} (${it.role.name.lowercase().replaceFirstChar { c -> c.uppercase() }})" } ?: "Guest"
+            }
+        }
     }
 
     private fun loadSwimmerCount() {
         lifecycleScope.launch(Dispatchers.IO) {
-            val swimmers = db.swimmerDao().getAllSwimmers()
+            val user = AuthManager.currentUser(this@MainActivity)
+            val teamId = AuthManager.currentTeamId(this@MainActivity)
+            var count = 0
+            if (user?.role == UserRole.COACH) {
+                if (teamId != null) count = db.swimmerDao().getSwimmersForTeam(teamId).size else count = 0
+            } else if (user?.role == UserRole.SWIMMER) {
+                val linked = AuthManager.getLinkedSwimmerId(this@MainActivity, user.email, teamId)
+                count = if (linked != null) 1 else 0
+            }
             withContext(Dispatchers.Main) {
-                // If database is empty, show dummy data count (5 swimmers)
-                swimmerCount = if (swimmers.isEmpty()) 5 else swimmers.size
+                swimmerCount = count
                 updateCounts()
             }
         }
@@ -173,4 +329,122 @@ class MainActivity : AppCompatActivity() {
             false
         }
     }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        val role = AuthManager.currentUser(this)?.role
+        val hasTeam = AuthManager.currentTeamId(this) != null
+        menu?.findItem(R.id.action_create_team)?.isVisible = role == UserRole.COACH
+        menu?.findItem(R.id.action_add_team_via_code)?.isVisible = role == UserRole.SWIMMER
+        menu?.findItem(R.id.action_manage_coaches)?.isVisible = role == UserRole.COACH && hasTeam
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_switch_team -> { showSwitchTeamDialog(withCreateOption = true); true }
+            R.id.action_create_team -> { startActivity(Intent(this, CreateTeamActivity::class.java)); true }
+            R.id.action_add_team_via_code -> { startActivity(Intent(this, EnrollViaCodeActivity::class.java)); true }
+            R.id.action_manage_coaches -> { startActivity(Intent(this, ManageCoachesActivity::class.java)); true }
+            R.id.action_logout, R.id.action_switch_user -> { AuthManager.logout(this); startActivity(Intent(this, AuthActivity::class.java)); finish(); true }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun showSwitchTeamDialog(withCreateOption: Boolean = false) {
+        val user = AuthManager.currentUser(this) ?: return
+        lifecycleScope.launch(Dispatchers.IO) {
+            val teamIds = if (user.role == UserRole.COACH) AuthManager.getCoachTeams(this@MainActivity, user.email) else AuthManager.getSwimmerTeams(this@MainActivity, user.email)
+            val teams: List<Team> = teamIds.mapNotNull { db.teamDao().getById(it) }
+            withContext(Dispatchers.Main) {
+                val baseNames = teams.map { it.name }.toMutableList()
+                val actions = mutableListOf<() -> Unit>()
+                teams.forEach { team ->
+                    actions.add {
+                        AuthManager.setCurrentTeamId(this@MainActivity, team.id)
+                        updateTopRow()
+                        loadSwimmerCount()
+                        updateEmptyState()
+                        invalidateOptionsMenu()
+                    }
+                }
+                if (withCreateOption) {
+                    if (user.role == UserRole.COACH) {
+                        baseNames.add("+ Create Team")
+                        actions.add { startActivity(Intent(this@MainActivity, CreateTeamActivity::class.java)) }
+                        baseNames.add("+ Join Team via Code")
+                        actions.add { startActivity(Intent(this@MainActivity, JoinTeamByCodeActivity::class.java)) }
+                    } else {
+                        baseNames.add("+ Add Team via Code")
+                        actions.add { startActivity(Intent(this@MainActivity, EnrollViaCodeActivity::class.java)) }
+                    }
+                }
+                if (baseNames.isEmpty()) {
+                    Toast.makeText(this@MainActivity, "No teams", Toast.LENGTH_SHORT).show()
+                    return@withContext
+                }
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Select Team")
+                    .setItems(baseNames.toTypedArray()) { _, which -> actions[which].invoke() }
+                    .show()
+            }
+        }
+    }
+
+    private fun showAccountMenu() {
+        val user = AuthManager.currentUser(this)
+        if (user?.role == UserRole.COACH) {
+            val items = arrayOf("View Team Code", "Manage Coaches", "Logout")
+            AlertDialog.Builder(this)
+                .setTitle("Account")
+                .setItems(items) { _, which ->
+                    when (which) {
+                        0 -> showTeamCode()
+                        1 -> startActivity(Intent(this, ManageCoachesActivity::class.java))
+                        2 -> { AuthManager.logout(this); startActivity(Intent(this, AuthActivity::class.java)); finish() }
+                    }
+                }
+                .show()
+        } else {
+            val items = arrayOf("Logout")
+            AlertDialog.Builder(this)
+                .setTitle("Account")
+                .setItems(items) { _, which ->
+                    when (which) {
+                        0 -> { AuthManager.logout(this); startActivity(Intent(this, AuthActivity::class.java)); finish() }
+                    }
+                }
+                .show()
+        }
+    }
+
+    private fun showTeamCode() {
+        val teamId = AuthManager.currentTeamId(this)
+        if (teamId == null) {
+            Toast.makeText(this, "No team selected", Toast.LENGTH_SHORT).show()
+            return
+        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            val team = db.teamDao().getById(teamId)
+            withContext(Dispatchers.Main) {
+                if (team != null) {
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("${team.name} - Team Code")
+                        .setMessage("Share this code with swimmers to join your team:\n\n${team.joinCode}")
+                        .setPositiveButton("Copy Code") { _, _ ->
+                            val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clip = android.content.ClipData.newPlainText("Team Code", team.joinCode)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(this@MainActivity, "Code copied to clipboard", Toast.LENGTH_SHORT).show()
+                        }
+                        .setNegativeButton("Close", null)
+                        .show()
+                } else {
+                    Toast.makeText(this@MainActivity, "Team not found", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    // ...existing smartwatch helpers (handleSmartwatchConnection, updateSmartwatchButton, checkSmartwatchConnection, isPackageInstalled)...
 }

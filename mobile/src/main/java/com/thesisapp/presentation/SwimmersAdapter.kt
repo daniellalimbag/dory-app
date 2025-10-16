@@ -16,7 +16,8 @@ class SwimmersAdapter(
     private var swimmers: MutableList<Swimmer>,
     private val onEditClick: (Swimmer) -> Unit,
     private val onDeleteClick: (Swimmer) -> Unit,
-    private val onSwimmerClick: (Swimmer) -> Unit
+    private val onSwimmerClick: (Swimmer) -> Unit,
+    private val isCoach: Boolean = true
 ) : RecyclerView.Adapter<SwimmersAdapter.SwimmerViewHolder>() {
 
     // Memoization cache for calculated ages
@@ -24,6 +25,7 @@ class SwimmersAdapter(
 
     class SwimmerViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val name: TextView = view.findViewById(R.id.swimmerName)
+        val code: TextView? = view.findViewById(R.id.swimmerCode)
         val age: TextView = view.findViewById(R.id.swimmerAge)
         val height: TextView = view.findViewById(R.id.swimmerHeight)
         val weight: TextView = view.findViewById(R.id.swimmerWeight)
@@ -31,6 +33,7 @@ class SwimmersAdapter(
         val wingspan: TextView = view.findViewById(R.id.swimmerWingspan)
         val btnEdit: ImageButton = view.findViewById(R.id.btnEditSwimmer)
         val btnDelete: ImageButton = view.findViewById(R.id.btnDeleteSwimmer)
+        val btnCopyCode: ImageButton? = view.findViewById(R.id.btnCopySwimmerCode) // Fixed ID reference
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SwimmerViewHolder {
@@ -44,6 +47,7 @@ class SwimmersAdapter(
         val context = holder.itemView.context
 
         holder.name.text = swimmer.name
+        holder.code?.text = context.getString(R.string.swimmer_code, swimmer.code)
         holder.age.text = context.getString(R.string.swimmer_age, calculateAge(swimmer.birthday))
         holder.height.text = context.getString(R.string.swimmer_height, swimmer.height)
         holder.weight.text = context.getString(R.string.swimmer_weight, swimmer.weight)
@@ -54,12 +58,22 @@ class SwimmersAdapter(
             onSwimmerClick(swimmer)
         }
 
+        holder.btnEdit.visibility = if (isCoach) View.VISIBLE else View.GONE
+        holder.btnDelete.visibility = if (isCoach) View.VISIBLE else View.GONE
+
         holder.btnEdit.setOnClickListener {
             onEditClick(swimmer)
         }
 
         holder.btnDelete.setOnClickListener {
             onDeleteClick(swimmer)
+        }
+
+        holder.btnCopyCode?.setOnClickListener {
+            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val clip = android.content.ClipData.newPlainText("Swimmer Code", swimmer.code)
+            clipboard.setPrimaryClip(clip)
+            android.widget.Toast.makeText(context, "Code copied: ${swimmer.code}", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 

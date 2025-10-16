@@ -13,9 +13,9 @@ class SwimmerPagerAdapter(
 
     override fun createFragment(position: Int): Fragment {
         return when (position) {
-            0 -> SwimmerProfileFragment.newInstance(swimmer)
-            1 -> SwimmerStatsFragment.newInstance(swimmer)
-            2 -> SwimmerSessionsFragment.newInstance(swimmer)
+            0 -> SwimmerStatsFragment.newInstance(swimmer)      // Stats FIRST
+            1 -> SwimmerSessionsFragment.newInstance(swimmer)   // Sessions second
+            2 -> SwimmerProfileFragment.newInstance(swimmer)    // Profile last
             else -> throw IllegalArgumentException("Invalid position: $position")
         }
     }

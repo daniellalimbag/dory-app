@@ -24,17 +24,54 @@
         android:layout_marginBottom="8dp"
         android:text="Success"
         android:textColor="@color/text"
-        android:textSize="28dp"
+        android:textSize="28sp"
         android:textStyle="bold" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:text="Swimmer Code:"
+        android:textColor="@color/text"
+        android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:id="@+id/tvSwimmerCode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="@color/primary"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:fontFamily="monospace"
+            android:letterSpacing="0.1" />
+
+        <ImageButton
+            android:id="@+id/btnCopyCode"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@android:drawable/ic_menu_save"
+            android:contentDescription="Copy code"
+            android:tint="@color/primary" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginBottom="32dp"
-        android:text="Your swimmer has been\nadded successfully"
+        android:text="Share this code with the swimmer\nso they can enroll in your team"
         android:textAlignment="center"
         android:textColor="@color/register"
-        android:textSize="14dp" />
+        android:textSize="14sp" />
 
     <Button
         android:id="@+id/btnContinue"
@@ -43,6 +80,6 @@
         android:backgroundTint="@color/button"
         android:text="Continue"
         android:textColor="@android:color/black"
-        android:textSize="14dp"
+        android:textSize="14sp"
         android:textStyle="bold" />
 </LinearLayout>

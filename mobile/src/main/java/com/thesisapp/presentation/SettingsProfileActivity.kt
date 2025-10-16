@@ -7,6 +7,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
+import com.thesisapp.utils.AuthManager
+import com.thesisapp.utils.UserRole
 import com.thesisapp.utils.animateClick
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -35,7 +37,17 @@ class SettingsProfileActivity : AppCompatActivity() {
         }
 
         lifecycleScope.launch(Dispatchers.IO) {
-            val swimmer = AppDatabase.getInstance(applicationContext).swimmerDao().getAllSwimmers().firstOrNull()
+            val db = AppDatabase.getInstance(applicationContext)
+            val user = AuthManager.currentUser(this@SettingsProfileActivity)
+            val teamId = AuthManager.currentTeamId(this@SettingsProfileActivity)
+            val swimmer = when (user?.role) {
+                UserRole.SWIMMER -> {
+                    val swimmerId = AuthManager.getLinkedSwimmerId(this@SettingsProfileActivity, user.email, teamId)
+                    swimmerId?.let { db.swimmerDao().getById(it) }
+                }
+                UserRole.COACH -> db.swimmerDao().getAllSwimmers().firstOrNull()
+                else -> null
+            }
 
             withContext(Dispatchers.Main) {
                 if (swimmer != null) {

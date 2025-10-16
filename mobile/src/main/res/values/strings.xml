@@ -3,7 +3,8 @@
     <string name="swimmers_icon">Swimmers icon</string>
     <string name="sessions_icon">Sessions icon</string>
     <string name="swimmers_title">Swimmers</string>
-    <string name="enroll_swimmer">Enroll Swimmer</string>
+    <string name="enroll_swimmer">Add Swimmer</string>
+    <string name="enroll_in_team">Enroll in Team</string>
     <string name="swimmer_age">Age: %d</string>
     <string name="swimmer_height">Height: %.1f cm</string>
     <string name="swimmer_weight">Weight: %.1f kg</string>
@@ -52,4 +53,30 @@
     <string name="no_recent_sessions">No sessions in the last 2 months</string>
     <string name="start_tracking">Start tracking sessions to see statistics</string>
     <string name="last_two_months">Last 2 Months Average</string>
+    <string name="swimmer_code">Code: %1$s</string>
+
+    <!-- Join via Code -->
+    <string name="enter_code">Enter code</string>
+    <string name="invalid_code">Invalid code</string>
+    <string name="joined_team">Joined team</string>
+    <string name="manage_coaches">Manage Coaches</string>
+    <string name="team_join_code">Team Code: %1$s</string>
+    <string name="coaches">Coaches</string>
+    <string name="add_coach">Add Coach</string>
+    <string name="coach_email">Coach email</string>
+    <string name="remove">Remove</string>
+
+    <!-- Empty States -->
+    <string name="no_classes_coach">No classes yet</string>
+    <string name="no_classes_swimmer">No classes yet</string>
+    <string name="create_class">Create Class</string>
+    <string name="join_class_via_code">Join Class via Code</string>
+    <string name="add_class_via_code">Add Class via Code</string>
+
+    <!-- Manage Coaches -->
+    <string name="back">Back</string>
+    <string name="tap_coach_remove">Tap a coach to remove</string>
+
+    <!-- App Logo -->
+    <string name="app_logo">App Logo</string>
 </resources>

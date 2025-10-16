@@ -11,8 +11,17 @@ interface SwimmerDao {
     @Query("SELECT * FROM swimmers")
     fun getAllSwimmers(): List<Swimmer>
 
+    @Query("SELECT * FROM swimmers WHERE teamId = :teamId")
+    fun getSwimmersForTeam(teamId: Int): List<Swimmer>
+
+    @Query("SELECT * FROM swimmers WHERE code = :code LIMIT 1")
+    suspend fun getByCode(code: String): Swimmer?
+
+    @Query("SELECT * FROM swimmers WHERE id = :id")
+    suspend fun getById(id: Int): Swimmer?
+
     @Insert
-    fun insertSwimmer(swimmer: Swimmer)
+    fun insertSwimmer(swimmer: Swimmer): Long
 
     @Update
     fun updateSwimmer(swimmer: Swimmer)

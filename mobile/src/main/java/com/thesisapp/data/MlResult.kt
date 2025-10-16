@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 data class MlResult(
     @PrimaryKey(autoGenerate = true)
     val sessionId: Int,
+    val swimmerId: Int, // link to Swimmer
     val date: String,
     val timeStart: String,
     val timeEnd: String,

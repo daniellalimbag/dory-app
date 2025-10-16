@@ -104,8 +104,10 @@
 
     <!-- NumberPicker Style -->
     <style name="NumberPickerStyle">
-        <item name="android:textSize">18sp</item>
+        <item name="android:textSize">20sp</item>
         <item name="android:textColor">@color/text</item>
+        <item name="android:textColorPrimary">@color/text</item>
         <item name="colorControlNormal">@color/primary</item>
+        <item name="android:textColorSecondary">@color/text</item>
     </style>
 </resources>

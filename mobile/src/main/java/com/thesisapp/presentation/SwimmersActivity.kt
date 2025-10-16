@@ -2,7 +2,6 @@ package com.thesisapp.presentation
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -13,6 +12,8 @@ import com.google.android.material.floatingactionbutton.ExtendedFloatingActionBu
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.Swimmer
+import com.thesisapp.utils.AuthManager
+import com.thesisapp.utils.UserRole
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -24,59 +25,6 @@ class SwimmersActivity : AppCompatActivity() {
     private lateinit var adapter: SwimmersAdapter
     private lateinit var db: AppDatabase
 
-    // Using companion object to persist dummy data across activity restarts
-    companion object {
-        private val dummySwimmers = mutableListOf(
-            Swimmer(
-                id = 1,
-                name = "Michael Phelps",
-                birthday = "1985-06-30",
-                height = 193f,
-                weight = 91f,
-                sex = "Male",
-                wingspan = 201f
-            ),
-            Swimmer(
-                id = 2,
-                name = "Katie Ledecky",
-                birthday = "1997-03-17",
-                height = 183f,
-                weight = 73f,
-                sex = "Female",
-                wingspan = 185f
-            ),
-            Swimmer(
-                id = 3,
-                name = "Caeleb Dressel",
-                birthday = "1996-08-16",
-                height = 191f,
-                weight = 88f,
-                sex = "Male",
-                wingspan = 198f
-            ),
-            Swimmer(
-                id = 4,
-                name = "Emma McKeon",
-                birthday = "1994-05-24",
-                height = 180f,
-                weight = 68f,
-                sex = "Female",
-                wingspan = 182f
-            ),
-            Swimmer(
-                id = 5,
-                name = "Adam Peaty",
-                birthday = "1994-12-28",
-                height = 188f,
-                weight = 92f,
-                sex = "Male",
-                wingspan = 195f
-            )
-        )
-
-        private var nextId = 6
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_swimmers)
@@ -87,18 +35,25 @@ class SwimmersActivity : AppCompatActivity() {
         // Database instance ready for future use
         db = AppDatabase.getInstance(this)
 
+        val isCoach = AuthManager.currentUser(this)?.role == UserRole.COACH
+
         // Initialize adapter with callbacks
         adapter = SwimmersAdapter(
-            swimmers = dummySwimmers.toMutableList(),
-            onEditClick = { swimmer -> showEditDialog(swimmer) },
-            onDeleteClick = { swimmer -> showDeleteConfirmation(swimmer) },
-            onSwimmerClick = { swimmer -> openSwimmerProfile(swimmer) }
+            swimmers = mutableListOf(),
+            onEditClick = { swimmer -> if (isCoach) showEditDialog(swimmer) },
+            onDeleteClick = { swimmer -> if (isCoach) showDeleteConfirmation(swimmer) },
+            onSwimmerClick = { swimmer -> openSwimmerProfile(swimmer) },
+            isCoach = isCoach
         )
         recyclerView.adapter = adapter
 
         enrollFab.setOnClickListener {
-            // Navigate to enroll swimmer screen
-            startActivity(Intent(this, TrackAddSwimmerActivity::class.java))
+            val role = AuthManager.currentUser(this)?.role
+            if (role == UserRole.COACH) {
+                startActivity(Intent(this, TrackAddSwimmerActivity::class.java))
+            } else {
+                startActivity(Intent(this, EnrollViaCodeActivity::class.java))
+            }
         }
 
         // Add back button functionality
@@ -114,24 +69,25 @@ class SwimmersActivity : AppCompatActivity() {
     }
 
     private fun loadSwimmers() {
-        // Load swimmers from database on background thread
+        val user = AuthManager.currentUser(this)
+        val teamId = AuthManager.currentTeamId(this)
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val dbSwimmers = db.swimmerDao().getAllSwimmers()
-                withContext(Dispatchers.Main) {
-                    if (dbSwimmers.isNotEmpty()) {
-                        // Use database swimmers
-                        adapter.updateSwimmers(dbSwimmers.toMutableList())
-                    } else {
-                        // Use dummy data if database is empty
-                        adapter.updateSwimmers(dummySwimmers)
+                val swimmers: List<Swimmer> = when (user?.role) {
+                    UserRole.COACH -> if (teamId != null) db.swimmerDao().getSwimmersForTeam(teamId) else emptyList()
+                    UserRole.SWIMMER -> {
+                        val linked = AuthManager.getLinkedSwimmerId(this@SwimmersActivity, user.email, teamId)
+                        if (linked != null) listOfNotNull(db.swimmerDao().getById(linked)) else emptyList()
                     }
+                    else -> emptyList()
+                }
+                withContext(Dispatchers.Main) {
+                    adapter.updateSwimmers(swimmers)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    // Fallback to dummy data on error
-                    adapter.updateSwimmers(dummySwimmers)
-                    Toast.makeText(this@SwimmersActivity, "Using cached data", Toast.LENGTH_SHORT).show()
+                    adapter.updateSwimmers(emptyList())
+                    Toast.makeText(this@SwimmersActivity, "Unable to load swimmers", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -265,21 +221,19 @@ class SwimmersActivity : AppCompatActivity() {
     }
 
     private fun updateSwimmer(swimmer: Swimmer) {
-        // Update in dummy data list
-        val index = dummySwimmers.indexOfFirst { it.id == swimmer.id }
-        if (index != -1) {
-            dummySwimmers[index] = swimmer
-            adapter.updateSwimmers(dummySwimmers)
-            Toast.makeText(this, "Swimmer updated!", Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                db.swimmerDao().updateSwimmer(swimmer)
+                withContext(Dispatchers.Main) {
+                    loadSwimmers()
+                    Toast.makeText(this@SwimmersActivity, "Swimmer updated!", Toast.LENGTH_SHORT).show()
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@SwimmersActivity, "Update failed", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
-
-        // Database code ready for when you need it:
-        // CoroutineScope(Dispatchers.IO).launch {
-        //     db.swimmerDao().updateSwimmer(swimmer)
-        //     withContext(Dispatchers.Main) {
-        //         Toast.makeText(this@SwimmersActivity, "Swimmer updated!", Toast.LENGTH_SHORT).show()
-        //     }
-        // }
     }
 
     private fun showDeleteConfirmation(swimmer: Swimmer) {
@@ -294,19 +248,19 @@ class SwimmersActivity : AppCompatActivity() {
     }
 
     private fun deleteSwimmer(swimmer: Swimmer) {
-        // Remove from dummy data list
-        dummySwimmers.remove(swimmer)
-        adapter.removeSwimmer(swimmer)
-        Toast.makeText(this, "${swimmer.name} deleted", Toast.LENGTH_SHORT).show()
-
-        // Database code ready for when you need it:
-        // CoroutineScope(Dispatchers.IO).launch {
-        //     db.swimmerDao().deleteSwimmer(swimmer)
-        //     withContext(Dispatchers.Main) {
-        //         adapter.removeSwimmer(swimmer)
-        //         Toast.makeText(this@SwimmersActivity, "${swimmer.name} deleted", Toast.LENGTH_SHORT).show()
-        //     }
-        // }
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                db.swimmerDao().deleteSwimmer(swimmer)
+                withContext(Dispatchers.Main) {
+                    loadSwimmers()
+                    Toast.makeText(this@SwimmersActivity, "${swimmer.name} deleted", Toast.LENGTH_SHORT).show()
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@SwimmersActivity, "Delete failed", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     private fun openSwimmerProfile(swimmer: Swimmer) {

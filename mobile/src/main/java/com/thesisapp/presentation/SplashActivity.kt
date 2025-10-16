@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import androidx.appcompat.app.AppCompatActivity
 import com.thesisapp.R
+import com.thesisapp.utils.AuthManager
 
 class SplashActivity : AppCompatActivity() {
 
@@ -14,9 +15,10 @@ class SplashActivity : AppCompatActivity() {
         setContentView(R.layout.activity_splash)
 
         Handler(Looper.getMainLooper()).postDelayed({
-            val intent = Intent(this, MainActivity::class.java)
+            val next = if (AuthManager.isLoggedIn(this)) MainActivity::class.java else AuthActivity::class.java
+            val intent = Intent(this, next)
             startActivity(intent)
             finish()
-        }, 2000)
+        }, 1000)
     }
 }
