@@ -236,8 +236,8 @@
                     <ImageView
                         android:layout_width="56dp"
                         android:layout_height="56dp"
-                        android:src="@drawable/ic_history"
-                        android:contentDescription="@string/sessions_icon"/>
+                        android:contentDescription="@string/sessions_icon"
+                        android:src="@drawable/activity_svgrepo_com" />
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

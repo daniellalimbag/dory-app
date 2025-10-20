@@ -161,12 +161,14 @@ class MainActivity : AppCompatActivity() {
             if (user.role == UserRole.COACH) {
                 btnSwimmers.visibility = View.VISIBLE
                 btnEnrollSwimmer.visibility = View.VISIBLE
+                btnConnect.visibility = View.GONE // Hide connect button for coaches
                 // Title stays 'Swimmers' for coaches
                 findViewById<TextView>(R.id.tvSwimmersTitle)?.text = "Swimmers"
             } else {
                 // For swimmers: show 'Coaches' card instead of 'Swimmers'
                 btnSwimmers.visibility = View.VISIBLE
                 btnEnrollSwimmer.visibility = View.GONE
+                btnConnect.visibility = View.VISIBLE // Show connect button for swimmers
                 findViewById<TextView>(R.id.tvSwimmersTitle)?.text = "Coaches"
             }
             return
