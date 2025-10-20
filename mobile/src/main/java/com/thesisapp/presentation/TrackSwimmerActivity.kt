@@ -24,6 +24,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.thesisapp.R
+import com.thesisapp.communication.CommandErrorType
 import com.thesisapp.communication.PhoneReceiver
 import com.thesisapp.communication.PhoneSender
 import com.thesisapp.data.AppDatabase
@@ -47,6 +48,7 @@ class TrackSwimmerActivity : AppCompatActivity() {
     private lateinit var classifier: StrokeClassifier
     private lateinit var db: AppDatabase
     private val liveSensorData = MutableStateFlow<SwimData?>(null)
+    private val pendingUploadState = MutableStateFlow(false)
 
     private var swimmerId: Int = -1
     private var selectedExerciseTitles: ArrayList<String>? = null
@@ -61,7 +63,7 @@ class TrackSwimmerActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        receiver = PhoneReceiver(this, liveSensorData)
+    receiver = PhoneReceiver(this, liveSensorData, pendingUploadState)
         sender = PhoneSender(this)
         classifier = StrokeClassifier(this)
         db = AppDatabase.getInstance(applicationContext)
@@ -96,7 +98,8 @@ class TrackSwimmerActivity : AppCompatActivity() {
                         predictedLabel = receiver.predictedLabel,
                         db = db,
                         swimmerId = swimmerId,
-                        selectedTitles = selectedExerciseTitles?.toList()
+                        selectedTitles = selectedExerciseTitles?.toList(),
+                        pendingUploadState = pendingUploadState
                     )
                 }
             }
@@ -120,12 +123,15 @@ fun RealtimeSensorScreen(
     predictedLabel: State<String>,
     db: AppDatabase,
     swimmerId: Int,
-    selectedTitles: List<String>? = null
+    selectedTitles: List<String>? = null,
+    pendingUploadState: MutableStateFlow<Boolean>
 ) {
     val sensorData by sensorDataFlow.collectAsState(initial = null)
     var isRecording by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val strokeResults = mutableListOf<String>()
+    val pendingUpload by pendingUploadState.collectAsState()
+    var isCommandInFlight by remember { mutableStateOf(false) }
 
     var startTime by remember { mutableStateOf(0L) }
     var newSessionId = 0
@@ -202,9 +208,22 @@ fun RealtimeSensorScreen(
 
             Button(onClick = {
                 val target = !isRecording
+                if (target && pendingUpload) {
+                    Toast.makeText(
+                        context,
+                        "Sync in progress. Please wait before starting a new session.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@Button
+                }
+                if (isCommandInFlight) {
+                    return@Button
+                }
+                isCommandInFlight = true
                 phoneSender.sendCommand(
                     start = target,
                     onSuccess = {
+                        isCommandInFlight = false
                         isRecording = target
 
                         (context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
@@ -221,6 +240,7 @@ fun RealtimeSensorScreen(
                         }
 
                         if (!target) { // Recording stopped → save Session (and MLResult if data exists)
+                            pendingUploadState.value = true
                             (context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
                                 val swimDataList = db.swimDataDao().getSwimDataForSession(newSessionId)
 
@@ -279,10 +299,39 @@ fun RealtimeSensorScreen(
                             }
                         }
                     },
-                    onFailure = {
+                    onCommandError = { errorType ->
+                        isCommandInFlight = false
+                        when (errorType) {
+                            CommandErrorType.ALREADY_RECORDING -> Toast.makeText(
+                                context,
+                                "Watch is already recording.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            CommandErrorType.PENDING_UPLOAD -> {
+                                pendingUploadState.value = true
+                                Toast.makeText(
+                                    context,
+                                    "Watch is syncing the previous session.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                            CommandErrorType.NOT_RECORDING -> Toast.makeText(
+                                context,
+                                "Watch is not currently recording.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            CommandErrorType.UNKNOWN_COMMAND, CommandErrorType.UNKNOWN -> Toast.makeText(
+                                context,
+                                "Command rejected. Please try again.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    },
+                    onFailure = { message ->
+                        isCommandInFlight = false
                         Toast.makeText(
                             context,
-                            "Watch not listening. Please open the app on your watch.",
+                            message.ifBlank { "Watch not listening. Please open the app on your watch." },
                             Toast.LENGTH_SHORT
                         ).show()
                     }

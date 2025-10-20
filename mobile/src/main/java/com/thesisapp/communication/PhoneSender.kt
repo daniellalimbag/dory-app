@@ -17,29 +17,65 @@ class PhoneSender(private val context: Context) {
     companion object {
         private const val TAG = "PhoneSender"
         private const val COMMAND_PATH = "/sentCommands"
+        private const val COMMAND_ACK_PATH = "/commandAck"
+        private const val COMMAND_ERROR_PATH = "/commandError"
+        private const val ACK_SETTLE_DELAY_MS = 200L
+        private const val ACK_TIMEOUT_MS = 2000L
     }
 
     fun sendCommand(
         start: Boolean,
         onSuccess: () -> Unit,
-        onFailure: () -> Unit
+        onCommandError: (CommandErrorType) -> Unit,
+        onFailure: (String) -> Unit
     ) {
         val message = if (start) "START" else "STOP"
         val messageClient = Wearable.getMessageClient(context)
         val nodeClient = Wearable.getNodeClient(context)
 
         var ackReceived = false
+        var errorReceived = false
         val mainScope = CoroutineScope(Dispatchers.Main)
         var timeoutJob: Job? = null
+        var successJob: Job? = null
 
-        val ackListener = object : MessageClient.OnMessageReceivedListener {
+        lateinit var ackListener: MessageClient.OnMessageReceivedListener
+
+        fun cleanup() {
+            timeoutJob?.cancel()
+            successJob?.cancel()
+            messageClient.removeListener(ackListener)
+        }
+
+        ackListener = object : MessageClient.OnMessageReceivedListener {
             override fun onMessageReceived(event: MessageEvent) {
-                if (event.path == "/commandAck") {
-                    Log.d(TAG, "ACK received")
-                    ackReceived = true
-                    timeoutJob?.cancel()
-                    messageClient.removeListener(this)
-                    onSuccess()
+                when (event.path) {
+                    COMMAND_ACK_PATH -> {
+                        if (errorReceived) {
+                            return
+                        }
+                        Log.d(TAG, "ACK received")
+                        ackReceived = true
+                        timeoutJob?.cancel()
+                        successJob?.cancel()
+                        successJob = mainScope.launch {
+                            delay(ACK_SETTLE_DELAY_MS)
+                            if (!errorReceived) {
+                                cleanup()
+                                onSuccess()
+                            }
+                        }
+                    }
+                    COMMAND_ERROR_PATH -> {
+                        errorReceived = true
+                        timeoutJob?.cancel()
+                        successJob?.cancel()
+                        val payload = runCatching { event.data.decodeToString() }.getOrNull()
+                        val errorType = CommandErrorType.fromPayload(payload)
+                        Log.w(TAG, "Command error received: $payload")
+                        cleanup()
+                        mainScope.launch { onCommandError(errorType) }
+                    }
                 }
             }
         }
@@ -49,8 +85,8 @@ class PhoneSender(private val context: Context) {
         nodeClient.connectedNodes
             .addOnSuccessListener { nodes ->
                 if (nodes.isEmpty()) {
-                    messageClient.removeListener(ackListener)
-                    onFailure()
+                    cleanup()
+                    onFailure("No connected watch nodes")
                     return@addOnSuccessListener
                 }
 
@@ -66,26 +102,26 @@ class PhoneSender(private val context: Context) {
 
                             // Start timeout ONLY AFTER sending message
                             timeoutJob = mainScope.launch {
-                                delay(2000L)
+                                delay(ACK_TIMEOUT_MS)
                                 if (!ackReceived) {
                                     Log.w(TAG, "ACK timeout")
-                                    messageClient.removeListener(ackListener)
-                                    onFailure()
+                                    cleanup()
+                                    onFailure("Watch did not acknowledge command")
                                 }
                             }
                         }
                         .addOnFailureListener {
                             Log.e(TAG, "Failed to send message", it)
-                            messageClient.removeListener(ackListener)
+                            cleanup()
                             timeoutJob?.cancel()
-                            onFailure()
+                            onFailure("Failed to send command: ${it.message}")
                         }
                 }
             }
             .addOnFailureListener {
                 Log.e(TAG, "Failed to get connected nodes", it)
-                messageClient.removeListener(ackListener)
-                onFailure()
+                cleanup()
+                onFailure("Unable to reach connected nodes: ${it.message}")
             }
     }
 
