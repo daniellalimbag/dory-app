@@ -52,6 +52,7 @@
         <activity android:name=".presentation.exercises.energy.AddEditEnergySystemActivity" />
         <activity android:name=".presentation.swimmer.CoachesActivity" />
         <activity android:name=".presentation.swimmer.CoachDetailActivity" />
+        <activity android:name=".presentation.SelectExercisesActivity" />
     </application>
 
 

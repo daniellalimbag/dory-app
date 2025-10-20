@@ -1,6 +1,7 @@
 package com.thesisapp.presentation
 
 import android.content.Intent
+
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -27,11 +28,14 @@ import com.thesisapp.communication.PhoneReceiver
 import com.thesisapp.communication.PhoneSender
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.MlResult
+import com.thesisapp.data.Session
+import com.thesisapp.data.SessionRepository
 import com.thesisapp.data.SwimData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -45,6 +49,7 @@ class TrackSwimmerActivity : AppCompatActivity() {
     private val liveSensorData = MutableStateFlow<SwimData?>(null)
 
     private var swimmerId: Int = -1
+    private var selectedExerciseTitles: ArrayList<String>? = null
 
     init {
         try {
@@ -66,6 +71,8 @@ class TrackSwimmerActivity : AppCompatActivity() {
         setContentView(R.layout.track_swimmer)
 
         swimmerId = intent.getIntExtra("SWIMMER_ID", -1)
+        selectedExerciseTitles = intent.getStringArrayListExtra(SelectExercisesActivity.EXTRA_EXERCISE_TITLES)
+
         if (swimmerId <= 0) {
             Toast.makeText(this, "No swimmer selected", Toast.LENGTH_SHORT).show()
             finish()
@@ -88,7 +95,8 @@ class TrackSwimmerActivity : AppCompatActivity() {
                         phoneSender = sender,
                         predictedLabel = receiver.predictedLabel,
                         db = db,
-                        swimmerId = swimmerId
+                        swimmerId = swimmerId,
+                        selectedTitles = selectedExerciseTitles?.toList()
                     )
                 }
             }
@@ -111,7 +119,8 @@ fun RealtimeSensorScreen(
     phoneSender: PhoneSender,
     predictedLabel: State<String>,
     db: AppDatabase,
-    swimmerId: Int
+    swimmerId: Int,
+    selectedTitles: List<String>? = null
 ) {
     val sensorData by sensorDataFlow.collectAsState(initial = null)
     var isRecording by remember { mutableStateOf(false) }
@@ -211,26 +220,30 @@ fun RealtimeSensorScreen(
                             )
                         }
 
-                        if (!target) { // Recording stopped → save MLResult
+                        if (!target) { // Recording stopped → save Session (and MLResult if data exists)
                             (context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
                                 val swimDataList = db.swimDataDao().getSwimDataForSession(newSessionId)
 
+                                val formatterDate = java.text.SimpleDateFormat(
+                                    "MMMM dd, yyyy",
+                                    Locale.getDefault()
+                                )
+                                val formatterTime = java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+
+                                val firstTime = if (startTime > 0L) startTime else System.currentTimeMillis()
+                                val lastTimeMillis = if (swimDataList.isNotEmpty()) swimDataList.last().timestamp else System.currentTimeMillis()
+                                val lastTime = java.util.Date(lastTimeMillis)
+
+                                val timeStart = formatterTime.format(firstTime)
+                                val timeEnd = formatterTime.format(lastTime)
+                                val date = formatterDate.format(firstTime)
+
                                 if (swimDataList.isNotEmpty()) {
-                                    val formatterDate = java.text.SimpleDateFormat(
-                                        "MMMM dd, yyyy",
-                                        Locale.getDefault()
-                                    )
-                                    val formatterTime =
-                                        java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-
-                                    val firstTime = startTime
-                                    val lastTime = java.util.Date(swimDataList.last().timestamp)
-
-                                    val timeStart = formatterTime.format(firstTime)
-                                    val timeEnd = formatterTime.format(lastTime)
-                                    val date = formatterDate.format(firstTime)
-
                                     val percentages = calculateStrokePercentages(strokeResults)
+                                    val exerciseNotes = selectedTitles?.takeIf { it.isNotEmpty() }?.joinToString(
+                                        prefix = "Exercises: ",
+                                        separator = ", "
+                                    ) ?: "[Editable Text Field]"
 
                                     val mlResult = MlResult(
                                         sessionId = newSessionId,
@@ -242,11 +255,26 @@ fun RealtimeSensorScreen(
                                         breaststroke = percentages["breaststroke"] ?: 0f,
                                         butterfly = percentages["butterfly"] ?: 0f,
                                         freestyle = percentages["freestyle"] ?: 0f,
-                                        notes = "[Editable Text Field]"
+                                        notes = exerciseNotes
                                     )
-
                                     db.mlResultDao().insert(mlResult)
+                                }
 
+                                // Always add a lightweight Session entry for history list
+                                val swimmerName = db.swimmerDao().getById(swimmerId)?.name ?: "Swimmer $swimmerId"
+                                val fileName = "session_${swimmerId}_${newSessionId}.csv"
+                                val session = Session(
+                                    id = 0,
+                                    fileName = fileName,
+                                    date = date,
+                                    time = "$timeStart - $timeEnd",
+                                    swimmerName = swimmerName,
+                                    swimmerId = swimmerId
+                                )
+                                SessionRepository.add(session)
+
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Session saved", Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }

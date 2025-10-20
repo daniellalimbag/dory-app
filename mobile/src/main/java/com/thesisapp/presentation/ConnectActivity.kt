@@ -72,6 +72,7 @@ class ConnectActivity : AppCompatActivity() {
                 lifecycleScope.launch(Dispatchers.IO) {
                     val user = AuthManager.currentUser(this@ConnectActivity)
                     val teamId = AuthManager.currentTeamId(this@ConnectActivity)
+
                     if (user == null) {
                         withContext(Dispatchers.Main) {
                             startActivity(Intent(this@ConnectActivity, AuthActivity::class.java))
@@ -85,27 +86,14 @@ class ConnectActivity : AppCompatActivity() {
                                 Toast.makeText(this@ConnectActivity, "Please enroll into a team first", Toast.LENGTH_SHORT).show()
                                 startActivity(Intent(this@ConnectActivity, EnrollViaCodeActivity::class.java))
                             } else {
-                                val intent = Intent(this@ConnectActivity, TrackSwimmerActivity::class.java)
-                                intent.putExtra("SWIMMER_ID", swimmerId)
+                                val intent = Intent(this@ConnectActivity, SelectExercisesActivity::class.java)
+                                intent.putExtra(SelectExercisesActivity.EXTRA_SWIMMER_ID, swimmerId)
                                 startActivity(intent)
                             }
                         }
-                    } else { // Coach
-                        if (teamId == null) {
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(this@ConnectActivity, "Select or create a team first", Toast.LENGTH_SHORT).show()
-                                startActivity(Intent(this@ConnectActivity, CreateTeamActivity::class.java))
-                            }
-                            return@launch
-                        }
-                        val swimmers = db.swimmerDao().getSwimmersForTeam(teamId)
+                    } else { // Coach not allowed per requirements
                         withContext(Dispatchers.Main) {
-                            if (swimmers.isEmpty()) {
-                                val intent = Intent(this@ConnectActivity, TrackNoSwimmerActivity::class.java)
-                                startActivity(intent)
-                            } else {
-                                showSwimmerPicker(swimmers)
-                            }
+                            Toast.makeText(this@ConnectActivity, "Tracking is available for swimmers only", Toast.LENGTH_SHORT).show()
                         }
                     }
                 }
