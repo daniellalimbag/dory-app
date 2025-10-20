@@ -21,6 +21,14 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent">
 
+            <ImageView
+                android:id="@+id/ivLogo"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_marginEnd="12dp"
+                android:contentDescription="@null"
+                android:src="@drawable/logo" />
+
             <TextView
                 android:id="@+id/tvTeamSwitcher"
                 android:layout_width="0dp"
@@ -42,63 +50,7 @@
                 android:padding="8dp"/>
         </LinearLayout>
 
-        <!-- Empty State Container -->
-        <LinearLayout
-            android:id="@+id/emptyStateContainer"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center_horizontal"
-            android:padding="24dp"
-            app:layout_constraintTop_toBottomOf="@id/topRow"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/tvEmptyTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textColor="@color/text"
-                android:textSize="22sp"
-                android:textStyle="bold"
-                android:layout_marginTop="32dp"
-                android:layout_marginBottom="12dp"/>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnEmptyPrimary"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:backgroundTint="@color/primary"
-                android:textColor="@color/white"
-                app:cornerRadius="14dp"
-                android:layout_marginTop="8dp"/>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnEmptySecondary"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:backgroundTint="@color/button"
-                android:textColor="@android:color/black"
-                app:cornerRadius="14dp"
-                android:layout_marginTop="8dp"/>
-        </LinearLayout>
-
         <!-- Logo only -->
-        <ImageView
-            android:id="@+id/logo"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:src="@drawable/logo"
-            android:contentDescription="@string/app_logo"
-            app:layout_constraintTop_toBottomOf="@id/topRow"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginTop="24dp"
-            android:layout_marginBottom="32dp"/>
 
         <!-- Connect Button -->
         <com.google.android.material.button.MaterialButton
@@ -121,7 +73,7 @@
             app:iconTint="@color/white"
             app:elevation="12dp"
             app:strokeWidth="0dp"
-            app:layout_constraintTop_toBottomOf="@id/logo"
+            app:layout_constraintTop_toBottomOf="@id/topRow"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
@@ -279,20 +231,20 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Sessions"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="Recordings"
                             android:textColor="@color/text"
                             android:textSize="26sp"
-                            android:textStyle="bold"
-                            android:fontFamily="sans-serif-medium" />
+                            android:textStyle="bold" />
 
                         <TextView
                             android:id="@+id/tvSessionCount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="12 sessions"
+                            android:layout_marginTop="4dp"
+                            android:text="12 recordings"
                             android:textColor="@color/track"
-                            android:textSize="16sp"
-                            android:layout_marginTop="4dp"/>
+                            android:textSize="16sp" />
                     </LinearLayout>
 
                     <ImageView
@@ -304,22 +256,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Enroll Swimmer Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnEnrollSwimmer"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:text="@string/enroll_swimmer"
-            android:textSize="16sp"
-            android:backgroundTint="@color/primary"
-            android:textColor="@color/white"
-            app:cornerRadius="14dp"
-            android:layout_marginTop="32dp"
-            android:layout_marginBottom="24dp"
-            app:layout_constraintTop_toBottomOf="@id/btnSessions"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"/>
+        
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>

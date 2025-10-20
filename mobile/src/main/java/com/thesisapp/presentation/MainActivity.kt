@@ -12,7 +12,6 @@ import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import com.google.android.material.card.MaterialCardView
-import com.google.android.material.button.MaterialButton
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -34,7 +33,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnSwimmers: MaterialCardView
     private lateinit var btnExercises: MaterialCardView
     private lateinit var btnSessions: MaterialCardView
-    private lateinit var btnEnrollSwimmer: MaterialButton
     private lateinit var tvSwimmerCount: TextView
     private lateinit var tvSessionCount: TextView
     private var isSmartwatchConnected = false
@@ -42,11 +40,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvTeamSwitcher: TextView
     private lateinit var tvAccount: TextView
 
-    // Empty state views
-    private lateinit var emptyContainer: View
-    private lateinit var tvEmptyTitle: TextView
-    private lateinit var btnEmptyPrimary: MaterialButton
-    private lateinit var btnEmptySecondary: MaterialButton
 
     // Dummy data for UI
     private var swimmerCount = 5
@@ -59,17 +52,11 @@ class MainActivity : AppCompatActivity() {
         tvTeamSwitcher = findViewById(R.id.tvTeamSwitcher)
         tvAccount = findViewById(R.id.tvAccount)
 
-        // Empty state
-        emptyContainer = findViewById(R.id.emptyStateContainer)
-        tvEmptyTitle = findViewById(R.id.tvEmptyTitle)
-        btnEmptyPrimary = findViewById(R.id.btnEmptyPrimary)
-        btnEmptySecondary = findViewById(R.id.btnEmptySecondary)
 
         btnConnect = findViewById(R.id.btnConnect)
         btnSwimmers = findViewById(R.id.btnSwimmers)
         btnExercises = findViewById(R.id.btnExercises)
         btnSessions = findViewById(R.id.btnSessions)
-        btnEnrollSwimmer = findViewById(R.id.btnEnrollSwimmer)
         tvSwimmerCount = findViewById(R.id.tvSwimmerCount)
         tvSessionCount = findViewById(R.id.tvSessionCount)
 
@@ -109,15 +96,7 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, HistoryListActivity::class.java))
         }
 
-        btnEnrollSwimmer.setOnClickListener {
-            it.animateClick()
-            val role = AuthManager.currentUser(this)?.role
-            if (role == UserRole.COACH) {
-                startActivity(Intent(this, TrackAddSwimmerActivity::class.java))
-            } else {
-                startActivity(Intent(this, EnrollViaCodeActivity::class.java))
-            }
-        }
+        
     }
 
     override fun onResume() {
@@ -128,73 +107,21 @@ class MainActivity : AppCompatActivity() {
         checkSmartwatchConnection()
         updateTopRow()
         updateEmptyState()
-        updateButtonText()
-    }
-
-    private fun updateButtonText() {
-        val role = AuthManager.currentUser(this)?.role
-        if (role == UserRole.COACH) {
-            btnEnrollSwimmer.text = getString(R.string.enroll_swimmer)
-        } else {
-            btnEnrollSwimmer.text = getString(R.string.enroll_in_team)
-        }
     }
 
     private fun updateEmptyState() {
-        val user = AuthManager.currentUser(this)
-        if (user == null) return
-        val hasTeams = when (user.role) {
-            UserRole.COACH -> AuthManager.getCoachTeams(this, user.email).isNotEmpty()
-            UserRole.SWIMMER -> AuthManager.currentTeamId(this) != null || AuthManager.getSwimmerTeams(this, user.email).isNotEmpty()
-        }
-        if (hasTeams) {
-            // Show dashboard for both roles; swimmers get a tailored view (no add/enroll, 'Coaches' card)
-            // For coaches, show normal dashboard
-            emptyContainer.visibility = View.GONE
-            // Show main content
-            findViewById<View>(R.id.logo).visibility = View.VISIBLE
-            btnConnect.visibility = View.VISIBLE
-            btnExercises.visibility = View.VISIBLE
-            btnSessions.visibility = View.VISIBLE
-
-            // Swimmer dashboard tweaks
-            if (user.role == UserRole.COACH) {
-                btnSwimmers.visibility = View.VISIBLE
-                btnEnrollSwimmer.visibility = View.VISIBLE
-                btnConnect.visibility = View.GONE // Hide connect button for coaches
-                // Title stays 'Swimmers' for coaches
-                findViewById<TextView>(R.id.tvSwimmersTitle)?.text = "Swimmers"
-            } else {
-                // For swimmers: show 'Coaches' card instead of 'Swimmers'
-                btnSwimmers.visibility = View.VISIBLE
-                btnEnrollSwimmer.visibility = View.GONE
-                btnConnect.visibility = View.VISIBLE // Show connect button for swimmers
-                findViewById<TextView>(R.id.tvSwimmersTitle)?.text = "Coaches"
-            }
-            return
-        }
-        // Show empty state
-        emptyContainer.visibility = View.VISIBLE
-        findViewById<View>(R.id.logo).visibility = View.GONE
-        btnConnect.visibility = View.GONE
-        btnSwimmers.visibility = View.GONE
-        btnExercises.visibility = View.GONE
-        btnSessions.visibility = View.GONE
-        btnEnrollSwimmer.visibility = View.GONE
+        val user = AuthManager.currentUser(this) ?: return
+        // Always show main dashboard; adjust per role
+        btnExercises.visibility = View.VISIBLE
+        btnSessions.visibility = View.VISIBLE
+        btnSwimmers.visibility = View.VISIBLE
 
         if (user.role == UserRole.COACH) {
-            tvEmptyTitle.text = getString(R.string.no_classes_coach)
-            btnEmptyPrimary.text = getString(R.string.create_class)
-            btnEmptySecondary.text = getString(R.string.join_class_via_code)
-            btnEmptyPrimary.setOnClickListener { startActivity(Intent(this, CreateTeamActivity::class.java)) }
-            btnEmptySecondary.setOnClickListener { startActivity(Intent(this, JoinTeamByCodeActivity::class.java)) }
-            btnEmptySecondary.visibility = View.VISIBLE
+            btnConnect.visibility = View.GONE
+            findViewById<TextView>(R.id.tvSwimmersTitle)?.text = "Swimmers"
         } else {
-            // Swimmer with no teams: show only ONE button to enroll
-            tvEmptyTitle.text = getString(R.string.no_classes_swimmer)
-            btnEmptyPrimary.text = getString(R.string.enroll_in_team)
-            btnEmptyPrimary.setOnClickListener { startActivity(Intent(this, EnrollViaCodeActivity::class.java)) }
-            btnEmptySecondary.visibility = View.GONE // Hide second button for swimmers
+            btnConnect.visibility = View.VISIBLE
+            findViewById<TextView>(R.id.tvSwimmersTitle)?.text = "Coaches"
         }
     }
 

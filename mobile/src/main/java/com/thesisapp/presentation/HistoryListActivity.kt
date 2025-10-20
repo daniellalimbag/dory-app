@@ -18,6 +18,10 @@ import com.thesisapp.utils.UserRole
 import com.thesisapp.utils.animateClick
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class HistoryListActivity : AppCompatActivity() {
 
@@ -86,21 +90,25 @@ class HistoryListActivity : AppCompatActivity() {
             adapter.updateSessions(filteredSessions)
             return
         }
-        if (user.role == UserRole.SWIMMER) {
-            val teamId = AuthManager.currentTeamId(this)
-            val swimmerId = AuthManager.getLinkedSwimmerId(this, user.email, teamId)
-            filteredSessions = allSessions.filter { it.swimmerId == (swimmerId ?: -1) }
-        } else {
-            val teamId = AuthManager.currentTeamId(this)
-            if (teamId == null) {
-                filteredSessions = emptyList()
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result: List<Session> = if (user.role == UserRole.SWIMMER) {
+                val teamId = AuthManager.currentTeamId(this@HistoryListActivity)
+                val swimmerId = AuthManager.getLinkedSwimmerId(this@HistoryListActivity, user.email, teamId)
+                allSessions.filter { it.swimmerId == (swimmerId ?: -1) }
             } else {
-                // filter sessions whose swimmers belong to current team
-                val swimmerIds = db.swimmerDao().getSwimmersForTeam(teamId).map { it.id }.toSet()
-                filteredSessions = allSessions.filter { swimmerIds.contains(it.swimmerId) }
+                val teamId = AuthManager.currentTeamId(this@HistoryListActivity)
+                if (teamId == null) {
+                    emptyList()
+                } else {
+                    val swimmerIds = db.swimmerDao().getSwimmersForTeam(teamId).map { it.id }.toSet()
+                    allSessions.filter { swimmerIds.contains(it.swimmerId) }
+                }
+            }
+            val sorted = result.sortedByDescending { parseDate(it.date) }
+            withContext(Dispatchers.Main) {
+                filteredSessions = sorted
+                adapter.updateSessions(filteredSessions)
             }
         }
-        filteredSessions = filteredSessions.sortedByDescending { parseDate(it.date) }
-        adapter.updateSessions(filteredSessions)
     }
 }
