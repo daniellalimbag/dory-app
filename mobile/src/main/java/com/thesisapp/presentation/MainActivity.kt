@@ -96,7 +96,12 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, HistoryListActivity::class.java))
         }
 
-        
+        // Settings button
+        findViewById<View>(R.id.btnSettings).setOnClickListener {
+            it.animateClick()
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
+
     }
 
     override fun onResume() {
