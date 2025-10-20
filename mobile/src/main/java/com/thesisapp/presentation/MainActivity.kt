@@ -92,25 +92,8 @@ class MainActivity : AppCompatActivity() {
             it.animateClick()
             val user = AuthManager.currentUser(this)
             if (user?.role == UserRole.SWIMMER) {
-                val teamId = AuthManager.currentTeamId(this)
-                val swimmerId = AuthManager.getLinkedSwimmerId(this, user.email, teamId)
-                if (teamId == null || swimmerId == null) {
-                    startActivity(Intent(this, EnrollViaCodeActivity::class.java))
-                } else {
-                    lifecycleScope.launch(Dispatchers.IO) {
-                        val swimmer = db.swimmerDao().getById(swimmerId)
-                        withContext(Dispatchers.Main) {
-                            if (swimmer != null) {
-                                val intent = Intent(this@MainActivity, SwimmerProfileActivity::class.java).apply {
-                                    putExtra(SwimmerProfileActivity.EXTRA_SWIMMER, swimmer)
-                                }
-                                startActivity(intent)
-                            } else {
-                                Toast.makeText(this@MainActivity, "No swimmer linked", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-                }
+                // Swimmer: open Coaches list
+                startActivity(Intent(this, com.thesisapp.presentation.swimmer.CoachesActivity::class.java))
             } else {
                 startActivity(Intent(this, SwimmersActivity::class.java))
             }
@@ -162,32 +145,10 @@ class MainActivity : AppCompatActivity() {
         if (user == null) return
         val hasTeams = when (user.role) {
             UserRole.COACH -> AuthManager.getCoachTeams(this, user.email).isNotEmpty()
-            UserRole.SWIMMER -> AuthManager.getSwimmerTeams(this, user.email).isNotEmpty()
+            UserRole.SWIMMER -> AuthManager.currentTeamId(this) != null || AuthManager.getSwimmerTeams(this, user.email).isNotEmpty()
         }
         if (hasTeams) {
-            // Swimmers should go directly to their profile/stats view
-            if (user.role == UserRole.SWIMMER) {
-                val teamId = AuthManager.currentTeamId(this)
-                val swimmerId = AuthManager.getLinkedSwimmerId(this, user.email, teamId)
-                if (swimmerId != null) {
-                    // Redirect to swimmer profile with tabs (Stats, Sessions, Profile)
-                    lifecycleScope.launch(Dispatchers.IO) {
-                        val swimmer = db.swimmerDao().getById(swimmerId)
-                        withContext(Dispatchers.Main) {
-                            if (swimmer != null) {
-                                val intent = Intent(this@MainActivity, SwimmerProfileActivity::class.java).apply {
-                                    putExtra(SwimmerProfileActivity.EXTRA_SWIMMER, swimmer)
-                                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                                }
-                                startActivity(intent)
-                                finish()
-                            }
-                        }
-                    }
-                    return
-                }
-            }
-            
+            // Show dashboard for both roles; swimmers get a tailored view (no add/enroll, 'Coaches' card)
             // For coaches, show normal dashboard
             emptyContainer.visibility = View.GONE
             // Show main content
@@ -196,13 +157,17 @@ class MainActivity : AppCompatActivity() {
             btnExercises.visibility = View.VISIBLE
             btnSessions.visibility = View.VISIBLE
 
-            // Swimmers should NOT see the swimmers list - that's for coaches only
+            // Swimmer dashboard tweaks
             if (user.role == UserRole.COACH) {
                 btnSwimmers.visibility = View.VISIBLE
                 btnEnrollSwimmer.visibility = View.VISIBLE
+                // Title stays 'Swimmers' for coaches
+                findViewById<TextView>(R.id.tvSwimmersTitle)?.text = "Swimmers"
             } else {
-                btnSwimmers.visibility = View.GONE
+                // For swimmers: show 'Coaches' card instead of 'Swimmers'
+                btnSwimmers.visibility = View.VISIBLE
                 btnEnrollSwimmer.visibility = View.GONE
+                findViewById<TextView>(R.id.tvSwimmersTitle)?.text = "Coaches"
             }
             return
         }

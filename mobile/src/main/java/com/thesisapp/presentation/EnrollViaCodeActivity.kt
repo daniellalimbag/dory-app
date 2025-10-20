@@ -7,13 +7,8 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import com.thesisapp.R
-import com.thesisapp.data.AppDatabase
 import com.thesisapp.utils.AuthManager
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class EnrollViaCodeActivity : AppCompatActivity() {
 
@@ -28,31 +23,29 @@ class EnrollViaCodeActivity : AppCompatActivity() {
         btnBack.setOnClickListener { finish() }
 
         btnEnroll.setOnClickListener {
-            val code = inputCode.text.toString().trim().uppercase()
+            val code = inputCode.text.toString().trim()
             if (code.isEmpty()) {
                 Toast.makeText(this, "Enter code", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            lifecycleScope.launch(Dispatchers.IO) {
-                val db = AppDatabase.getInstance(this@EnrollViaCodeActivity)
-                val swimmer = db.swimmerDao().getByCode(code)
-                withContext(Dispatchers.Main) {
-                    if (swimmer == null) {
-                        Toast.makeText(this@EnrollViaCodeActivity, "Invalid code", Toast.LENGTH_SHORT).show()
-                    } else {
-                        val user = AuthManager.currentUser(this@EnrollViaCodeActivity)
-                        if (user == null) {
-                            Toast.makeText(this@EnrollViaCodeActivity, "Please login first", Toast.LENGTH_SHORT).show()
-                            return@withContext
-                        }
-                        AuthManager.linkSwimmerToTeam(this@EnrollViaCodeActivity, user.email, swimmer.teamId, swimmer.id)
-                        AuthManager.setCurrentTeamId(this@EnrollViaCodeActivity, swimmer.teamId)
-                        Toast.makeText(this@EnrollViaCodeActivity, "Enrolled in team", Toast.LENGTH_LONG).show()
-                        startActivity(Intent(this@EnrollViaCodeActivity, MainActivity::class.java))
-                        finish()
-                    }
-                }
+            // Dummy codes
+            val dummy = listOf("La Salle")
+            val isValid = dummy.any { it.equals(code, ignoreCase = true) }
+            if (!isValid) {
+                Toast.makeText(this, "Invalid team code", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
+            val user = AuthManager.currentUser(this)
+            if (user == null) {
+                Toast.makeText(this, "Please login first", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            // Mark as enrolled in-memory via a pseudo team id stored in preferences
+            val dummyTeamId = 999999 // Int to match expected type
+            AuthManager.setCurrentTeamId(this, dummyTeamId)
+            Toast.makeText(this, "Enrolled in team", Toast.LENGTH_LONG).show()
+            startActivity(Intent(this, MainActivity::class.java))
+            finish()
         }
     }
 }
