@@ -46,6 +46,10 @@
         <activity android:name=".presentation.SwimmersActivity" />
         <activity android:name=".presentation.SwimmerProfileActivity" />
         <activity android:name=".presentation.RegisterActivity" />
+        <activity android:name=".presentation.exercises.ExercisesActivity" />
+        <activity android:name=".presentation.exercises.AddExerciseActivity" />
+        <activity android:name=".presentation.exercises.energy.EnergySystemsActivity" />
+        <activity android:name=".presentation.exercises.energy.AddEditEnergySystemActivity" />
     </application>
 
 

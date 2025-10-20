@@ -32,6 +32,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var btnConnect: Button
     private lateinit var btnSwimmers: MaterialCardView
+    private lateinit var btnExercises: MaterialCardView
     private lateinit var btnSessions: MaterialCardView
     private lateinit var btnEnrollSwimmer: MaterialButton
     private lateinit var tvSwimmerCount: TextView
@@ -66,6 +67,7 @@ class MainActivity : AppCompatActivity() {
 
         btnConnect = findViewById(R.id.btnConnect)
         btnSwimmers = findViewById(R.id.btnSwimmers)
+        btnExercises = findViewById(R.id.btnExercises)
         btnSessions = findViewById(R.id.btnSessions)
         btnEnrollSwimmer = findViewById(R.id.btnEnrollSwimmer)
         tvSwimmerCount = findViewById(R.id.tvSwimmerCount)
@@ -112,6 +114,11 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startActivity(Intent(this, SwimmersActivity::class.java))
             }
+        }
+
+        btnExercises.setOnClickListener {
+            it.animateClick()
+            startActivity(Intent(this, com.thesisapp.presentation.exercises.ExercisesActivity::class.java))
         }
 
         btnSessions.setOnClickListener {
@@ -186,6 +193,7 @@ class MainActivity : AppCompatActivity() {
             // Show main content
             findViewById<View>(R.id.logo).visibility = View.VISIBLE
             btnConnect.visibility = View.VISIBLE
+            btnExercises.visibility = View.VISIBLE
             btnSessions.visibility = View.VISIBLE
 
             // Swimmers should NOT see the swimmers list - that's for coaches only
@@ -203,6 +211,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.logo).visibility = View.GONE
         btnConnect.visibility = View.GONE
         btnSwimmers.visibility = View.GONE
+        btnExercises.visibility = View.GONE
         btnSessions.visibility = View.GONE
         btnEnrollSwimmer.visibility = View.GONE
 

@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="16dp">
+
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_back"
+                android:contentDescription="Back" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Add/Edit Energy System"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <EditText
+                android:id="@+id/etCode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Code (e.g., EN1)" />
+
+            <EditText
+                android:id="@+id/etNamePurpose"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Name/Purpose" />
+
+            <EditText
+                android:id="@+id/etEffort"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Effort % of Max HR (e.g., 65–75%)" />
+
+            <EditText
+                android:id="@+id/etTypical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Typical Distance per Set (e.g., 1500–3000m)" />
+
+            <EditText
+                android:id="@+id/etRep"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Rep Distance (e.g., 100–400m)" />
+
+            <EditText
+                android:id="@+id/etRest"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Rest Interval (e.g., 10–20s)" />
+
+            <EditText
+                android:id="@+id/etDuration"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Total Duration / Set (e.g., 20–40 mins)" />
+
+            <EditText
+                android:id="@+id/etExample"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Example Workout" />
+
+            <Button
+                android:id="@+id/btnSave"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Save"
+                android:layout_marginTop="16dp" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
