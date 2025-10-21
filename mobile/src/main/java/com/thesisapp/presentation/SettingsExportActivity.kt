@@ -18,6 +18,11 @@ import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
 import java.util.*
+import android.content.ContentValues
+import android.os.Build
+import android.provider.MediaStore
+import java.io.OutputStreamWriter
+import android.media.MediaScannerConnection
 
 class SettingsExportActivity : AppCompatActivity() {
 
@@ -125,20 +130,51 @@ class SettingsExportActivity : AppCompatActivity() {
             }
 
             val fileName = "swim_data_export_${System.currentTimeMillis()}.csv"
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val file = File(downloadsDir, fileName)
 
-            FileWriter(file).use { writer ->
-                writer.appendLine("session_id,timestamp,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,heart_rate,ppg,ecg")
-                for (data in swimDataList) {
-                    writer.appendLine("${data.sessionId},${data.timestamp},${data.accel_x},${data.accel_y},${data.accel_z}," +
-                            "${data.gyro_x},${data.gyro_y},${data.gyro_z}," +
-                            "${data.heart_rate},${data.ppg},${data.ecg}")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+                    put(MediaStore.Downloads.MIME_TYPE, "text/csv")
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
                 }
-            }
-
-            withContext(Dispatchers.Main) {
-                Toast.makeText(this@SettingsExportActivity, "Data exported to ${file.name}", Toast.LENGTH_LONG).show()
+                val resolver = contentResolver
+                val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                if (uri == null) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@SettingsExportActivity, "Failed to create export file", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+                resolver.openOutputStream(uri)?.use { out ->
+                    OutputStreamWriter(out).use { writer ->
+                        writer.appendLine("session_id,timestamp,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,heart_rate,ppg,ecg")
+                        for (data in swimDataList) {
+                            writer.appendLine("${data.sessionId},${data.timestamp},${data.accel_x},${data.accel_y},${data.accel_z}," +
+                                    "${data.gyro_x},${data.gyro_y},${data.gyro_z}," +
+                                    "${data.heart_rate},${data.ppg},${data.ecg}")
+                        }
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@SettingsExportActivity, "Data exported to Downloads/$fileName", Toast.LENGTH_LONG).show()
+                }
+            } else {
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!downloadsDir.exists()) downloadsDir.mkdirs()
+                val file = File(downloadsDir, fileName)
+                FileWriter(file).use { writer ->
+                    writer.appendLine("session_id,timestamp,accel_x,accel_y,accel_z,gyro_x,gyro_y,gyro_z,heart_rate,ppg,ecg")
+                    for (data in swimDataList) {
+                        writer.appendLine("${data.sessionId},${data.timestamp},${data.accel_x},${data.accel_y},${data.accel_z}," +
+                                "${data.gyro_x},${data.gyro_y},${data.gyro_z}," +
+                                "${data.heart_rate},${data.ppg},${data.ecg}")
+                    }
+                }
+                // Make it visible to file managers / gallery apps
+                MediaScannerConnection.scanFile(this@SettingsExportActivity, arrayOf(file.absolutePath), arrayOf("text/csv"), null)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@SettingsExportActivity, "Data exported to ${file.absolutePath}", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
