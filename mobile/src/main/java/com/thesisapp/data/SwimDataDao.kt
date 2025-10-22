@@ -2,6 +2,7 @@ package com.thesisapp.data
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import java.util.Date
 
@@ -9,6 +10,9 @@ import java.util.Date
 interface SwimDataDao {
     @Insert
     fun insert(swimData: SwimData)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(swimData: List<SwimData>)
 
     @Query("SELECT * FROM swim_data WHERE timestamp BETWEEN :fromDate AND :toDate")
     fun getSwimsBetweenDates(fromDate: Long, toDate: Long): List<SwimData>

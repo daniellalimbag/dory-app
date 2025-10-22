@@ -19,6 +19,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var btnReturn: ImageButton
     private lateinit var btnProfile: LinearLayout
+    private lateinit var btnImport: LinearLayout
     private lateinit var btnExport: LinearLayout
     private lateinit var btnClearAllData: LinearLayout
     private lateinit var btnClearAll: LinearLayout
@@ -29,6 +30,7 @@ class SettingsActivity : AppCompatActivity() {
 
         btnReturn = findViewById(R.id.btnReturn)
         btnProfile = findViewById(R.id.btnProfile)
+        btnImport = findViewById(R.id.btnImport)
         btnExport = findViewById(R.id.btnExport)
         btnClearAllData = findViewById(R.id.btnClearAllData)
         btnClearAll = findViewById(R.id.btnClearAll)
@@ -36,6 +38,12 @@ class SettingsActivity : AppCompatActivity() {
         btnProfile.setOnClickListener {
             it.animateClick()
             val intent = Intent(this, SettingsProfileActivity::class.java)
+            startActivity(intent)
+        }
+
+        btnImport.setOnClickListener {
+            it.animateClick()
+            val intent = Intent(this, SettingsImportActivity::class.java)
             startActivity(intent)
         }
 
