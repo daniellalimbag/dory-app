@@ -16,6 +16,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import java.util.concurrent.atomic.AtomicInteger
+import com.thesisapp.data.Session
+import com.thesisapp.data.SessionRepository
+import java.util.Locale
+import java.util.Date
 
 class PhoneReceiver(
     private val context: Context,
@@ -148,6 +152,25 @@ class PhoneReceiver(
                     val dao = AppDatabase.getInstance(context).swimDataDao()
                     records.forEach { dao.insert(it) }
                     Log.d(TAG, "Persisted ${records.size} records for session $sessionId")
+
+                    // Immediately add a lightweight Session to UI history
+                    if (records.isNotEmpty()) {
+                        val first = records.minByOrNull { it.timestamp }?.timestamp ?: System.currentTimeMillis()
+                        val last = records.maxByOrNull { it.timestamp }?.timestamp ?: first
+                        val formatterDate = java.text.SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
+                        val formatterTime = java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                        val date = formatterDate.format(Date(first))
+                        val time = "${formatterTime.format(Date(first))} - ${formatterTime.format(Date(last))}"
+                        val session = Session(
+                            id = 0,
+                            fileName = "session_${sessionId}.csv",
+                            date = date,
+                            time = time,
+                            swimmerName = "Swimmer",
+                            swimmerId = -1
+                        )
+                        SessionRepository.add(session)
+                    }
                 } finally {
                     val remainingWrites = activeWrites.decrementAndGet().coerceAtLeast(0)
                     synchronized(sessionLock) {

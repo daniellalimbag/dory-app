@@ -22,6 +22,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Date
 
 class HistoryListActivity : AppCompatActivity() {
 
@@ -48,6 +49,11 @@ class HistoryListActivity : AppCompatActivity() {
         }
         recyclerView.adapter = adapter
 
+        // Load from persistent storage so recordings always show
+        lifecycleScope.launch(Dispatchers.IO) {
+            preloadSessionsFromDatabase()
+        }
+
         // Observe repository
         SessionRepository.getSessions().observe(this) { list ->
             allSessions = list
@@ -57,6 +63,14 @@ class HistoryListActivity : AppCompatActivity() {
         btnReturn.setOnClickListener {
             it.animateClick()
             finish()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh from Room when returning to this screen
+        lifecycleScope.launch(Dispatchers.IO) {
+            preloadSessionsFromDatabase()
         }
     }
 
@@ -84,31 +98,63 @@ class HistoryListActivity : AppCompatActivity() {
     }
 
     private fun applyRoleFilterAndSort() {
-        val user = AuthManager.currentUser(this)
-        if (user == null) {
-            filteredSessions = emptyList()
-            adapter.updateSessions(filteredSessions)
-            return
-        }
-        lifecycleScope.launch(Dispatchers.IO) {
-            val result: List<Session> = if (user.role == UserRole.SWIMMER) {
-                val teamId = AuthManager.currentTeamId(this@HistoryListActivity)
-                val swimmerId = AuthManager.getLinkedSwimmerId(this@HistoryListActivity, user.email, teamId)
-                allSessions.filter { it.swimmerId == (swimmerId ?: -1) }
-            } else {
-                val teamId = AuthManager.currentTeamId(this@HistoryListActivity)
-                if (teamId == null) {
-                    emptyList()
-                } else {
-                    val swimmerIds = db.swimmerDao().getSwimmersForTeam(teamId).map { it.id }.toSet()
-                    allSessions.filter { swimmerIds.contains(it.swimmerId) }
+        // Always show all sessions to ensure recordings are visible regardless of login/role
+        val sorted = allSessions.sortedByDescending { parseDate(it.date) }
+        filteredSessions = sorted
+        adapter.updateSessions(filteredSessions)
+    }
+
+    private suspend fun preloadSessionsFromDatabase() {
+        try {
+            val mlDao = db.mlResultDao()
+            val swimmerDao = db.swimmerDao()
+            val summaries = mlDao.getSessionSummaries()
+
+            if (summaries.isNotEmpty()) {
+                // Reset and repopulate from ML results to ensure consistency
+                SessionRepository.clear()
+                for (ml in summaries) {
+                    val swimmerName = swimmerDao.getById(ml.swimmerId)?.name ?: "Swimmer ${ml.swimmerId}"
+                    val session = Session(
+                        id = 0,
+                        fileName = "session_${ml.swimmerId}_${ml.sessionId}.csv",
+                        date = ml.date,
+                        time = "${ml.timeStart} - ${ml.timeEnd}",
+                        swimmerName = swimmerName,
+                        swimmerId = ml.swimmerId
+                    )
+                    SessionRepository.add(session)
                 }
+                return
             }
-            val sorted = result.sortedByDescending { parseDate(it.date) }
-            withContext(Dispatchers.Main) {
-                filteredSessions = sorted
-                adapter.updateSessions(filteredSessions)
+
+            // Fallback: derive sessions from raw SwimData if ML results are absent
+            val swimDao = db.swimDataDao()
+            val allSwims = swimDao.getSwimsBetweenDates(0L, Long.MAX_VALUE)
+            if (allSwims.isEmpty()) return
+
+            SessionRepository.clear()
+            val bySession = allSwims.groupBy { it.sessionId }
+            val formatterDate = java.text.SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
+            val formatterTime = java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+            for ((sid, records) in bySession.entries.sortedByDescending { it.key }) {
+                val first = records.minByOrNull { it.timestamp }?.timestamp ?: System.currentTimeMillis()
+                val last = records.maxByOrNull { it.timestamp }?.timestamp ?: first
+                val date = formatterDate.format(Date(first))
+                val time = "${formatterTime.format(Date(first))} - ${formatterTime.format(Date(last))}"
+                val swimmerName = "Swimmer"
+                val session = Session(
+                    id = 0,
+                    fileName = "session_$sid.csv",
+                    date = date,
+                    time = time,
+                    swimmerName = swimmerName,
+                    swimmerId = -1
+                )
+                SessionRepository.add(session)
             }
+        } catch (_: Exception) {
+            // Ignore and show whatever is available
         }
     }
 }
