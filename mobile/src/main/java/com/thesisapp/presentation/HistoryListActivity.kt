@@ -45,7 +45,15 @@ class HistoryListActivity : AppCompatActivity() {
         db = AppDatabase.getInstance(this)
 
         adapter = HistoryListAdapter(emptyList()) { session ->
-            Toast.makeText(this, "View session: ${session.fileName}", Toast.LENGTH_SHORT).show()
+            // This lambda is the 'onViewDetailsClick' implementation
+            val intent = Intent(this, HistorySessionActivity::class.java).apply {
+                // Pass the unique session identifier to the details activity.
+                // The file name is a good candidate for a unique ID here.
+                putExtra("EXTRA_SESSION_FILENAME", session.fileName)
+                putExtra("EXTRA_SESSION_DATE", session.date)
+                putExtra("EXTRA_SESSION_TIME", session.time)
+            }
+            startActivity(intent)
         }
         recyclerView.adapter = adapter
 

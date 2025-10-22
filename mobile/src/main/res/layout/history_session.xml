@@ -86,6 +86,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
                     android:text="Duration: "
                     android:textColor="@color/black"
                     android:textSize="14dp" />
@@ -159,7 +160,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Stroke Distribution: "
+                    android:text="Kinematic Performance: "
                     android:textColor="@color/black"
                     android:textSize="14dp"
                     android:textStyle="bold" />
@@ -176,12 +177,12 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="30dp"
-                    android:text="Backstroke: "
+                    android:text="Swimming Velocity: "
                     android:textColor="@color/black"
                     android:textSize="14dp" />
 
                 <TextView
-                    android:id="@+id/txtStrokeBack"
+                    android:id="@+id/txtSwimmingVelocity"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="..."
@@ -200,13 +201,13 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="21dp"
-                    android:text="Breaststroke: "
+                    android:layout_marginEnd="77dp"
+                    android:text="Stroke Rate: "
                     android:textColor="@color/black"
                     android:textSize="14dp" />
 
                 <TextView
-                    android:id="@+id/txtStrokeBreast"
+                    android:id="@+id/txtStrokeRate"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="..."
@@ -225,13 +226,13 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="48dp"
-                    android:text="Butterfly: "
+                    android:layout_marginEnd="63dp"
+                    android:text="Stroke Length: "
                     android:textColor="@color/black"
                     android:textSize="14dp" />
 
                 <TextView
-                    android:id="@+id/txtStrokeFly"
+                    android:id="@+id/txtStrokeLength"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="..."
@@ -250,13 +251,13 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="43dp"
-                    android:text="Freestyle: "
+                    android:layout_marginEnd="72dp"
+                    android:text="Stroke Index: "
                     android:textColor="@color/black"
                     android:textSize="14dp" />
 
                 <TextView
-                    android:id="@+id/txtStrokeFree"
+                    android:id="@+id/txtStrokeIndex"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="..."
@@ -284,7 +285,7 @@
                     android:id="@+id/inputNotes"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="[Editable Text Field]"
+                    android:text=" "
                     android:textColor="@color/details"
                     android:textSize="16dp"
                     android:textStyle="bold" />

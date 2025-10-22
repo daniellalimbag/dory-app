@@ -17,7 +17,7 @@ class HistoryListAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SessionViewHolder {
         val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_history, parent, false)
+            .inflate(R.layout.item_session, parent, false)
         return SessionViewHolder(view)
     }
 
@@ -29,11 +29,6 @@ class HistoryListAdapter(
         holder.txtSwimmer.text = session.swimmerName
 
         holder.btnViewDetails.setOnClickListener {
-            it.animateClick()
-            onViewDetailsClick(session)
-        }
-
-        holder.itemView.setOnClickListener {
             it.animateClick()
             onViewDetailsClick(session)
         }

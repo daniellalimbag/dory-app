@@ -15,9 +15,9 @@ class SessionsAdapter(
 ) : RecyclerView.Adapter<SessionsAdapter.SessionViewHolder>() {
 
     class SessionViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val date: TextView = view.findViewById(R.id.sessionDate)
-        val time: TextView = view.findViewById(R.id.sessionTime)
-        val swimmer: TextView = view.findViewById(R.id.sessionSwimmer)
+        val date: TextView = view.findViewById(R.id.txtDate)
+        val time: TextView = view.findViewById(R.id.txtTime)
+        val swimmer: TextView = view.findViewById(R.id.txtSwimmer)
         val btnViewDetails: Button = view.findViewById(R.id.btnViewDetails)
     }
 
