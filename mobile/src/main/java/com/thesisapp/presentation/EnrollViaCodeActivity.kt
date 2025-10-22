@@ -65,16 +65,28 @@ class EnrollViaCodeActivity : AppCompatActivity() {
                         AuthManager.addSwimmerTeam(this@EnrollViaCodeActivity, user.email, team.id)
                         AuthManager.setCurrentTeamId(this@EnrollViaCodeActivity, team.id)
 
-                        // Auto-create a swimmer profile and link it so tracking can start
-                        val placeholderName = user.email.substringBefore('@').replaceFirstChar { it.uppercase() }
+                        // Build swimmer from saved profile (if any) to avoid placeholders
+                        val p = getSharedPreferences("profile_prefs", android.content.Context.MODE_PRIVATE)
+                        val name = p.getString("${'$'}{user.email}.name", null)
+                        val height = p.getFloat("${'$'}{user.email}.height", -1f)
+                        val weight = p.getFloat("${'$'}{user.email}.weight", -1f)
+                        val wingspan = p.getFloat("${'$'}{user.email}.wingspan", -1f)
+                        val sex = p.getString("${'$'}{user.email}.sex", "Unknown") ?: "Unknown"
+                        val birthday = p.getString("${'$'}{user.email}.birthday", "2000-01-01") ?: "2000-01-01"
+
+                        val resolvedName = name ?: user.email.substringBefore('@').replaceFirstChar { it.uppercase() }
+                        val resolvedHeight = if (height > 0f) height else 170f
+                        val resolvedWeight = if (weight > 0f) weight else 60f
+                        val resolvedWingspan = if (wingspan > 0f) wingspan else 170f
+
                         val swimmer = Swimmer(
                             teamId = team.id,
-                            name = placeholderName,
-                            birthday = "2000-01-01",
-                            height = 170f,
-                            weight = 60f,
-                            sex = "Unknown",
-                            wingspan = 170f,
+                            name = resolvedName,
+                            birthday = birthday,
+                            height = resolvedHeight,
+                            weight = resolvedWeight,
+                            sex = sex,
+                            wingspan = resolvedWingspan,
                             code = CodeGenerator.code(6)
                         )
                         val newId = db.swimmerDao().insertSwimmer(swimmer).toInt()

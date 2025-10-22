@@ -8,7 +8,6 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.Swimmer
@@ -21,7 +20,6 @@ import kotlinx.coroutines.withContext
 class SwimmersActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
-    private lateinit var enrollFab: ExtendedFloatingActionButton
     private lateinit var adapter: SwimmersAdapter
     private lateinit var db: AppDatabase
 
@@ -30,7 +28,6 @@ class SwimmersActivity : AppCompatActivity() {
         setContentView(R.layout.activity_swimmers)
 
         recyclerView = findViewById(R.id.swimmersRecyclerView)
-        enrollFab = findViewById(R.id.enrollSwimmerFab)
 
         // Database instance ready for future use
         db = AppDatabase.getInstance(this)
@@ -46,15 +43,6 @@ class SwimmersActivity : AppCompatActivity() {
             isCoach = isCoach
         )
         recyclerView.adapter = adapter
-
-        enrollFab.setOnClickListener {
-            val role = AuthManager.currentUser(this)?.role
-            if (role == UserRole.COACH) {
-                startActivity(Intent(this, TrackAddSwimmerActivity::class.java))
-            } else {
-                startActivity(Intent(this, EnrollViaCodeActivity::class.java))
-            }
-        }
 
         // Add back button functionality
         findViewById<ImageButton>(R.id.btnBack)?.setOnClickListener {

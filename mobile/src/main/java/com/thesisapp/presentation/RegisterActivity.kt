@@ -74,13 +74,8 @@ class RegisterActivity : AppCompatActivity() {
                 finish()
             }
             UserRole.SWIMMER -> {
-                val user = AuthManager.currentUser(this)!!
-                val teams = AuthManager.getSwimmerTeams(this, user.email)
-                // Always go to MainActivity - it will show empty state if no teams
-                if (teams.isNotEmpty()) {
-                    AuthManager.setCurrentTeamId(this, teams.first())
-                }
-                startActivity(Intent(this, MainActivity::class.java))
+                // First, let the swimmer set up their profile (height/weight/wingspan/sex/birthday)
+                startActivity(Intent(this, SwimmerProfileSetupActivity::class.java))
                 finish()
             }
         }
