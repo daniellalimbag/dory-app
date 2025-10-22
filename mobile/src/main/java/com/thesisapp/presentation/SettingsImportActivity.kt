@@ -47,7 +47,7 @@ class SettingsImportActivity : AppCompatActivity() {
 
         btnSelectFile.setOnClickListener {
             it.animateClick()
-            filePickerLauncher.launch("text/csv")
+            filePickerLauncher.launch("text/*")
         }
 
         btnImport.setOnClickListener {
