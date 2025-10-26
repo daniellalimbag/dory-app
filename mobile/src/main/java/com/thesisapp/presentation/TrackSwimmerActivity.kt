@@ -141,19 +141,7 @@ fun RealtimeSensorScreen(
             if (data.timestamp <= startTime) return@LaunchedEffect
 
             if (isRecording) {
-                val swim = SwimData(
-                    sessionId = newSessionId,
-                    timestamp = System.currentTimeMillis(),
-                    accel_x = data.accel_x,
-                    accel_y = data.accel_y,
-                    accel_z = data.accel_z,
-                    gyro_x = data.gyro_x,
-                    gyro_y = data.gyro_y,
-                    gyro_z = data.gyro_z,
-                    heart_rate = data.heart_rate,
-                    ppg = data.ppg,
-                    ecg = data.ecg
-                )
+                val swim = data.copy(sessionId = newSessionId)
 
                 (context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
                     db.swimDataDao().insert(swim)
@@ -251,7 +239,7 @@ fun RealtimeSensorScreen(
                                 val formatterTime = java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault())
 
                                 val firstTime = if (startTime > 0L) startTime else System.currentTimeMillis()
-                                val lastTimeMillis = if (swimDataList.isNotEmpty()) swimDataList.last().timestamp else System.currentTimeMillis()
+                                val lastTimeMillis = if (swimDataList.isNotEmpty()) swimDataList.maxByOrNull { it.timestamp }?.timestamp ?: System.currentTimeMillis() else System.currentTimeMillis()
                                 val lastTime = java.util.Date(lastTimeMillis)
 
                                 val timeStart = formatterTime.format(firstTime)

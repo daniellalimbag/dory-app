@@ -82,14 +82,8 @@ class PhoneReceiver(
 
             // 🔥 Fast UI update
             liveSensorFlow.value = sensorData
-
-            // 💾 Background DB insert
-            CoroutineScope(Dispatchers.IO).launch {
-                AppDatabase.getInstance(context)
-                    .swimDataDao()
-                    .insert(sensorData)
-                Log.d(TAG, "Inserted received sensor data into database.")
-            }
+            // Note: Do not persist live data here. Persistence is handled when recording
+            // from TrackSwimmerActivity to avoid duplicate/unsynchronized timestamps.
         } catch (e: Exception) {
             Log.e(TAG, "Failed to deserialize SensorData: ${e.message}", e)
         }
