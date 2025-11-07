@@ -153,6 +153,9 @@ class PhoneReceiver(
                         val last = records.maxByOrNull { it.timestamp }?.timestamp ?: first
                         val formatterDate = java.text.SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
                         val formatterTime = java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                        val tz = java.util.TimeZone.getTimeZone("Asia/Manila")
+                        formatterDate.timeZone = tz
+                        formatterTime.timeZone = tz
                         val date = formatterDate.format(Date(first))
                         val time = "${formatterTime.format(Date(first))} - ${formatterTime.format(Date(last))}"
                         val session = Session(

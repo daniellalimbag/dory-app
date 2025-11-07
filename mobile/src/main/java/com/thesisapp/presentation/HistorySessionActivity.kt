@@ -10,6 +10,8 @@ import androidx.lifecycle.lifecycleScope
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.MlResult
+import com.thesisapp.data.SwimData
+import com.thesisapp.utils.StrokeMetrics
 import com.thesisapp.utils.animateClick
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,12 +57,13 @@ class HistorySessionActivity : AppCompatActivity() {
         // 2. Immediately display the data from the Session object
         displaySessionInfo(sessionDate, sessionTime)
 
-        // 3. Display the statically calculated kinematic metrics
-        // As you noted, these are currently placeholders and don't require the database.
-        displayKinematicMetrics()
+        // 3. Compute kinematic metrics from stored sensor data
+        val sessionId = sessionFileName.removeSuffix(".csv").split("_").lastOrNull()?.toIntOrNull()
+        if (sessionId != null) {
+            computeAndDisplayKinematicMetrics(sessionId)
+        }
 
         // 4. Load the MlResult from the database specifically for dynamic data (notes)
-        val sessionId = sessionFileName.removeSuffix(".csv").split("_").lastOrNull()?.toIntOrNull()
         if (sessionId != null) {
             loadDynamicData(sessionId)
         } else {
@@ -90,7 +93,6 @@ class HistorySessionActivity : AppCompatActivity() {
             val endTime = timeParts[1]
             txtStart.text = startTime
             txtEnd.text = endTime
-            // --- MODIFICATION: Calculate duration immediately from session times ---
             txtDuration.text = calculateDuration(startTime, endTime)
         } else {
             txtStart.text = time
@@ -99,25 +101,33 @@ class HistorySessionActivity : AppCompatActivity() {
         }
     }
 
-    private fun displayKinematicMetrics() {
-        // --- STATIC KINEMATIC CALCULATIONS ---
-        val poolLengthMeters = 50.0 // Placeholder
-        val lapTimeSeconds = 30.0 / 1000.0 // Placeholder
-        val strokeCount = 23.0 // Placeholder
+    private fun computeAndDisplayKinematicMetrics(sessionId: Int) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val swimData: List<SwimData> = db.swimDataDao().getSwimDataForSession(sessionId)
+                val strokeCount = StrokeMetrics.computeStrokeCount(swimData).toDouble()
 
-        // In the future, you would replace the above with values from the MlResult object,
-        // e.g., val lapTimeSeconds = mlResult.averageLapTime
+                // Fixed parameters
+                val poolLengthMeters = 50.0
+                val lapTimeSeconds = 35.0
 
-        val swimmingVelocity = poolLengthMeters / lapTimeSeconds
-        val strokeRate = strokeCount / lapTimeSeconds
-        val strokeLength = if (strokeRate > 0) swimmingVelocity / strokeRate else 0.0
-        val strokeIndex = swimmingVelocity * strokeLength
+                val swimmingVelocity = poolLengthMeters / lapTimeSeconds // m/s
+                val strokeRate = if (lapTimeSeconds > 0) strokeCount / lapTimeSeconds else 0.0 // strokes/sec
+                val strokeLength = if (strokeCount > 0) poolLengthMeters / strokeCount else 0.0 // m/stroke
+                val strokeIndex = swimmingVelocity * strokeLength
 
-        // Update the TextViews
-        txtSwimmingVelocity.text = String.format("%.2f m/s", swimmingVelocity)
-        txtStrokeRate.text = String.format("%.2f strokes/sec", strokeRate)
-        txtStrokeLength.text = String.format("%.2f m/stroke", strokeLength)
-        txtStrokeIndex.text = String.format("%.2f", strokeIndex)
+                withContext(Dispatchers.Main) {
+                    txtSwimmingVelocity.text = String.format("%.2f m/s", swimmingVelocity)
+                    txtStrokeRate.text = String.format("%.2f strokes/sec", strokeRate)
+                    txtStrokeLength.text = String.format("%.2f m/stroke", strokeLength)
+                    txtStrokeIndex.text = String.format("%.2f", strokeIndex)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@HistorySessionActivity, "Failed to compute metrics: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     private fun loadDynamicData(sessionId: Int) {

@@ -17,6 +17,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.util.Locale
+import android.database.sqlite.SQLiteDatabase
+import java.io.File
+import java.io.FileOutputStream
 
 class SettingsImportActivity : AppCompatActivity() {
 
@@ -36,6 +40,155 @@ class SettingsImportActivity : AppCompatActivity() {
         }
     }
 
+    private fun importDataFromDb(uri: Uri) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val swimDataList = mutableListOf<SwimData>()
+            var linesProcessed = 0
+            var skipped = 0
+
+            val sessionRanges = mutableMapOf<Int, Pair<Long, Long>>()
+
+            try {
+                // Copy content to a local temp file so SQLite can open it
+                val tmp = File.createTempFile("import_", ".db", cacheDir)
+                contentResolver.openInputStream(uri)?.use { input ->
+                    FileOutputStream(tmp).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                val db = SQLiteDatabase.openDatabase(tmp.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
+                db.use { importedDb ->
+                    // Determine table: try 'sensor_data' first, then 'swim_data'
+                    val table = when {
+                        tableExists(importedDb, "sensor_data") -> "sensor_data"
+                        tableExists(importedDb, "swim_data") -> "swim_data"
+                        else -> null
+                    }
+
+                    if (table == null) throw IllegalArgumentException("No suitable sensor table found in DB")
+
+                    val cursor = importedDb.rawQuery("SELECT * FROM $table", null)
+                    cursor.use { c ->
+                        val cols = c.columnNames.map { it.lowercase(Locale.getDefault()) }
+
+                        val idx = fun(vararg names: String): Int? {
+                            for (n in names) {
+                                val i = cols.indexOf(n.lowercase(Locale.getDefault()))
+                                if (i >= 0) return i
+                            }
+                            return null
+                        }
+
+                        val iSessionId = idx("sessionid", "session_id", "session", "sid")
+                        val iTimestamp = idx("timestamp", "time", "unix_ts")
+                        if (iSessionId == null || iTimestamp == null) {
+                            throw IllegalArgumentException("Required columns (sessionId/timestamp) not found")
+                        }
+
+                        val iAx = idx("accel_x")
+                        val iAy = idx("accel_y")
+                        val iAz = idx("accel_z")
+                        val iGx = idx("gyro_x")
+                        val iGy = idx("gyro_y")
+                        val iGz = idx("gyro_z")
+                        val iHr = idx("heart_rate")
+                        val iPpg = idx("ppg")
+                        val iEcg = idx("ecg")
+
+                        while (c.moveToNext()) {
+                            try {
+                                val sid = c.getLong(iSessionId).toInt()
+                                var ts = c.getLong(iTimestamp)
+                                if (ts < 100_000_000_000L) ts *= 1000 // seconds -> ms
+
+                                val ax = iAx?.let { if (!c.isNull(it)) c.getDouble(it).toFloat() else null }
+                                val ay = iAy?.let { if (!c.isNull(it)) c.getDouble(it).toFloat() else null }
+                                val az = iAz?.let { if (!c.isNull(it)) c.getDouble(it).toFloat() else null }
+                                val gx = iGx?.let { if (!c.isNull(it)) c.getDouble(it).toFloat() else null }
+                                val gy = iGy?.let { if (!c.isNull(it)) c.getDouble(it).toFloat() else null }
+                                val gz = iGz?.let { if (!c.isNull(it)) c.getDouble(it).toFloat() else null }
+                                val hr = iHr?.let { if (!c.isNull(it)) c.getDouble(it).toFloat() else null }
+                                val ppg = iPpg?.let { if (!c.isNull(it)) c.getDouble(it).toFloat() else null }
+                                val ecg = iEcg?.let { if (!c.isNull(it)) c.getDouble(it).toFloat() else null }
+
+                                swimDataList.add(
+                                    SwimData(
+                                        sessionId = sid,
+                                        timestamp = ts,
+                                        accel_x = ax,
+                                        accel_y = ay,
+                                        accel_z = az,
+                                        gyro_x = gx,
+                                        gyro_y = gy,
+                                        gyro_z = gz,
+                                        heart_rate = hr,
+                                        ppg = ppg,
+                                        ecg = ecg
+                                    )
+                                )
+                                linesProcessed++
+
+                                val prev = sessionRanges[sid]
+                                if (prev == null) sessionRanges[sid] = ts to ts else sessionRanges[sid] = kotlin.math.min(prev.first, ts) to kotlin.math.max(prev.second, ts)
+                            } catch (_: Exception) {
+                                skipped++
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@SettingsImportActivity, "DB import error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+
+            if (swimDataList.isNotEmpty()) {
+                val appDb = AppDatabase.getInstance(applicationContext)
+                appDb.swimDataDao().insertAll(swimDataList)
+
+                withContext(Dispatchers.Main) {
+                    // Create Sessions
+                    val tz = java.util.TimeZone.getTimeZone("Asia/Manila")
+                    val formatterDate = java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.getDefault()).apply { timeZone = tz }
+                    val formatterTime = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).apply { timeZone = tz }
+                    for ((sid, range) in sessionRanges) {
+                        val firstMs = range.first
+                        val lastMs = range.second
+                        val date = formatterDate.format(java.util.Date(firstMs))
+                        val time = "${formatterTime.format(java.util.Date(firstMs))} - ${formatterTime.format(java.util.Date(lastMs))}"
+                        com.thesisapp.data.SessionRepository.add(
+                            com.thesisapp.data.Session(
+                                id = 0,
+                                fileName = "session_${sid}.db",
+                                date = date,
+                                time = time,
+                                swimmerName = "Swimmer",
+                                swimmerId = -1
+                            )
+                        )
+                    }
+
+                    val msg = if (skipped > 0) "$linesProcessed records imported. Skipped $skipped invalid rows." else "$linesProcessed records imported successfully."
+                    Toast.makeText(this@SettingsImportActivity, msg, Toast.LENGTH_LONG).show()
+                    finish()
+                }
+            } else {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@SettingsImportActivity, "No valid data found in the database.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun tableExists(db: SQLiteDatabase, table: String): Boolean {
+        val c = db.rawQuery(
+            "SELECT name FROM sqlite_master WHERE type='table' AND lower(name)=?",
+            arrayOf(table.lowercase(Locale.getDefault()))
+        )
+        c.use { return it.moveToFirst() }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.settings_import)
@@ -47,13 +200,18 @@ class SettingsImportActivity : AppCompatActivity() {
 
         btnSelectFile.setOnClickListener {
             it.animateClick()
-            filePickerLauncher.launch("text/*")
+            filePickerLauncher.launch("*/*")
         }
 
         btnImport.setOnClickListener {
             it.animateClick()
             selectedFileUri?.let { uri ->
-                importDataFromCSV(uri)
+                val name = getFileName(uri).lowercase(Locale.getDefault())
+                if (name.endsWith(".db")) {
+                    importDataFromDb(uri)
+                } else {
+                    importDataFromCSV(uri)
+                }
             } ?: Toast.makeText(this, "No file selected", Toast.LENGTH_SHORT).show()
         }
 
@@ -68,31 +226,80 @@ class SettingsImportActivity : AppCompatActivity() {
             val swimDataList = mutableListOf<SwimData>()
             var linesProcessed = 0
             var errorOccurred = false
+            var skipped = 0
+
+            val sessionRanges = mutableMapOf<Int, Pair<Long, Long>>()
 
             try {
-                contentResolver.openInputStream(uri)?.use { inputStream ->
-                    BufferedReader(InputStreamReader(inputStream)).use { reader ->
-                        reader.readLine()
+                contentResolver.openInputStream(uri)?.use { raw ->
+                    val bis = java.io.BufferedInputStream(raw)
+                    bis.mark(4)
+                    val bom = ByteArray(4)
+                    val read = bis.read(bom, 0, 4)
+                    bis.reset()
+                    val charset = when {
+                        read >= 2 && bom[0] == 0xFE.toByte() && bom[1] == 0xFF.toByte() -> Charsets.UTF_16BE
+                        read >= 2 && bom[0] == 0xFF.toByte() && bom[1] == 0xFE.toByte() -> Charsets.UTF_16LE
+                        read >= 3 && bom[0] == 0xEF.toByte() && bom[1] == 0xBB.toByte() && bom[2] == 0xBF.toByte() -> Charsets.UTF_8
+                        else -> Charsets.UTF_8
+                    }
+                    BufferedReader(InputStreamReader(bis, charset)).use { reader ->
+                        var firstNonEmpty: String? = null
+                        val allLines = mutableListOf<String>()
+                        var l: String?
+                        while (reader.readLine().also { l = it } != null) {
+                            val s = l!!.trim()
+                            if (s.isNotEmpty()) {
+                                if (firstNonEmpty == null) firstNonEmpty = s
+                                allLines.add(s)
+                            }
+                        }
 
-                        var line: String?
-                        while (reader.readLine().also { line = it } != null) {
-                            val tokens = line!!.split(",")
-                            if (tokens.size == 11) {
-                                val swimData = SwimData(
-                                    sessionId = tokens[0].toInt(),
-                                    timestamp = tokens[1].toLong(),
-                                    accel_x = tokens[2].toFloat(),
-                                    accel_y = tokens[3].toFloat(),
-                                    accel_z = tokens[4].toFloat(),
-                                    gyro_x = tokens[5].toFloat(),
-                                    gyro_y = tokens[6].toFloat(),
-                                    gyro_z = tokens[7].toFloat(),
-                                    heart_rate = tokens[8].toFloat(),
-                                    ppg = tokens[9].toFloat(),
-                                    ecg = tokens[10].toFloat()
-                                )
-                                swimDataList.add(swimData)
-                                linesProcessed++
+                        if (firstNonEmpty != null) {
+                            val delimiter = detectDelimiter(firstNonEmpty!!)
+                            var headerTokens = splitFlexible(firstNonEmpty!!, delimiter).map { it.trim() }
+                            if (headerTokens.isNotEmpty()) {
+                                headerTokens = headerTokens.toMutableList().also { list ->
+                                    list[0] = list[0].removePrefix("\uFEFF")
+                                }
+                            }
+                            var startIndex = 0
+                            val headerMap = mutableMapOf<String, Int>()
+
+                            val looksLikeHeader = headerTokens.any { it.any { ch -> ch.isLetter() } }
+                            if (looksLikeHeader) {
+                                headerTokens.forEachIndexed { idx, name -> headerMap[name.lowercase(Locale.getDefault())] = idx }
+                                startIndex = 1
+                            }
+
+                            for (i in startIndex until allLines.size) {
+                                var tokens = splitFlexible(allLines[i], delimiter).map { it.trim() }
+                                if (tokens.isNotEmpty()) {
+                                    val first = tokens[0]
+                                    if (first.startsWith("\uFEFF")) {
+                                        val mut = tokens.toMutableList()
+                                        mut[0] = first.removePrefix("\uFEFF")
+                                        tokens = mut
+                                    }
+                                }
+                                val parsed = parseRow(tokens, headerMap)
+                                if (parsed != null) {
+                                    swimDataList.add(parsed)
+                                    linesProcessed++
+                                    // Track per-session min/max timestamps
+                                    val sid = parsed.sessionId
+                                    val ts = parsed.timestamp
+                                    val prev = sessionRanges[sid]
+                                    if (prev == null) {
+                                        sessionRanges[sid] = ts to ts
+                                    } else {
+                                        val newMin = kotlin.math.min(prev.first, ts)
+                                        val newMax = kotlin.math.max(prev.second, ts)
+                                        sessionRanges[sid] = newMin to newMax
+                                    }
+                                } else {
+                                    skipped++
+                                }
                             }
                         }
                     }
@@ -111,7 +318,37 @@ class SettingsImportActivity : AppCompatActivity() {
                 db.swimDataDao().insertAll(swimDataList)
 
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@SettingsImportActivity, "$linesProcessed records imported successfully.", Toast.LENGTH_LONG).show()
+                    // Create lightweight Session entries for each sessionId
+                    if (sessionRanges.isNotEmpty()) {
+                        val tz = java.util.TimeZone.getTimeZone("Asia/Manila")
+                        val formatterDate = java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.getDefault()).apply { timeZone = tz }
+                        val formatterTime = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).apply { timeZone = tz }
+
+                        for ((sid, range) in sessionRanges) {
+                            // Detect seconds vs milliseconds
+                            val (origMin, origMax) = range
+                            val needsMs = origMax < 100_000_000_000L // < ~Sat Mar 03 1973 in ms => likely seconds
+                            val firstMs = if (needsMs) origMin * 1000 else origMin
+                            val lastMs = if (needsMs) origMax * 1000 else origMax
+
+                            val date = formatterDate.format(java.util.Date(firstMs))
+                            val time = "${formatterTime.format(java.util.Date(firstMs))} - ${formatterTime.format(java.util.Date(lastMs))}"
+
+                            com.thesisapp.data.SessionRepository.add(
+                                com.thesisapp.data.Session(
+                                    id = 0,
+                                    fileName = "session_${sid}.csv",
+                                    date = date,
+                                    time = time,
+                                    swimmerName = "Swimmer",
+                                    swimmerId = -1
+                                )
+                            )
+                        }
+                    }
+
+                    val msg = if (skipped > 0) "$linesProcessed records imported. Skipped $skipped invalid rows." else "$linesProcessed records imported successfully."
+                    Toast.makeText(this@SettingsImportActivity, msg, Toast.LENGTH_LONG).show()
                     finish()
                 }
             } else {
@@ -128,5 +365,133 @@ class SettingsImportActivity : AppCompatActivity() {
             cursor.moveToFirst()
             cursor.getString(nameIndex)
         } ?: "File"
+    }
+
+    private fun cleanNumber(raw: String?): String? {
+        if (raw == null) return null
+        var s = raw.trim()
+        if (s.isEmpty()) return null
+        if (s.startsWith("\"") && s.endsWith("\"") && s.length >= 2) {
+            s = s.substring(1, s.length - 1)
+        }
+        s = s.replace("\u00A0", "") // non-breaking space
+        s = s.replace(",", "") // remove thousands separators
+        return s
+    }
+
+    private fun parseLongFlexible(raw: String?): Long? {
+        val s = cleanNumber(raw) ?: return null
+        return s.toLongOrNull() ?: s.toDoubleOrNull()?.toLong()
+    }
+
+    private fun parseIntFlexible(raw: String?): Int? {
+        val s = cleanNumber(raw) ?: return null
+        return s.toIntOrNull() ?: s.toDoubleOrNull()?.toInt()
+    }
+
+    private fun parseFloatFlexible(raw: String?): Float? {
+        val s = cleanNumber(raw) ?: return null
+        return s.toFloatOrNull() ?: s.toDoubleOrNull()?.toFloat()
+    }
+
+    private fun detectDelimiter(sample: String): Char {
+        val candidates = charArrayOf(',', ';', '\t')
+        var best = ','
+        var bestCount = -1
+        for (c in candidates) {
+            val count = sample.count { it == c }
+            if (count > bestCount) {
+                best = c
+                bestCount = count
+            }
+        }
+        return best
+    }
+
+    private fun splitFlexible(line: String, preferred: Char): List<String> {
+        val first = line.split(preferred)
+        if (first.size > 1) return first
+        // try other common delimiters
+        for (c in charArrayOf(',', ';', '\t')) {
+            if (c == preferred) continue
+            val alt = line.split(c)
+            if (alt.size > 1) return alt
+        }
+        // fallback: any whitespace
+        return line.trim().split(Regex("\\s+"))
+    }
+
+    private fun parseRow(tokens: List<String>, headerMap: Map<String, Int>): SwimData? {
+        if (tokens.isEmpty()) return null
+
+        fun idx(vararg names: String): Int? {
+            for (n in names) {
+                val k = n.lowercase(Locale.getDefault())
+                if (headerMap.containsKey(k)) return headerMap[k]
+            }
+            return null
+        }
+
+        val hasHeader = headerMap.isNotEmpty()
+
+        var sessionIdIdx = idx("sessionId", "session_id", "session", "sid") ?: if (!hasHeader) 0 else null
+        var timestampIdx = idx("timestamp", "time", "unix_ts") ?: if (!hasHeader) 1 else null
+
+        var leadOffset = if (!hasHeader && tokens.size == 12) 1 else 0
+
+        // Fallbacks: try to infer positions if header mapping missing or strange header order
+        if (sessionIdIdx == null || timestampIdx == null) {
+            // Try [id, sessionId, timestamp, ...]
+            if (tokens.size >= 3 && isNumeric(tokens[0]) && isNumeric(tokens[1]) && isNumeric(tokens[2])) {
+                leadOffset = 1
+                sessionIdIdx = 0
+                timestampIdx = 1
+            } else if (tokens.size >= 2 && isNumeric(tokens[0]) && isNumeric(tokens[1])) {
+                // Try [sessionId, timestamp, ...]
+                leadOffset = 0
+                sessionIdIdx = 0
+                timestampIdx = 1
+            }
+        }
+
+        if (sessionIdIdx == null || timestampIdx == null) return null
+
+        fun get(i: Int?): String? = i?.let { j -> tokens.getOrNull(j + leadOffset) }
+
+        val sessionId = parseIntFlexible(get(sessionIdIdx)) ?: return null
+        var timestamp = parseLongFlexible(get(timestampIdx)) ?: return null
+        if (timestamp < 100_000_000_000L) { // likely in seconds
+            timestamp *= 1000
+        }
+
+        val accelX = parseFloatFlexible((idx("accel_x")?.let { get(it) } ?: if (!hasHeader) tokens.getOrNull(2 + leadOffset) else null))
+        val accelY = parseFloatFlexible((idx("accel_y")?.let { get(it) } ?: if (!hasHeader) tokens.getOrNull(3 + leadOffset) else null))
+        val accelZ = parseFloatFlexible((idx("accel_z")?.let { get(it) } ?: if (!hasHeader) tokens.getOrNull(4 + leadOffset) else null))
+        val gyroX = parseFloatFlexible((idx("gyro_x")?.let { get(it) } ?: if (!hasHeader) tokens.getOrNull(5 + leadOffset) else null))
+        val gyroY = parseFloatFlexible((idx("gyro_y")?.let { get(it) } ?: if (!hasHeader) tokens.getOrNull(6 + leadOffset) else null))
+        val gyroZ = parseFloatFlexible((idx("gyro_z")?.let { get(it) } ?: if (!hasHeader) tokens.getOrNull(7 + leadOffset) else null))
+        val heartRate = parseFloatFlexible((idx("heart_rate")?.let { get(it) } ?: if (!hasHeader) tokens.getOrNull(8 + leadOffset) else null))
+        val ppg = parseFloatFlexible((idx("ppg")?.let { get(it) } ?: if (!hasHeader) tokens.getOrNull(9 + leadOffset) else null))
+        val ecg = parseFloatFlexible((idx("ecg")?.let { get(it) } ?: if (!hasHeader) tokens.getOrNull(10 + leadOffset) else null))
+
+        return SwimData(
+            sessionId = sessionId,
+            timestamp = timestamp,
+            accel_x = accelX,
+            accel_y = accelY,
+            accel_z = accelZ,
+            gyro_x = gyroX,
+            gyro_y = gyroY,
+            gyro_z = gyroZ,
+            heart_rate = heartRate,
+            ppg = ppg,
+            ecg = ecg
+        )
+    }
+
+    private fun isNumeric(s: String?): Boolean {
+        if (s == null) return false
+        val c = cleanNumber(s) ?: return false
+        return c.toLongOrNull() != null || c.toDoubleOrNull() != null
     }
 }
