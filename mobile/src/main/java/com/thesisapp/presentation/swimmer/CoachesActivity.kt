@@ -23,14 +23,8 @@ class CoachesActivity : AppCompatActivity() {
             startActivity(i)
         }
         rv.adapter = adapter
-
-        // Dummy coaches
-        val data = listOf(
-            Coach("Coach Ixxi", "coach.ixxi@team.com"),
-            Coach("Coach Evan", "coach.evan@team.com")
-        )
-        adapter.submit(data)
     }
 }
 
 data class Coach(val name: String, val email: String)
+

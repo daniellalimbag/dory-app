@@ -41,9 +41,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvAccount: TextView
 
 
-    // Dummy data for UI
-    private var swimmerCount = 5
-    private val sessionCount = 12
+    // Counts for UI
+    private var swimmerCount = 0
+    private var sessionCount = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,7 +62,6 @@ class MainActivity : AppCompatActivity() {
 
         db = AppDatabase.getInstance(applicationContext)
 
-        // Set dummy data
         updateCounts()
 
         updateSmartwatchButton()
@@ -108,6 +107,8 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         // Refresh swimmer count when returning to this activity
         loadSwimmerCount()
+        // Refresh session/recordings count
+        loadSessionCount()
         // Check smartwatch connection
         checkSmartwatchConnection()
         updateTopRow()
@@ -155,6 +156,26 @@ class MainActivity : AppCompatActivity() {
             }
             withContext(Dispatchers.Main) {
                 swimmerCount = count
+                updateCounts()
+            }
+        }
+    }
+
+    private fun loadSessionCount() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            // Prefer ML results summaries; fallback to distinct SwimData sessions
+            var count = 0
+            try {
+                val summaries = db.mlResultDao().getSessionSummaries()
+                count = summaries.size
+                if (count == 0) {
+                    count = db.swimDataDao().countSessionsBetweenDates(0L, Long.MAX_VALUE)
+                }
+            } catch (_: Exception) {
+                // Ignore and leave count as 0
+            }
+            withContext(Dispatchers.Main) {
+                sessionCount = count
                 updateCounts()
             }
         }

@@ -25,17 +25,10 @@ class CoachDetailActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvCoachName).text = name
         findViewById<TextView>(R.id.tvCoachEmail).text = email
 
-        // Dummy assigned exercises pulled from repository (or static for now)
         val rv = findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.recycler)
         rv.layoutManager = LinearLayoutManager(this)
         val adapter = com.thesisapp.presentation.exercises.ExerciseAdapter()
         rv.adapter = adapter
-
-        // Show a few dummy exercises (can be from ExerciseRepository if you want live ones)
-        val dummy = listOf(
-            com.thesisapp.domain.Exercise(title = "EN1", distance = null, interval = null, time = null, strokeCount = null, preHr = null, postHr = null, notes = null, day = "Mon", focus = "Aerobic", components = emptyList(), total = 2000),
-            com.thesisapp.domain.Exercise(title = "EN2", distance = null, interval = null, time = null, strokeCount = null, preHr = null, postHr = null, notes = null, day = "Wed", focus = "Threshold", components = emptyList(), total = 1800)
-        )
-        adapter.submitList(dummy)
     }
 }
+

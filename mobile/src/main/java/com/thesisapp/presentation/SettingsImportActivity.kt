@@ -72,7 +72,7 @@ class SettingsImportActivity : AppCompatActivity() {
                     cursor.use { c ->
                         val cols = c.columnNames.map { it.lowercase(Locale.getDefault()) }
 
-                        val idx = fun(vararg names: String): Int? {
+                        fun findIndex(vararg names: String): Int? {
                             for (n in names) {
                                 val i = cols.indexOf(n.lowercase(Locale.getDefault()))
                                 if (i >= 0) return i
@@ -80,21 +80,21 @@ class SettingsImportActivity : AppCompatActivity() {
                             return null
                         }
 
-                        val iSessionId = idx("sessionid", "session_id", "session", "sid")
-                        val iTimestamp = idx("timestamp", "time", "unix_ts")
+                        val iSessionId = findIndex("sessionid", "session_id", "session", "sid")
+                        val iTimestamp = findIndex("timestamp", "time", "unix_ts")
                         if (iSessionId == null || iTimestamp == null) {
                             throw IllegalArgumentException("Required columns (sessionId/timestamp) not found")
                         }
 
-                        val iAx = idx("accel_x")
-                        val iAy = idx("accel_y")
-                        val iAz = idx("accel_z")
-                        val iGx = idx("gyro_x")
-                        val iGy = idx("gyro_y")
-                        val iGz = idx("gyro_z")
-                        val iHr = idx("heart_rate")
-                        val iPpg = idx("ppg")
-                        val iEcg = idx("ecg")
+                        val iAx = findIndex("accel_x")
+                        val iAy = findIndex("accel_y")
+                        val iAz = findIndex("accel_z")
+                        val iGx = findIndex("gyro_x")
+                        val iGy = findIndex("gyro_y")
+                        val iGz = findIndex("gyro_z")
+                        val iHr = findIndex("heart_rate")
+                        val iPpg = findIndex("ppg")
+                        val iEcg = findIndex("ecg")
 
                         while (c.moveToNext()) {
                             try {

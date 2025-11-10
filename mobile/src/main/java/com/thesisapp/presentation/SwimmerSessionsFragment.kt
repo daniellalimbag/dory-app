@@ -7,12 +7,16 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.RecyclerView
 import com.thesisapp.R
+import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.Session
 import com.thesisapp.data.Swimmer
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -23,6 +27,7 @@ class SwimmerSessionsFragment : Fragment() {
     private var allSessions = listOf<Session>()
     private var filteredSessions = listOf<Session>()
     private var sortAscending = false
+    private lateinit var db: AppDatabase
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,48 +57,53 @@ class SwimmerSessionsFragment : Fragment() {
         val btnFilterPerson = view.findViewById<Button>(R.id.btnFilterPerson)
         val btnSortDate = view.findViewById<Button>(R.id.btnSortDate)
 
-        // Get ALL sessions, then filter to only this swimmer's sessions
-        val allSessionsFromDummy = getAllDummySessions()
-        allSessions = allSessionsFromDummy.filter { it.swimmerId == swimmer?.id }
+        db = AppDatabase.getInstance(requireContext())
 
-        // Show debug info
-        Toast.makeText(
-            requireContext(),
-            "Swimmer: ${swimmer?.name} (ID: ${swimmer?.id}), Sessions: ${allSessions.size}",
-            Toast.LENGTH_LONG
-        ).show()
+        lifecycleScope.launch(Dispatchers.IO) {
+            val swimmerId = swimmer?.id
+            val list = mutableListOf<Session>()
+            try {
+                if (swimmerId != null) {
+                    val summaries = db.mlResultDao().getSessionSummaries()
+                    val swimmerDao = db.swimmerDao()
+                    val name = swimmerDao.getById(swimmerId)?.name ?: swimmer?.name ?: "Swimmer"
+                    for (ml in summaries.filter { it.swimmerId == swimmerId }) {
+                        val session = Session(
+                            id = 0,
+                            fileName = "session_${ml.swimmerId}_${ml.sessionId}.csv",
+                            date = ml.date,
+                            time = "${ml.timeStart} - ${ml.timeEnd}",
+                            swimmerName = name,
+                            swimmerId = ml.swimmerId
+                        )
+                        list.add(session)
+                    }
+                }
+            } catch (_: Exception) { }
 
-        filteredSessions = allSessions.sortedByDescending { parseDate(it.date) }
+            withContext(Dispatchers.Main) {
+                allSessions = list
+                filteredSessions = allSessions.sortedByDescending { parseDate(it.date) }
 
-        if (filteredSessions.isEmpty()) {
-            noSessionsLayout.visibility = View.VISIBLE
-            recyclerView.visibility = View.GONE
-            btnFilterPerson.visibility = View.GONE
-            btnSortDate.visibility = View.GONE
-        } else {
-            noSessionsLayout.visibility = View.GONE
-            recyclerView.visibility = View.VISIBLE
+                if (filteredSessions.isEmpty()) {
+                    noSessionsLayout.visibility = View.VISIBLE
+                    recyclerView.visibility = View.GONE
+                    btnFilterPerson.visibility = View.GONE
+                    btnSortDate.visibility = View.GONE
+                } else {
+                    noSessionsLayout.visibility = View.GONE
+                    recyclerView.visibility = View.VISIBLE
 
-            // Set up RecyclerView with LinearLayoutManager
-            recyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
+                    recyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
+                    adapter = SessionsAdapter(filteredSessions) { _ -> }
+                    recyclerView.adapter = adapter
 
-            adapter = SessionsAdapter(filteredSessions) { session ->
-                // Session click handler - will be implemented later
-                Toast.makeText(
-                    requireContext(),
-                    "Session clicked: ${session.fileName}",
-                    Toast.LENGTH_SHORT
-                ).show()
+                    // Since we're only showing one swimmer, hide the filter button
+                    btnFilterPerson.visibility = View.GONE
+
+                    btnSortDate.setOnClickListener { sortSessions() }
+                }
             }
-            recyclerView.adapter = adapter
-        }
-
-        // Since we're only showing one swimmer, hide the filter button
-        btnFilterPerson.visibility = View.GONE
-
-        // Sort button click
-        btnSortDate.setOnClickListener {
-            sortSessions()
         }
     }
 
@@ -107,9 +117,6 @@ class SwimmerSessionsFragment : Fragment() {
         }
 
         adapter.updateSessions(filteredSessions)
-
-        val sortOrder = if (sortAscending) "oldest first" else "newest first"
-        Toast.makeText(requireContext(), "Sorted: $sortOrder", Toast.LENGTH_SHORT).show()
     }
 
     private fun parseDate(dateString: String): Long {
@@ -119,27 +126,6 @@ class SwimmerSessionsFragment : Fragment() {
         } catch (e: Exception) {
             0L
         }
-    }
-
-    private fun getAllDummySessions(): List<Session> {
-        // Return all dummy sessions - will be filtered by swimmer ID
-        return listOf(
-            Session(1, "session_phelps_001.csv", "October 5, 2025", "10:30 AM - 11:15 AM", "Michael Phelps", 1),
-            Session(2, "session_ledecky_001.csv", "October 5, 2025", "2:00 PM - 2:45 PM", "Katie Ledecky", 2),
-            Session(3, "session_phelps_002.csv", "October 4, 2025", "9:00 AM - 9:50 AM", "Michael Phelps", 1),
-            Session(4, "session_dressel_001.csv", "October 3, 2025", "3:30 PM - 4:20 PM", "Caeleb Dressel", 3),
-            Session(5, "session_mckeon_001.csv", "October 3, 2025", "11:00 AM - 11:45 AM", "Emma McKeon", 4),
-            Session(6, "session_ledecky_002.csv", "October 2, 2025", "8:00 AM - 8:50 AM", "Katie Ledecky", 2),
-            Session(7, "session_peaty_001.csv", "October 1, 2025", "4:00 PM - 4:45 PM", "Adam Peaty", 5),
-            Session(8, "session_phelps_003.csv", "September 30, 2025", "1:00 PM - 1:50 PM", "Michael Phelps", 1),
-            Session(9, "session_dressel_002.csv", "September 28, 2025", "10:00 AM - 10:45 AM", "Caeleb Dressel", 3),
-            Session(10, "session_mckeon_002.csv", "September 27, 2025", "3:00 PM - 3:50 PM", "Emma McKeon", 4),
-            Session(11, "session_ledecky_003.csv", "September 25, 2025", "9:30 AM - 10:20 AM", "Katie Ledecky", 2),
-            Session(12, "session_peaty_002.csv", "September 23, 2025", "2:30 PM - 3:15 PM", "Adam Peaty", 5),
-            Session(13, "session_phelps_004.csv", "September 20, 2025", "11:00 AM - 11:50 AM", "Michael Phelps", 1),
-            Session(14, "session_dressel_003.csv", "September 18, 2025", "8:30 AM - 9:20 AM", "Caeleb Dressel", 3),
-            Session(15, "session_mckeon_003.csv", "September 15, 2025", "4:30 PM - 5:15 PM", "Emma McKeon", 4)
-        )
     }
 
     companion object {
