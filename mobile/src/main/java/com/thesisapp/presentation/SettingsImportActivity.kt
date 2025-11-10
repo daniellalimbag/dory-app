@@ -82,8 +82,8 @@ class SettingsImportActivity : AppCompatActivity() {
 
                         val iSessionId = findIndex("sessionid", "session_id", "session", "sid")
                         val iTimestamp = findIndex("timestamp", "time", "unix_ts")
-                        if (iSessionId == null || iTimestamp == null) {
-                            throw IllegalArgumentException("Required columns (sessionId/timestamp) not found")
+                        if (iTimestamp == null) {
+                            throw IllegalArgumentException("Required column 'timestamp' not found")
                         }
 
                         val iAx = findIndex("accel_x")
@@ -98,7 +98,7 @@ class SettingsImportActivity : AppCompatActivity() {
 
                         while (c.moveToNext()) {
                             try {
-                                val sid = c.getLong(iSessionId).toInt()
+                                val sid = iSessionId?.let { c.getLong(it).toInt() } ?: 1
                                 var ts = c.getLong(iTimestamp)
                                 if (ts < 100_000_000_000L) ts *= 1000 // seconds -> ms
 

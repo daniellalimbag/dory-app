@@ -143,8 +143,9 @@ class HistoryListActivity : AppCompatActivity() {
 
             SessionRepository.clear()
             val bySession = allSwims.groupBy { it.sessionId }
-            val formatterDate = java.text.SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault())
-            val formatterTime = java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+            val tz = java.util.TimeZone.getTimeZone("Asia/Manila")
+            val formatterDate = java.text.SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).apply { timeZone = tz }
+            val formatterTime = java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).apply { timeZone = tz }
             for ((sid, records) in bySession.entries.sortedByDescending { it.key }) {
                 val first = records.minByOrNull { it.timestamp }?.timestamp ?: System.currentTimeMillis()
                 val last = records.maxByOrNull { it.timestamp }?.timestamp ?: first

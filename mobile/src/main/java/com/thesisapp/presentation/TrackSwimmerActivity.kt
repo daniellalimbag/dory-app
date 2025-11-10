@@ -232,11 +232,12 @@ fun RealtimeSensorScreen(
                             (context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
                                 val swimDataList = db.swimDataDao().getSwimDataForSession(newSessionId)
 
+                                val tz = java.util.TimeZone.getTimeZone("Asia/Manila")
                                 val formatterDate = java.text.SimpleDateFormat(
                                     "MMMM dd, yyyy",
                                     Locale.getDefault()
-                                )
-                                val formatterTime = java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                                ).apply { timeZone = tz }
+                                val formatterTime = java.text.SimpleDateFormat("HH:mm:ss", Locale.getDefault()).apply { timeZone = tz }
 
                                 val firstTime = if (startTime > 0L) startTime else System.currentTimeMillis()
                                 val lastTimeMillis = if (swimDataList.isNotEmpty()) swimDataList.maxByOrNull { it.timestamp }?.timestamp ?: System.currentTimeMillis() else System.currentTimeMillis()
