@@ -49,6 +49,7 @@ class SwimmerProfileSetupActivity : AppCompatActivity() {
             it.animateClick()
             if (saveProfile()) {
                 Toast.makeText(this, "Profile saved", Toast.LENGTH_SHORT).show()
+                startActivity(android.content.Intent(this, MainActivity::class.java))
                 finish()
             }
         }
