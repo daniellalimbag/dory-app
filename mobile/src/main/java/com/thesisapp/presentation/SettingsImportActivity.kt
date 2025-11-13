@@ -435,7 +435,8 @@ class SettingsImportActivity : AppCompatActivity() {
         val hasHeader = headerMap.isNotEmpty()
 
         var sessionIdIdx = idx("sessionId", "session_id", "session", "sid") ?: if (!hasHeader) 0 else null
-        var timestampIdx = idx("timestamp", "time", "unix_ts") ?: if (!hasHeader) 1 else null
+        // Prefer unix_ts if present, then other common names
+        var timestampIdx = idx("unix_ts", "timestamp", "time", "epoch", "epoch_ms", "ts") ?: if (!hasHeader) 1 else null
 
         var leadOffset = if (!hasHeader && tokens.size == 12) 1 else 0
 
@@ -459,9 +460,23 @@ class SettingsImportActivity : AppCompatActivity() {
         fun get(i: Int?): String? = i?.let { j -> tokens.getOrNull(j + leadOffset) }
 
         val sessionId = parseIntFlexible(get(sessionIdIdx)) ?: return null
+
+        // Base timestamp from the selected column
         var timestamp = parseLongFlexible(get(timestampIdx)) ?: return null
         if (timestamp < 100_000_000_000L) { // likely in seconds
             timestamp *= 1000
+        }
+
+        // If timestamp still looks too early (< 2000-01-01), try to find any epoch-like value (>= 1e12) in the row
+        val minYear2000 = 946_684_800_000L
+        if (timestamp < minYear2000) {
+            val bigEpoch = tokens.firstOrNull { t ->
+                val n = parseLongFlexible(t)
+                n != null && n >= 1_000_000_000_000L
+            }
+            if (bigEpoch != null) {
+                timestamp = parseLongFlexible(bigEpoch) ?: timestamp
+            }
         }
 
         val accelX = parseFloatFlexible((idx("accel_x")?.let { get(it) } ?: if (!hasHeader) tokens.getOrNull(2 + leadOffset) else null))

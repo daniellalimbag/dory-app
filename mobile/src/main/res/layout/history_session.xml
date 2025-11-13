@@ -276,33 +276,37 @@
                 android:textSize="18dp"
                 android:textStyle="bold" />
 
+            <!-- SR vs SL Efficiency Quadrant Scatter Chart -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:layout_marginLeft="4dp"
-                android:text="Swimming Velocity over Time"
+                android:text="SR vs SL (Efficiency Quadrant)"
                 android:textColor="@color/black"
                 android:textSize="14dp" />
 
-            <com.thesisapp.presentation.views.SimpleLineChartView
+            <com.github.mikephil.charting.charts.ScatterChart
+                android:id="@+id/chartEfficiencySrSl"
                 android:layout_width="match_parent"
-                android:layout_height="180dp"
+                android:layout_height="220dp"
                 android:layout_marginTop="8dp"
                 android:background="@android:color/transparent" />
 
+            <!-- Lap Time Trend + Rolling Average Line Chart -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="16dp"
                 android:layout_marginLeft="4dp"
-                android:text="Stroke Rate per Lap"
+                android:text="Lap Time Trend (with Rolling Average)"
                 android:textColor="@color/black"
                 android:textSize="14dp" />
 
-            <com.thesisapp.presentation.views.SimpleBarChartView
+            <com.github.mikephil.charting.charts.LineChart
+                android:id="@+id/chartLapTimeTrend"
                 android:layout_width="match_parent"
-                android:layout_height="180dp"
+                android:layout_height="220dp"
                 android:layout_marginTop="8dp"
                 android:background="@android:color/transparent" />
 

@@ -84,4 +84,7 @@ dependencies {
 
     val tfVersion = "2.13.0"
     implementation("org.tensorflow:tensorflow-lite:$tfVersion")
+
+    // MPAndroidChart for in-app visualizations (SR vs SL, lap time trends)
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
 }

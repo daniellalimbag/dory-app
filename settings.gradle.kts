@@ -9,6 +9,8 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
+        // JitPack for MPAndroidChart and other GitHub-hosted artifacts
+        maven("https://jitpack.io")
     }
 }
 dependencyResolutionManagement {
@@ -16,10 +18,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // JitPack for MPAndroidChart and other GitHub-hosted artifacts
+        maven("https://jitpack.io")
     }
 }
 
 rootProject.name = "ThesisApp"
 include(":mobile")
 include(":wear")
- 
