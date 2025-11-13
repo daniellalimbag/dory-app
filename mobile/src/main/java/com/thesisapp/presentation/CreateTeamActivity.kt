@@ -1,6 +1,8 @@
 package com.thesisapp.presentation
 
 import android.os.Bundle
+import android.view.MotionEvent
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -29,9 +31,19 @@ class CreateTeamActivity : AppCompatActivity() {
         val btnGenerate = findViewById<Button>(R.id.btnGenerateCode)
         val btnCreate = findViewById<Button>(R.id.btnCreateTeam)
         val btnBack = findViewById<ImageButton>(R.id.btnBack)
+        val btnSkip = findViewById<Button>(R.id.btnSkip)
+        val btnCopyCode = findViewById<ImageButton>(R.id.btnCopyCode)
 
         var currentCode = CodeGenerator.code(6)
         txtCode.text = currentCode
+
+        btnCopyCode.setOnClickListener {
+            it.animateClick()
+            val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val clip = android.content.ClipData.newPlainText("Team Code", currentCode)
+            clipboard.setPrimaryClip(clip)
+            Toast.makeText(this, "Code copied to clipboard", Toast.LENGTH_SHORT).show()
+        }
 
         btnGenerate.setOnClickListener {
             it.animateClick()
@@ -40,6 +52,12 @@ class CreateTeamActivity : AppCompatActivity() {
         }
 
         btnBack.setOnClickListener { finish() }
+
+        btnSkip.setOnClickListener {
+            // Skip team creation and go to main activity
+            startActivity(android.content.Intent(this, MainActivity::class.java))
+            finish()
+        }
 
         btnCreate.setOnClickListener {
             it.animateClick()
@@ -66,5 +84,18 @@ class CreateTeamActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+    
+    // Hide keyboard when touching outside of EditText
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.action == MotionEvent.ACTION_DOWN) {
+            val view = currentFocus
+            if (view != null) {
+                val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(view.windowToken, 0)
+                view.clearFocus()
+            }
+        }
+        return super.dispatchTouchEvent(ev)
     }
 }

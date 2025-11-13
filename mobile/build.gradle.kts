@@ -84,4 +84,7 @@ dependencies {
 
     val tfVersion = "2.13.0"
     implementation("org.tensorflow:tensorflow-lite:$tfVersion")
+    
+    // MPAndroidChart for goal progress graphs
+    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
 }

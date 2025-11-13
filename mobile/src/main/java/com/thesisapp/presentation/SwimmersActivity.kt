@@ -36,10 +36,12 @@ class SwimmersActivity : AppCompatActivity() {
         db = AppDatabase.getInstance(this)
 
         val isCoach = AuthManager.currentUser(this)?.role == UserRole.COACH
+        val teamId = AuthManager.currentTeamId(this) ?: -1
 
         // Initialize adapter with callbacks
         adapter = SwimmersAdapter(
             swimmers = mutableListOf(),
+            teamId = teamId,
             onEditClick = { swimmer -> if (isCoach) showEditDialog(swimmer) },
             onDeleteClick = { swimmer -> if (isCoach) showDeleteConfirmation(swimmer) },
             onSwimmerClick = { swimmer -> openSwimmerProfile(swimmer) },
@@ -47,11 +49,20 @@ class SwimmersActivity : AppCompatActivity() {
         )
         recyclerView.adapter = adapter
 
+        // Update FAB text based on role
+        val role = AuthManager.currentUser(this)?.role
+        if (role == UserRole.COACH) {
+            enrollFab.text = "Share Team Code"
+        } else {
+            enrollFab.text = "Join Team"
+        }
+
         enrollFab.setOnClickListener {
-            val role = AuthManager.currentUser(this)?.role
             if (role == UserRole.COACH) {
-                startActivity(Intent(this, TrackAddSwimmerActivity::class.java))
+                // Coaches share the team join code
+                showTeamCodeDialog()
             } else {
+                // Swimmers can enroll via invitation code
                 startActivity(Intent(this, EnrollViaCodeActivity::class.java))
             }
         }
@@ -74,7 +85,7 @@ class SwimmersActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val swimmers: List<Swimmer> = when (user?.role) {
-                    UserRole.COACH -> if (teamId != null) db.swimmerDao().getSwimmersForTeam(teamId) else emptyList()
+                    UserRole.COACH -> if (teamId != null) db.teamMembershipDao().getSwimmersForTeam(teamId) else emptyList()
                     UserRole.SWIMMER -> {
                         val linked = AuthManager.getLinkedSwimmerId(this@SwimmersActivity, user.email, teamId)
                         if (linked != null) listOfNotNull(db.swimmerDao().getById(linked)) else emptyList()
@@ -268,5 +279,45 @@ class SwimmersActivity : AppCompatActivity() {
             putExtra(SwimmerProfileActivity.EXTRA_SWIMMER, swimmer)
         }
         startActivity(intent)
+    }
+
+    private fun showTeamCodeDialog() {
+        val teamId = AuthManager.currentTeamId(this)
+        if (teamId == null) {
+            Toast.makeText(this, "No team selected", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val team = db.teamDao().getById(teamId)
+            withContext(Dispatchers.Main) {
+                if (team == null) {
+                    Toast.makeText(this@SwimmersActivity, "Team not found", Toast.LENGTH_SHORT).show()
+                    return@withContext
+                }
+
+                val message = "Share this code with swimmers to join ${team.name}:\n\n${team.joinCode}\n\nSwimmers should:\n1. Open the app\n2. Click 'Join Team'\n3. Enter this code\n4. Fill out their profile"
+
+                AlertDialog.Builder(this@SwimmersActivity)
+                    .setTitle("Team Invitation Code")
+                    .setMessage(message)
+                    .setPositiveButton("Copy Code") { _, _ ->
+                        val clipboard = getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("Team Code", team.joinCode)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(this@SwimmersActivity, "Code copied!", Toast.LENGTH_SHORT).show()
+                    }
+                    .setNeutralButton("Share") { _, _ ->
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, "Join ${team.name} on DORY")
+                            putExtra(Intent.EXTRA_TEXT, "Join my swimming team on DORY!\n\nTeam: ${team.name}\nCode: ${team.joinCode}\n\nDownload DORY and enter this code to join.")
+                        }
+                        startActivity(Intent.createChooser(shareIntent, "Share team code"))
+                    }
+                    .setNegativeButton("Close", null)
+                    .show()
+            }
+        }
     }
 }

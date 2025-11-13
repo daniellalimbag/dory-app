@@ -2,10 +2,13 @@ package com.thesisapp.presentation
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.MotionEvent
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.thesisapp.R
@@ -30,30 +33,55 @@ class EnrollViaCodeActivity : AppCompatActivity() {
         btnEnroll.setOnClickListener {
             val code = inputCode.text.toString().trim().uppercase()
             if (code.isEmpty()) {
-                Toast.makeText(this, "Enter code", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Enter team code", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+            
             lifecycleScope.launch(Dispatchers.IO) {
                 val db = AppDatabase.getInstance(this@EnrollViaCodeActivity)
-                val swimmer = db.swimmerDao().getByCode(code)
+                val team = db.teamDao().getByJoinCode(code)
+                
                 withContext(Dispatchers.Main) {
-                    if (swimmer == null) {
-                        Toast.makeText(this@EnrollViaCodeActivity, "Invalid code", Toast.LENGTH_SHORT).show()
-                    } else {
-                        val user = AuthManager.currentUser(this@EnrollViaCodeActivity)
-                        if (user == null) {
-                            Toast.makeText(this@EnrollViaCodeActivity, "Please login first", Toast.LENGTH_SHORT).show()
-                            return@withContext
-                        }
-                        AuthManager.linkSwimmerToTeam(this@EnrollViaCodeActivity, user.email, swimmer.teamId, swimmer.id)
-                        AuthManager.setCurrentTeamId(this@EnrollViaCodeActivity, swimmer.teamId)
-                        Toast.makeText(this@EnrollViaCodeActivity, "Enrolled in team", Toast.LENGTH_LONG).show()
-                        startActivity(Intent(this@EnrollViaCodeActivity, MainActivity::class.java))
-                        finish()
+                    if (team == null) {
+                        Toast.makeText(this@EnrollViaCodeActivity, "Invalid team code", Toast.LENGTH_SHORT).show()
+                        return@withContext
                     }
+                    
+                    val user = AuthManager.currentUser(this@EnrollViaCodeActivity)
+                    if (user == null) {
+                        Toast.makeText(this@EnrollViaCodeActivity, "Please login first", Toast.LENGTH_SHORT).show()
+                        return@withContext
+                    }
+                    
+                    // Show confirmation dialog
+                    AlertDialog.Builder(this@EnrollViaCodeActivity)
+                        .setTitle("Join ${team.name}?")
+                        .setMessage("You're about to join ${team.name}. You'll create your swimmer profile next.")
+                        .setPositiveButton("Continue") { _, _ ->
+                            // Redirect to create swimmer profile
+                            val intent = Intent(this@EnrollViaCodeActivity, CreateSwimmerProfileActivity::class.java)
+                            intent.putExtra("TEAM_ID", team.id)
+                            startActivity(intent)
+                            finish()
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
                 }
             }
         }
+    }
+    
+    // Hide keyboard when touching outside of EditText
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.action == MotionEvent.ACTION_DOWN) {
+            val view = currentFocus
+            if (view != null) {
+                val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(view.windowToken, 0)
+                view.clearFocus()
+            }
+        }
+        return super.dispatchTouchEvent(ev)
     }
 }
 

@@ -5,7 +5,8 @@
     android:background="@color/background"
     android:gravity="center_horizontal"
     android:orientation="vertical"
-    android:padding="14dp">
+    android:padding="14dp"
+    android:fitsSystemWindows="true">
 
     <Button
         android:id="@+id/btnReturn"

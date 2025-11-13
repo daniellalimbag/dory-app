@@ -123,35 +123,35 @@ class TrackAddSwimmerActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            val code = CodeGenerator.code(6)
-
-            // Create swimmer object
+            // Create swimmer object (team-independent)
             val swimmer = Swimmer(
                 name = name,
-                teamId = teamId,
                 birthday = birthday,
                 height = height,
                 weight = weight,
                 sex = sex,
-                wingspan = wingspan,
-                code = code
+                wingspan = wingspan
             )
 
             // Save to database
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     val newId = db.swimmerDao().insertSwimmer(swimmer).toInt()
+                    
+                    // Create team membership
+                    db.teamMembershipDao().insert(
+                        com.thesisapp.data.TeamMembership(
+                            teamId = teamId,
+                            swimmerId = newId
+                        )
+                    )
 
                     withContext(Dispatchers.Main) {
                         Toast.makeText(
                             this@TrackAddSwimmerActivity,
-                            "✓ ${swimmer.name} enrolled successfully!",
+                            "✓ ${swimmer.name} added to team successfully!",
                             Toast.LENGTH_LONG
                         ).show()
-
-                        val intent = android.content.Intent(this@TrackAddSwimmerActivity, TrackSwimmerSuccessActivity::class.java)
-                        intent.putExtra("SWIMMER_CODE", code)
-                        startActivity(intent)
                         finish()
                     }
                 } catch (e: Exception) {

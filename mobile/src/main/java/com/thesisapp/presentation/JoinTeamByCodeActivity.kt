@@ -1,6 +1,8 @@
 package com.thesisapp.presentation
 
 import android.os.Bundle
+import android.view.MotionEvent
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -48,6 +50,19 @@ class JoinTeamByCodeActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+    
+    // Hide keyboard when touching outside of EditText
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.action == MotionEvent.ACTION_DOWN) {
+            val view = currentFocus
+            if (view != null) {
+                val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(view.windowToken, 0)
+                view.clearFocus()
+            }
+        }
+        return super.dispatchTouchEvent(ev)
     }
 }
 

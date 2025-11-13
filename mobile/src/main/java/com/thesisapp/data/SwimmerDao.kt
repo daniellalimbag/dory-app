@@ -11,11 +11,8 @@ interface SwimmerDao {
     @Query("SELECT * FROM swimmers")
     fun getAllSwimmers(): List<Swimmer>
 
-    @Query("SELECT * FROM swimmers WHERE teamId = :teamId")
-    fun getSwimmersForTeam(teamId: Int): List<Swimmer>
-
-    @Query("SELECT * FROM swimmers WHERE code = :code LIMIT 1")
-    suspend fun getByCode(code: String): Swimmer?
+    // Team-based queries moved to TeamMembershipDao
+    // Use teamMembershipDao.getSwimmersForTeam(teamId) instead
 
     @Query("SELECT * FROM swimmers WHERE id = :id")
     suspend fun getById(id: Int): Swimmer?

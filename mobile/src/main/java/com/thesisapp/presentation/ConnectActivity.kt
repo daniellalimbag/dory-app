@@ -98,7 +98,7 @@ class ConnectActivity : AppCompatActivity() {
                             }
                             return@launch
                         }
-                        val swimmers = db.swimmerDao().getSwimmersForTeam(teamId)
+                        val swimmers = db.teamMembershipDao().getSwimmersForTeam(teamId)
                         withContext(Dispatchers.Main) {
                             if (swimmers.isEmpty()) {
                                 val intent = Intent(this@ConnectActivity, TrackNoSwimmerActivity::class.java)

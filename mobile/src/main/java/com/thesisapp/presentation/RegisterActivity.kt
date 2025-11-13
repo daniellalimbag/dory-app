@@ -2,6 +2,8 @@ package com.thesisapp.presentation
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.MotionEvent
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.RadioButton
 import android.widget.RadioGroup
@@ -84,5 +86,18 @@ class RegisterActivity : AppCompatActivity() {
                 finish()
             }
         }
+    }
+    
+    // Hide keyboard when touching outside of EditText
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.action == MotionEvent.ACTION_DOWN) {
+            val view = currentFocus
+            if (view != null) {
+                val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(view.windowToken, 0)
+                view.clearFocus()
+            }
+        }
+        return super.dispatchTouchEvent(ev)
     }
 }

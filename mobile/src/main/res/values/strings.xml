@@ -3,8 +3,8 @@
     <string name="swimmers_icon">Swimmers icon</string>
     <string name="sessions_icon">Sessions icon</string>
     <string name="swimmers_title">Swimmers</string>
-    <string name="enroll_swimmer">Add Swimmer</string>
-    <string name="enroll_in_team">Enroll in Team</string>
+    <string name="enroll_swimmer">Share Team Code</string>
+    <string name="enroll_in_team">Join Team</string>
     <string name="swimmer_age">Age: %d</string>
     <string name="swimmer_height">Height: %.1f cm</string>
     <string name="swimmer_weight">Weight: %.1f kg</string>

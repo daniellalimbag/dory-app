@@ -5,12 +5,21 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Swimmer::class, SwimData::class, MlResult::class, Team::class], version = 8)
+@Database(
+    entities = [Team::class, Swimmer::class, TeamMembership::class, Exercise::class, SwimData::class, MlResult::class, TeamInvitation::class, Goal::class, GoalProgress::class],
+    version = 18,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun swimmerDao(): SwimmerDao
     abstract fun swimDataDao(): SwimDataDao
     abstract fun mlResultDao(): MlResultDao
     abstract fun teamDao(): TeamDao
+    abstract fun teamMembershipDao(): TeamMembershipDao
+    abstract fun exerciseDao(): ExerciseDao
+    abstract fun teamInvitationDao(): TeamInvitationDao
+    abstract fun goalDao(): GoalDao
+    abstract fun goalProgressDao(): GoalProgressDao
 
     companion object {
         @Volatile
