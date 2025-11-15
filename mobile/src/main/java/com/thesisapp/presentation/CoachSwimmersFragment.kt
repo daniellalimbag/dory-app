@@ -14,6 +14,7 @@ import com.google.android.material.floatingactionbutton.ExtendedFloatingActionBu
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.utils.AuthManager
+import com.thesisapp.utils.populateDummyData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -84,7 +85,14 @@ class CoachSwimmersFragment : Fragment() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val swimmers = db.teamMembershipDao().getSwimmersForTeam(teamId)
+                var swimmers = db.teamMembershipDao().getSwimmersForTeam(teamId)
+                
+                // If no swimmers exist, populate dummy data
+                if (swimmers.isEmpty()) {
+                    populateDummyData(teamId)
+                    swimmers = db.teamMembershipDao().getSwimmersForTeam(teamId)
+                }
+                
                 withContext(Dispatchers.Main) {
                     adapter.updateSwimmers(swimmers)
                 }
@@ -92,6 +100,11 @@ class CoachSwimmersFragment : Fragment() {
                 // Handle error silently
             }
         }
+    }
+    
+    private suspend fun populateDummyData(teamId: Int) {
+        // Use the extension function
+        db.populateDummyData(requireContext(), teamId)
     }
 
     private fun showInviteSwimmerDialog() {

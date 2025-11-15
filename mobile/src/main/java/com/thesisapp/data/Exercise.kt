@@ -21,5 +21,6 @@ data class Exercise(
     val distance: Int? = null, // in meters (optional)
     val sets: Int? = null,
     val restTime: Int? = null, // in seconds
+    val effortLevel: Int? = null, // prescribed effort as percentage (0-100)
     val createdAt: Long = System.currentTimeMillis()
 ) : Parcelable

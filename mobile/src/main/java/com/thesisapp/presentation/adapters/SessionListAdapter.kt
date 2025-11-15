@@ -30,18 +30,23 @@ class SessionListAdapter(
             dateText.text = session.date
             timeText.text = session.timeStart
             
-            // Determine dominant stroke
-            val strokes = mapOf(
-                "Freestyle" to session.freestyle,
-                "Backstroke" to session.backstroke,
-                "Breaststroke" to session.breaststroke,
-                "Butterfly" to session.butterfly
-            )
-            val dominantStroke = strokes.maxByOrNull { it.value }?.key ?: "Mixed"
-            exerciseText.text = "$dominantStroke Session"
+            // Use exercise name if available, otherwise fall back to dominant stroke
+            exerciseText.text = if (!session.exerciseName.isNullOrBlank()) {
+                session.exerciseName
+            } else {
+                // Fallback: determine dominant stroke
+                val strokes = mapOf(
+                    "Freestyle" to session.freestyle,
+                    "Backstroke" to session.backstroke,
+                    "Breaststroke" to session.breaststroke,
+                    "Butterfly" to session.butterfly
+                )
+                val dominantStroke = strokes.maxByOrNull { it.value }?.key ?: "Mixed"
+                "$dominantStroke Session"
+            }
             
-            // Placeholder values for distance and duration
-            distanceText.text = "-- m"
+            // Display distance if available
+            distanceText.text = session.totalDistance?.let { "$it m" } ?: "-- m"
             durationText.text = session.timeEnd
             
             // Highlight selected item

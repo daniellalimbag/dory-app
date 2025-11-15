@@ -55,8 +55,11 @@
                         android:gravity="center_vertical"
                         android:layout_marginStart="12dp"
                         android:background="@drawable/pill_background"
-                        android:paddingHorizontal="10dp"
-                        android:paddingVertical="4dp"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:minWidth="60dp"
                         android:visibility="gone">
 
                         <View
@@ -72,9 +75,12 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="+2.5s"
-                            android:textSize="14sp"
+                            android:textSize="13sp"
                             android:textStyle="bold"
-                            android:textColor="@color/error" />
+                            android:textColor="@color/error"
+                            android:maxLines="1"
+                            android:ellipsize="none"
+                            android:includeFontPadding="false" />
                     </LinearLayout>
                 </LinearLayout>
 

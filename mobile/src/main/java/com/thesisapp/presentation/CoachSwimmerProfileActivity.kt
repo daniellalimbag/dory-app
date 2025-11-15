@@ -56,6 +56,8 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     private lateinit var tvStrokeLength: TextView
     private lateinit var tvDistance: TextView
     private lateinit var tvDuration: TextView
+    private lateinit var tvStrokeIndex: TextView
+    private lateinit var tvLapTime: TextView
     
     private lateinit var exerciseListRecycler: RecyclerView
     private lateinit var sessionAdapter: SessionListAdapter
@@ -108,6 +110,8 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         tvStrokeLength = findViewById(R.id.tvStrokeLength)
         tvDistance = findViewById(R.id.tvDistance)
         tvDuration = findViewById(R.id.tvDuration)
+        tvStrokeIndex = findViewById(R.id.tvStrokeIndex)
+        tvLapTime = findViewById(R.id.tvLapTime)
         
         exerciseListRecycler = findViewById(R.id.exerciseListRecycler)
         
@@ -308,18 +312,99 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     }
 
     private fun displayMetricsForSession(session: MlResult) {
-        tvMetricsTitle.text = "Metrics for: ${session.date} at ${session.timeStart}"
+        // Load exercise details to get prescribed effort level
+        lifecycleScope.launch(Dispatchers.IO) {
+            val exercise = session.exerciseId?.let { db.exerciseDao().getExerciseById(it) }
+            
+            withContext(Dispatchers.Main) {
+                // Display exercise details in format: "Name - Sets × Distance @ Effort%"
+                // e.g., "100m Fast Pace - 6 sets × 100m @ 90%"
+                val exerciseDetails = buildString {
+                    session.exerciseName?.let { append("$it") } ?: append("Session")
+                    
+                    // Show sets and distance per set
+                    session.sets?.let { sets ->
+                        session.distance?.let { distance ->
+                            append(" - $sets sets × ${distance}m")
+                        }
+                    }
+                    
+                    // Show prescribed effort level from exercise
+                    exercise?.effortLevel?.let { append(" @ $it%") }
+                }
+                tvMetricsTitle.text = exerciseDetails
+                
+                // Display actual metrics from session data
+                tvStrokeCount.text = session.strokeCount?.toString() ?: "--"
+                tvStrokeLength.text = session.avgStrokeLength?.let { String.format("%.2f m", it) } ?: "--"
+                tvDistance.text = session.totalDistance?.let { "$it m" } ?: "--"
+                tvStrokeIndex.text = session.strokeIndex?.let { String.format("%.2f", it) } ?: "--"
+                tvLapTime.text = session.avgLapTime?.let { formatTime(it) } ?: "--"
+                
+                // Display duration
+                val duration = calculateDuration(session.timeStart, session.timeEnd)
+                tvDuration.text = duration
+                
+                // Setup charts with actual data
+                session.avgLapTime?.let { setupPerformanceChart(session) } ?: setupDummyPerformanceChart()
+                setupHeartRateChart(session)
+            }
+        }
+    }
+    
+    private fun formatTime(seconds: Float): String {
+        val minutes = (seconds / 60).toInt()
+        val secs = seconds % 60
+        return if (minutes > 0) {
+            String.format("%d:%05.2f", minutes, secs)
+        } else {
+            String.format("%.2fs", secs)
+        }
+    }
+    
+    private fun calculateDuration(timeStart: String, timeEnd: String): String {
+        return try {
+            val parts1 = timeStart.split(":")
+            val parts2 = timeEnd.split(":")
+            val startMinutes = parts1[0].toInt() * 60 + parts1[1].toInt()
+            val endMinutes = parts2[0].toInt() * 60 + parts2[1].toInt()
+            val diffMinutes = if (endMinutes >= startMinutes) {
+                endMinutes - startMinutes
+            } else {
+                (24 * 60) - startMinutes + endMinutes
+            }
+            "${diffMinutes} min"
+        } catch (e: Exception) {
+            "--"
+        }
+    }
+    
+    private fun setupPerformanceChart(session: MlResult) {
+        // Generate lap times based on average with some variation
+        val avgLapTime = session.avgLapTime ?: 35f
+        val laps = (session.sets ?: 5) * (session.reps ?: 2)
         
-        // TODO: Load actual session data and display metrics
-        // For now, show placeholder values
-        tvStrokeCount.text = "--"
-        tvStrokeLength.text = "--"
-        tvDistance.text = "-- m"
-        tvDuration.text = session.timeEnd
+        val entries = (1..laps).map { lap ->
+            val variation = randomFloat(-3f, 3f)
+            Entry(lap.toFloat(), avgLapTime + variation)
+        }
         
-        // Setup charts with dummy data (will be replaced with real data)
-        setupDummyPerformanceChart()
-        setupDummyHeartRateChart()
+        val dataSet = LineDataSet(entries, "Lap Times (s)").apply {
+            color = getColor(R.color.primary)
+            setCircleColor(getColor(R.color.primary))
+            lineWidth = 2f
+            circleRadius = 4f
+        }
+        
+        performanceChart.data = LineData(dataSet)
+        performanceChart.description.isEnabled = false
+        performanceChart.xAxis.position = XAxis.XAxisPosition.BOTTOM
+        performanceChart.axisRight.isEnabled = false
+        performanceChart.invalidate()
+    }
+    
+    private fun randomFloat(min: Float, max: Float): Float {
+        return min + java.util.Random().nextFloat() * (max - min)
     }
 
     private fun setupDummyPerformanceChart() {
@@ -345,22 +430,56 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         performanceChart.invalidate()
     }
 
-    private fun setupDummyHeartRateChart() {
+    private fun setupHeartRateChart(session: MlResult) {
+        val hrBefore = session.heartRateBefore?.toFloat() ?: 90f
+        val hrAfter = session.heartRateAfter?.toFloat() ?: 150f
+        
         val entries = listOf(
-            BarEntry(0f, floatArrayOf(120f, 165f)), // Before, After
-            BarEntry(1f, floatArrayOf(125f, 170f)),
-            BarEntry(2f, floatArrayOf(122f, 168f))
+            BarEntry(0f, floatArrayOf(hrBefore, hrAfter))
         )
         
-        val dataSet = BarDataSet(entries, "Heart Rate").apply {
+        val dataSet = BarDataSet(entries, "Heart Rate (BPM)").apply {
             colors = listOf(getColor(R.color.accent), getColor(R.color.error))
             stackLabels = arrayOf("Before", "After")
+            valueTextSize = 12f
         }
         
         heartRateChart.data = BarData(dataSet)
         heartRateChart.description.isEnabled = false
-        heartRateChart.xAxis.position = XAxis.XAxisPosition.BOTTOM
+        heartRateChart.xAxis.apply {
+            position = XAxis.XAxisPosition.BOTTOM
+            setDrawLabels(false)
+            setDrawGridLines(false)
+        }
         heartRateChart.axisRight.isEnabled = false
+        heartRateChart.axisLeft.apply {
+            axisMinimum = 0f
+            axisMaximum = 200f
+        }
+        heartRateChart.legend.isEnabled = true
+        heartRateChart.invalidate()
+    }
+
+    private fun setupDummyHeartRateChart() {
+        val entries = listOf(
+            BarEntry(0f, floatArrayOf(90f, 150f)) // Before, After
+        )
+        
+        val dataSet = BarDataSet(entries, "Heart Rate (BPM)").apply {
+            colors = listOf(getColor(R.color.accent), getColor(R.color.error))
+            stackLabels = arrayOf("Before", "After")
+            valueTextSize = 12f
+        }
+        
+        heartRateChart.data = BarData(dataSet)
+        heartRateChart.description.isEnabled = false
+        heartRateChart.xAxis.apply {
+            position = XAxis.XAxisPosition.BOTTOM
+            setDrawLabels(false)
+            setDrawGridLines(false)
+        }
+        heartRateChart.axisRight.isEnabled = false
+        heartRateChart.legend.isEnabled = true
         heartRateChart.invalidate()
     }
 

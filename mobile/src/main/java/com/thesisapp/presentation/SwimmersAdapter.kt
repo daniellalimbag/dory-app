@@ -117,12 +117,11 @@ class SwimmersAdapter(
                 generateDummyProgressData(db, goalId)
             }
             
-            if (goal != null) {
-                // Get latest progress point
-                val progressPoints = db.goalProgressDao().getProgressForGoal(goal.id)
-                val latestProgress = progressPoints.lastOrNull()
-                
-                withContext(Dispatchers.Main) {
+            // Get latest progress point
+            val progressPoints = db.goalProgressDao().getProgressForGoal(goal.id)
+            val latestProgress = progressPoints.lastOrNull()
+            
+            withContext(Dispatchers.Main) {
                     if (latestProgress != null) {
                         // Calculate difference from goal
                         val currentTime = timeStringToSeconds(latestProgress.projectedRaceTime)
@@ -130,10 +129,10 @@ class SwimmersAdapter(
                         val difference = currentTime - goalTime
                         
                         // Format display
-                        val diffText = if (difference >= 0) {
-                            "+${String.format("%.1f", difference)}s"
-                        } else {
-                            "${String.format("%.1f", difference)}s"
+                        val diffText = when {
+                            difference == 0f -> "On pace"
+                            difference > 0 -> "+${String.format("%.1f", difference)}s"
+                            else -> "${String.format("%.1f", difference)}s"
                         }
                         
                         holder.tvGoalProgress.text = diffText
@@ -152,11 +151,6 @@ class SwimmersAdapter(
                         holder.goalProgressContainer.visibility = View.GONE
                     }
                 }
-            } else {
-                withContext(Dispatchers.Main) {
-                    holder.goalProgressContainer.visibility = View.GONE
-                }
-            }
         }
     }
     

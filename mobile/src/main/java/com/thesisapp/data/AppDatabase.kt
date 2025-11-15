@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [Team::class, Swimmer::class, TeamMembership::class, Exercise::class, SwimData::class, MlResult::class, TeamInvitation::class, Goal::class, GoalProgress::class],
-    version = 18,
+    version = 21,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
