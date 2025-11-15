@@ -51,6 +51,9 @@
         <activity android:name=".presentation.SettingsProfileActivity" 
             android:windowSoftInputMode="adjustPan"/>
         <activity android:name=".presentation.SettingsExportActivity" />
+        <activity android:name=".presentation.SettingsImportActivity" />
+        <activity android:name=".presentation.ImportAssignActivity" />
+
         <activity android:name=".presentation.ConnectActivity" />
         <activity android:name=".presentation.SwimmersActivity" />
         <activity android:name=".presentation.SwimmerProfileActivity" />
