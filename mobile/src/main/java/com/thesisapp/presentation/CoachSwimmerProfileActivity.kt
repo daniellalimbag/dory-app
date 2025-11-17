@@ -398,8 +398,21 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         
         performanceChart.data = LineData(dataSet)
         performanceChart.description.isEnabled = false
-        performanceChart.xAxis.position = XAxis.XAxisPosition.BOTTOM
+        performanceChart.xAxis.apply {
+            position = XAxis.XAxisPosition.BOTTOM
+            setDrawGridLines(false)
+            granularity = 1f
+            valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    return "Lap ${value.toInt()}"
+                }
+            }
+        }
         performanceChart.axisRight.isEnabled = false
+        performanceChart.axisLeft.apply {
+            setDrawGridLines(true)
+            granularity = 5f
+        }
         performanceChart.invalidate()
     }
     
@@ -434,52 +447,79 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         val hrBefore = session.heartRateBefore?.toFloat() ?: 90f
         val hrAfter = session.heartRateAfter?.toFloat() ?: 150f
         
+        // Two separate bars: before and after
         val entries = listOf(
-            BarEntry(0f, floatArrayOf(hrBefore, hrAfter))
+            BarEntry(0f, hrBefore),
+            BarEntry(1f, hrAfter)
         )
         
         val dataSet = BarDataSet(entries, "Heart Rate (BPM)").apply {
             colors = listOf(getColor(R.color.accent), getColor(R.color.error))
-            stackLabels = arrayOf("Before", "After")
             valueTextSize = 12f
+            valueTextColor = getColor(R.color.text)
         }
         
         heartRateChart.data = BarData(dataSet)
         heartRateChart.description.isEnabled = false
         heartRateChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
-            setDrawLabels(false)
             setDrawGridLines(false)
+            granularity = 1f
+            valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    return when (value.toInt()) {
+                        0 -> "Before"
+                        1 -> "After"
+                        else -> ""
+                    }
+                }
+            }
         }
         heartRateChart.axisRight.isEnabled = false
         heartRateChart.axisLeft.apply {
             axisMinimum = 0f
-            axisMaximum = 200f
+            granularity = 20f
+            setDrawGridLines(true)
         }
-        heartRateChart.legend.isEnabled = true
+        heartRateChart.legend.isEnabled = false
         heartRateChart.invalidate()
     }
 
     private fun setupDummyHeartRateChart() {
         val entries = listOf(
-            BarEntry(0f, floatArrayOf(90f, 150f)) // Before, After
+            BarEntry(0f, 90f),
+            BarEntry(1f, 150f)
         )
         
         val dataSet = BarDataSet(entries, "Heart Rate (BPM)").apply {
             colors = listOf(getColor(R.color.accent), getColor(R.color.error))
-            stackLabels = arrayOf("Before", "After")
             valueTextSize = 12f
+            valueTextColor = getColor(R.color.text)
         }
         
         heartRateChart.data = BarData(dataSet)
         heartRateChart.description.isEnabled = false
         heartRateChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
-            setDrawLabels(false)
             setDrawGridLines(false)
+            granularity = 1f
+            valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    return when (value.toInt()) {
+                        0 -> "Before"
+                        1 -> "After"
+                        else -> ""
+                    }
+                }
+            }
         }
         heartRateChart.axisRight.isEnabled = false
-        heartRateChart.legend.isEnabled = true
+        heartRateChart.axisLeft.apply {
+            axisMinimum = 0f
+            granularity = 20f
+            setDrawGridLines(true)
+        }
+        heartRateChart.legend.isEnabled = false
         heartRateChart.invalidate()
     }
 
