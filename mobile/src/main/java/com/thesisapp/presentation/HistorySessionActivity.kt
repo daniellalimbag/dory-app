@@ -103,39 +103,42 @@ class HistorySessionActivity : AppCompatActivity() {
 
                 if (swimData.isNotEmpty()) {
                     val lapMetricsRaw = StrokeMetrics.computeLapMetrics(swimData)
-                    val poolLengthMeters = 50.0
-                    val totalDistanceMeters: Double
-                    val totalTimeSeconds: Double
 
-                    if (lapMetricsRaw.isNotEmpty()) {
-                        val lapCount = lapMetricsRaw.size.toDouble()
-                        totalDistanceMeters = poolLengthMeters * lapCount
-                        totalTimeSeconds = lapMetricsRaw.sumOf { it.lapTimeSeconds }
-                    } else {
-                        val firstTs = swimData.first().timestamp
-                        val lastTs = swimData.last().timestamp
-                        totalTimeSeconds = (lastTs - firstTs).coerceAtLeast(1L) / 1000.0
-                        totalDistanceMeters = poolLengthMeters
-                    }
-
-                    val strokeCount = StrokeMetrics.computeStrokeCount(swimData).toDouble()
-                    swimmingVelocity = if (totalTimeSeconds > 0.0) totalDistanceMeters / totalTimeSeconds else 0.0
-                    strokeRate = if (totalTimeSeconds > 0.0) (strokeCount / totalTimeSeconds) * 60.0 else 0.0
-                    strokeLength = if (strokeCount > 0.0) totalDistanceMeters / strokeCount else 0.0
-                    strokeIndex = swimmingVelocity * strokeLength
-
+                    // Fallback: if no laps detected, treat whole session as a single lap
                     val lapMetrics = if (lapMetricsRaw.isNotEmpty()) {
                         lapMetricsRaw
                     } else {
+                        val firstTs = swimData.first().timestamp
+                        val lastTs = swimData.last().timestamp
+                        val totalTimeSeconds = (lastTs - firstTs).coerceAtLeast(1L) / 1000.0
+                        val strokeCount = StrokeMetrics.computeStrokeCount(swimData)
+
+                        val poolLengthMeters = 50.0
+                        val velocity = if (totalTimeSeconds > 0.0) poolLengthMeters / totalTimeSeconds else 0.0
+                        val strokeRatePerSecond = if (totalTimeSeconds > 0.0) strokeCount / totalTimeSeconds else 0.0
+                        val strokeRateSpm = strokeRatePerSecond * 60.0
+                        val strokeLength = if (strokeRatePerSecond > 0.0) velocity / strokeRatePerSecond else 0.0
+                        val strokeIdx = velocity * strokeLength
+
                         listOf(
                             StrokeMetrics.LapMetrics(
                                 lapTimeSeconds = totalTimeSeconds,
-                                strokeCount = strokeCount.toInt(),
-                                strokeRateSpm = strokeRate,
-                                strokeLengthMeters = strokeLength
+                                strokeCount = strokeCount,
+                                strokeRateSpm = strokeRateSpm,
+                                strokeLengthMeters = strokeLength,
+                                velocityMetersPerSecond = velocity,
+                                strokeRatePerSecond = strokeRatePerSecond,
+                                strokeIndex = strokeIdx
                             )
                         )
                     }
+
+                    // Session-level averages from centralized pipeline
+                    val sessionAvgs = StrokeMetrics.computeSessionAverages(lapMetrics)
+                    swimmingVelocity = sessionAvgs.avgVelocityMetersPerSecond
+                    strokeRate = sessionAvgs.avgStrokeRatePerSecond * 60.0
+                    strokeLength = sessionAvgs.avgStrokeLengthMeters
+                    strokeIndex = sessionAvgs.avgStrokeIndex
 
                     if (lapMetrics.isNotEmpty()) {
                         lapMetrics.forEachIndexed { index, m ->

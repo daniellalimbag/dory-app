@@ -1,5 +1,6 @@
 package com.thesisapp.presentation
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -9,12 +10,17 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.thesisapp.R
+import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.Session
 import com.thesisapp.data.Swimmer
 import java.text.SimpleDateFormat
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SwimmerSessionsFragment : Fragment() {
 
@@ -52,48 +58,72 @@ class SwimmerSessionsFragment : Fragment() {
         val btnFilterPerson = view.findViewById<Button>(R.id.btnFilterPerson)
         val btnSortDate = view.findViewById<Button>(R.id.btnSortDate)
 
-        // Get ALL sessions, then filter to only this swimmer's sessions
-        val allSessionsFromDummy = getAllDummySessions()
-        allSessions = allSessionsFromDummy.filter { it.swimmerId == swimmer?.id }
-
-        // Show debug info
-        Toast.makeText(
-            requireContext(),
-            "Swimmer: ${swimmer?.name} (ID: ${swimmer?.id}), Sessions: ${allSessions.size}",
-            Toast.LENGTH_LONG
-        ).show()
-
-        filteredSessions = allSessions.sortedByDescending { parseDate(it.date) }
-
-        if (filteredSessions.isEmpty()) {
+        val swimmerId = swimmer?.id
+        if (swimmerId == null) {
             noSessionsLayout.visibility = View.VISIBLE
             recyclerView.visibility = View.GONE
             btnFilterPerson.visibility = View.GONE
             btnSortDate.visibility = View.GONE
-        } else {
-            noSessionsLayout.visibility = View.GONE
-            recyclerView.visibility = View.VISIBLE
-
-            // Set up RecyclerView with LinearLayoutManager
-            recyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
-
-            adapter = SessionsAdapter(filteredSessions) { session ->
-                // Session click handler - will be implemented later
-                Toast.makeText(
-                    requireContext(),
-                    "Session clicked: ${session.fileName}",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-            recyclerView.adapter = adapter
+            return
         }
 
-        // Since we're only showing one swimmer, hide the filter button
-        btnFilterPerson.visibility = View.GONE
+        val db = AppDatabase.getInstance(requireContext())
 
-        // Sort button click
-        btnSortDate.setOnClickListener {
-            sortSessions()
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val results = db.mlResultDao().getResultsForSwimmer(swimmerId)
+
+                val sessionsFromDb = results.map { ml ->
+                    val timeRange = "${ml.timeStart} - ${ml.timeEnd}"
+                    Session(
+                        id = ml.sessionId,
+                        fileName = ml.exerciseName ?: "Session",
+                        date = ml.date,
+                        time = timeRange,
+                        swimmerName = swimmer?.name ?: "",
+                        swimmerId = swimmerId
+                    )
+                }
+
+                allSessions = sessionsFromDb
+                filteredSessions = allSessions.sortedByDescending { parseDate(it.date) }
+
+                withContext(Dispatchers.Main) {
+                    if (filteredSessions.isEmpty()) {
+                        noSessionsLayout.visibility = View.VISIBLE
+                        recyclerView.visibility = View.GONE
+                        btnFilterPerson.visibility = View.GONE
+                        btnSortDate.visibility = View.GONE
+                    } else {
+                        noSessionsLayout.visibility = View.GONE
+                        recyclerView.visibility = View.VISIBLE
+
+                        recyclerView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
+
+                        adapter = SessionsAdapter(filteredSessions) { session ->
+                            val intent = Intent(requireContext(), HistorySessionActivity::class.java)
+                            intent.putExtra("sessionId", session.id)
+                            startActivity(intent)
+                        }
+                        recyclerView.adapter = adapter
+                    }
+
+                    // Since we're only showing one swimmer, hide the filter button
+                    btnFilterPerson.visibility = View.GONE
+
+                    btnSortDate.setOnClickListener {
+                        sortSessions()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(requireContext(), "Failed to load sessions: ${e.message}", Toast.LENGTH_LONG).show()
+                    noSessionsLayout.visibility = View.VISIBLE
+                    recyclerView.visibility = View.GONE
+                    btnFilterPerson.visibility = View.GONE
+                    btnSortDate.visibility = View.GONE
+                }
+            }
         }
     }
 

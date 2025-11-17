@@ -9,6 +9,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import com.thesisapp.R
@@ -53,9 +54,15 @@ class SwimmerProfileActivity : AppCompatActivity() {
         // Set up top row
         tvTeamSwitcher = findViewById(R.id.tvTeamSwitcher)
         tvAccount = findViewById(R.id.tvAccount)
+        val btnConnectProfile: com.google.android.material.button.MaterialButton? = findViewById(R.id.btnConnectProfile)
 
         tvTeamSwitcher.setOnClickListener { showSwitchTeamDialog() }
         tvAccount.setOnClickListener { showAccountMenu() }
+
+        btnConnectProfile?.setOnClickListener {
+            val intent = Intent(this, ConnectActivity::class.java)
+            startActivity(intent)
+        }
 
         updateTopRow()
 

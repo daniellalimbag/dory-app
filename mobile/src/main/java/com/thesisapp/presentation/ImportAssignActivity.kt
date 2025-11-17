@@ -29,6 +29,7 @@ class ImportAssignActivity : AppCompatActivity() {
 
     private var swimmers: List<Swimmer> = emptyList()
     private var exercises: List<Exercise> = emptyList()
+    private var preselectedSwimmerId: Int = -1
 
     companion object {
         const val EXTRA_SWIMMER_ID = "EXTRA_SWIMMER_ID"
@@ -46,6 +47,8 @@ class ImportAssignActivity : AppCompatActivity() {
         btnAssign = findViewById(R.id.btnAssign)
 
         txtValidation.text = ""
+
+        preselectedSwimmerId = intent.getIntExtra(EXTRA_SWIMMER_ID, -1)
 
         loadData()
 
@@ -88,6 +91,14 @@ class ImportAssignActivity : AppCompatActivity() {
                     android.R.layout.simple_spinner_dropdown_item,
                     swimmerNames
                 )
+
+                if (preselectedSwimmerId > 0) {
+                    val index = swimmers.indexOfFirst { it.id == preselectedSwimmerId }
+                    if (index >= 0) {
+                        spinnerSwimmer.setSelection(index + 1)
+                        spinnerSwimmer.isEnabled = false
+                    }
+                }
 
                 spinnerExercise.adapter = ArrayAdapter(
                     this@ImportAssignActivity,

@@ -30,6 +30,11 @@ class SettingsImportActivity : AppCompatActivity() {
     private lateinit var fileNameTextView: TextView
 
     private var selectedFileUri: Uri? = null
+    private var preselectedSwimmerId: Int = -1
+
+    companion object {
+        const val EXTRA_SWIMMER_ID = "EXTRA_SWIMMER_ID"
+    }
 
     // Hold parsed data until user assigns swimmer/exercise
     private var pendingSwimData: List<SwimData> = emptyList()
@@ -220,7 +225,11 @@ class SettingsImportActivity : AppCompatActivity() {
                     pendingLinesProcessed = linesProcessed
                     pendingSkipped = skipped
 
-                    val intent = android.content.Intent(this@SettingsImportActivity, ImportAssignActivity::class.java)
+                    val intent = android.content.Intent(this@SettingsImportActivity, ImportAssignActivity::class.java).apply {
+                        if (preselectedSwimmerId > 0) {
+                            putExtra(ImportAssignActivity.EXTRA_SWIMMER_ID, preselectedSwimmerId)
+                        }
+                    }
                     assignLauncher.launch(intent)
                 }
             } else {
@@ -242,6 +251,8 @@ class SettingsImportActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.settings_import)
+
+        preselectedSwimmerId = intent.getIntExtra(EXTRA_SWIMMER_ID, -1)
 
         btnSelectFile = findViewById(R.id.btnSelectFile)
         btnImport = findViewById(R.id.btnImport)

@@ -41,16 +41,29 @@
         android:layout_height="1dp"
         android:background="@color/divider" />
 
-    <!-- Logo centered -->
-    <ImageView
-        android:id="@+id/logo"
-        android:layout_width="80dp"
-        android:layout_height="80dp"
-        android:src="@drawable/logo"
-        android:contentDescription="@string/app_logo"
+    <!-- Large Connect Watch button (replaces logo) -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnConnectProfile"
+        android:layout_width="160dp"
+        android:layout_height="160dp"
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="16dp"
-        android:layout_marginBottom="16dp"/>
+        android:layout_marginBottom="16dp"
+        android:text="Connect"
+        android:textColor="@color/white"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif-medium"
+        android:gravity="center"
+        android:backgroundTint="@color/accent"
+        app:cornerRadius="100dp"
+        app:icon="@drawable/ic_watch"
+        app:iconGravity="textTop"
+        app:iconPadding="12dp"
+        app:iconSize="72dp"
+        app:iconTint="@color/white"
+        app:elevation="12dp"
+        app:strokeWidth="0dp" />
 
     <!-- Tab Layout -->
     <com.google.android.material.tabs.TabLayout

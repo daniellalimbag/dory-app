@@ -45,11 +45,14 @@ class ExerciseLibraryActivity : AppCompatActivity() {
         tabLayout.addTab(tabLayout.newTab().setText("Sprint"))
         tabLayout.addTab(tabLayout.newTab().setText("Distance"))
 
+        val isCoach = AuthManager.currentUser(this)?.role == com.thesisapp.utils.UserRole.COACH
+
         // Initialize adapter
         adapter = ExerciseAdapter(
             exercises = mutableListOf(),
-            onEditClick = { exercise -> showEditExerciseDialog(exercise) },
-            onDeleteClick = { exercise -> showDeleteConfirmation(exercise) }
+            onEditClick = { exercise -> if (isCoach) showEditExerciseDialog(exercise) },
+            onDeleteClick = { exercise -> if (isCoach) showDeleteConfirmation(exercise) },
+            readOnly = !isCoach
         )
         recyclerView.adapter = adapter
 
@@ -68,8 +71,12 @@ class ExerciseLibraryActivity : AppCompatActivity() {
             override fun onTabReselected(tab: TabLayout.Tab?) {}
         })
 
-        fabAddExercise.setOnClickListener {
-            showAddExerciseDialog()
+        if (isCoach) {
+            fabAddExercise.setOnClickListener {
+                showAddExerciseDialog()
+            }
+        } else {
+            fabAddExercise.hide()
         }
 
         loadExercises()

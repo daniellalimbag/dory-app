@@ -12,7 +12,8 @@ import com.thesisapp.data.Exercise
 class ExerciseAdapter(
     private var exercises: MutableList<Exercise>,
     private val onEditClick: (Exercise) -> Unit,
-    private val onDeleteClick: (Exercise) -> Unit
+    private val onDeleteClick: (Exercise) -> Unit,
+    private val readOnly: Boolean = false
 ) : RecyclerView.Adapter<ExerciseAdapter.ExerciseViewHolder>() {
 
     inner class ExerciseViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -56,8 +57,15 @@ class ExerciseAdapter(
             holder.tvExerciseDetails.visibility = View.GONE
         }
 
-        holder.btnEdit.setOnClickListener { onEditClick(exercise) }
-        holder.btnDelete.setOnClickListener { onDeleteClick(exercise) }
+        if (readOnly) {
+            holder.btnEdit.visibility = View.GONE
+            holder.btnDelete.visibility = View.GONE
+        } else {
+            holder.btnEdit.visibility = View.VISIBLE
+            holder.btnDelete.visibility = View.VISIBLE
+            holder.btnEdit.setOnClickListener { onEditClick(exercise) }
+            holder.btnDelete.setOnClickListener { onDeleteClick(exercise) }
+        }
     }
 
     override fun getItemCount() = exercises.size

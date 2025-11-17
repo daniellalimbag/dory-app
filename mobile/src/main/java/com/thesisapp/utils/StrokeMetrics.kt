@@ -396,7 +396,19 @@ object StrokeMetrics {
         val lapTimeSeconds: Double,
         val strokeCount: Int,
         val strokeRateSpm: Double,
-        val strokeLengthMeters: Double
+        val strokeLengthMeters: Double,
+        val velocityMetersPerSecond: Double,
+        val strokeRatePerSecond: Double,
+        val strokeIndex: Double
+    )
+
+    data class SessionAverages(
+        val avgLapTimeSeconds: Double,
+        val avgStrokeCount: Double,
+        val avgVelocityMetersPerSecond: Double,
+        val avgStrokeRatePerSecond: Double,
+        val avgStrokeLengthMeters: Double,
+        val avgStrokeIndex: Double
     )
 
     fun computeLapMetrics(data: List<SwimData>, poolLengthMeters: Double = 50.0): List<LapMetrics> {
@@ -471,15 +483,21 @@ object StrokeMetrics {
                                 val lapStrokeCount = computeStrokeCount(lapData)
                                 if (lapStrokeCount <= 0) continue
 
-                                val lapStrokeRateSpm = (lapStrokeCount / lapTimeSec) * 60.0
-                                val lapStrokeLength = poolLengthMeters / lapStrokeCount.toDouble()
+                                val velocity = poolLengthMeters / lapTimeSec
+                                val strokeRatePerSecond = lapStrokeCount / lapTimeSec
+                                val lapStrokeRateSpm = strokeRatePerSecond * 60.0
+                                val lapStrokeLength = if (strokeRatePerSecond > 0.0) velocity / strokeRatePerSecond else 0.0
+                                val strokeIndex = velocity * lapStrokeLength
 
                                 lapMetrics.add(
                                     LapMetrics(
                                         lapTimeSeconds = lapTimeSec,
                                         strokeCount = lapStrokeCount,
                                         strokeRateSpm = lapStrokeRateSpm,
-                                        strokeLengthMeters = lapStrokeLength
+                                        strokeLengthMeters = lapStrokeLength,
+                                        velocityMetersPerSecond = velocity,
+                                        strokeRatePerSecond = strokeRatePerSecond,
+                                        strokeIndex = strokeIndex
                                     )
                                 )
                             }
@@ -539,15 +557,21 @@ object StrokeMetrics {
                         val lapStrokeCount = computeStrokeCount(lapData)
                         if (lapStrokeCount <= 0) continue
 
-                        val lapStrokeRateSpm = (lapStrokeCount / lapTimeSec) * 60.0
-                        val lapStrokeLength = poolLengthMeters / lapStrokeCount.toDouble()
+                        val velocity = poolLengthMeters / lapTimeSec
+                        val strokeRatePerSecond = lapStrokeCount / lapTimeSec
+                        val lapStrokeRateSpm = strokeRatePerSecond * 60.0
+                        val lapStrokeLength = if (strokeRatePerSecond > 0.0) velocity / strokeRatePerSecond else 0.0
+                        val strokeIndex = velocity * lapStrokeLength
 
                         lapMetrics.add(
                             LapMetrics(
                                 lapTimeSeconds = lapTimeSec,
                                 strokeCount = lapStrokeCount,
                                 strokeRateSpm = lapStrokeRateSpm,
-                                strokeLengthMeters = lapStrokeLength
+                                strokeLengthMeters = lapStrokeLength,
+                                velocityMetersPerSecond = velocity,
+                                strokeRatePerSecond = strokeRatePerSecond,
+                                strokeIndex = strokeIndex
                             )
                         )
                     }
@@ -556,6 +580,46 @@ object StrokeMetrics {
         }
 
         return lapMetrics
+    }
+
+    fun computeSessionAverages(lapMetrics: List<LapMetrics>): SessionAverages {
+        if (lapMetrics.isEmpty()) {
+            return SessionAverages(
+                avgLapTimeSeconds = 0.0,
+                avgStrokeCount = 0.0,
+                avgVelocityMetersPerSecond = 0.0,
+                avgStrokeRatePerSecond = 0.0,
+                avgStrokeLengthMeters = 0.0,
+                avgStrokeIndex = 0.0
+            )
+        }
+
+        var sumLapTime = 0.0
+        var sumStrokeCount = 0.0
+        var sumVelocity = 0.0
+        var sumStrokeRatePerSecond = 0.0
+        var sumStrokeLength = 0.0
+        var sumStrokeIndex = 0.0
+
+        for (m in lapMetrics) {
+            sumLapTime += m.lapTimeSeconds
+            sumStrokeCount += m.strokeCount.toDouble()
+            sumVelocity += m.velocityMetersPerSecond
+            sumStrokeRatePerSecond += m.strokeRatePerSecond
+            sumStrokeLength += m.strokeLengthMeters
+            sumStrokeIndex += m.strokeIndex
+        }
+
+        val n = lapMetrics.size.toDouble()
+
+        return SessionAverages(
+            avgLapTimeSeconds = sumLapTime / n,
+            avgStrokeCount = sumStrokeCount / n,
+            avgVelocityMetersPerSecond = sumVelocity / n,
+            avgStrokeRatePerSecond = sumStrokeRatePerSecond / n,
+            avgStrokeLengthMeters = sumStrokeLength / n,
+            avgStrokeIndex = sumStrokeIndex / n
+        )
     }
 
     fun computeLapTimes(data: List<SwimData>): List<List<Long>> {
