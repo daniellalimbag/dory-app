@@ -75,16 +75,37 @@ class SettingsImportActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.IO).launch {
             val db = AppDatabase.getInstance(applicationContext)
 
-            // Insert all swim samples
-            db.swimDataDao().insertAll(dataToInsert)
+            // We need unique internal sessionIds that won't collide with existing MlResult rows.
+            // Also, SwimData.sessionId must match MlResult.sessionId so HistorySessionActivity can load data.
+            val existingMaxId = db.mlResultDao().getMaxSessionId() ?: 0
 
-            // Create MlResult per sessionId with basic metadata
+            // Group by original (external) sessionId from the imported file.
             val bySession = dataToInsert.groupBy { it.sessionId }
+
+            // Build a mapping from external sessionId -> new internal sessionId.
+            val idMap = mutableMapOf<Int, Int>()
+            var nextId = existingMaxId + 1
+            for (originalId in bySession.keys.sorted()) {
+                idMap[originalId] = nextId
+                nextId++
+            }
+
+            // Apply the mapping to all SwimData rows so they use the new internal IDs.
+            val remappedSwimData = dataToInsert.map { sample ->
+                val mappedId = idMap[sample.sessionId] ?: sample.sessionId
+                sample.copy(sessionId = mappedId)
+            }
+
+            // Insert all swim samples with remapped sessionIds
+            db.swimDataDao().insertAll(remappedSwimData)
+
+            // Create MlResult per (new) sessionId with basic metadata
             val tz = java.util.TimeZone.getTimeZone("Asia/Manila")
             val formatterDate = java.text.SimpleDateFormat("MMMM dd, yyyy", java.util.Locale.getDefault()).apply { timeZone = tz }
             val formatterTime = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).apply { timeZone = tz }
 
-            for ((sid, samples) in bySession) {
+            val byNewSession = remappedSwimData.groupBy { it.sessionId }
+            for ((sid, samples) in byNewSession) {
                 val timestamps = samples.map { it.timestamp }
                 val firstMs = timestamps.minOrNull() ?: continue
                 val lastMs = timestamps.maxOrNull() ?: firstMs
