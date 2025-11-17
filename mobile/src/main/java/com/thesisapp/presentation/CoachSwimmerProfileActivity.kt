@@ -22,6 +22,7 @@ import com.thesisapp.R
 import com.thesisapp.data.*
 import com.thesisapp.presentation.adapters.SessionListAdapter
 import com.thesisapp.presentation.dialogs.SetGoalDialogFragment
+import com.thesisapp.utils.StrokeMetrics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -312,40 +313,104 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     }
 
     private fun displayMetricsForSession(session: MlResult) {
-        // Load exercise details to get prescribed effort level
+        // Load exercise details and compute real kinematic metrics from SwimData
         lifecycleScope.launch(Dispatchers.IO) {
             val exercise = session.exerciseId?.let { db.exerciseDao().getExerciseById(it) }
-            
+
+            // Load raw samples for this session
+            val swimData = db.swimDataDao().getSwimDataForSession(session.sessionId)
+
+            var totalStrokeCount = 0
+            var avgStrokeLength = 0.0
+            var avgStrokeIndex = 0.0
+            var avgLapTimeSeconds = 0.0
+            var totalDistanceMeters = 0
+            var hasMetrics = false
+
+            if (swimData.isNotEmpty()) {
+                val lapMetricsRaw = StrokeMetrics.computeLapMetrics(swimData)
+
+                // Fallback: if no laps detected, treat whole session as a single lap
+                val lapMetrics = if (lapMetricsRaw.isNotEmpty()) {
+                    lapMetricsRaw
+                } else {
+                    val firstTs = swimData.first().timestamp
+                    val lastTs = swimData.last().timestamp
+                    val totalTimeSeconds = (lastTs - firstTs).coerceAtLeast(1L) / 1000.0
+                    val strokeCount = StrokeMetrics.computeStrokeCount(swimData)
+
+                    val poolLengthMeters = 50.0
+                    val velocity = if (totalTimeSeconds > 0.0) poolLengthMeters / totalTimeSeconds else 0.0
+                    val strokeRatePerSecond = if (totalTimeSeconds > 0.0) strokeCount / totalTimeSeconds else 0.0
+                    val strokeRateSpm = strokeRatePerSecond * 60.0
+                    val strokeLength = if (strokeRatePerSecond > 0.0) velocity / strokeRatePerSecond else 0.0
+                    val strokeIdx = velocity * strokeLength
+
+                    listOf(
+                        StrokeMetrics.LapMetrics(
+                            lapTimeSeconds = totalTimeSeconds,
+                            strokeCount = strokeCount,
+                            strokeRateSpm = strokeRateSpm,
+                            strokeLengthMeters = strokeLength,
+                            velocityMetersPerSecond = velocity,
+                            strokeRatePerSecond = strokeRatePerSecond,
+                            strokeIndex = strokeIdx
+                        )
+                    )
+                }
+
+                if (lapMetrics.isNotEmpty()) {
+                    val sessionAvgs = StrokeMetrics.computeSessionAverages(lapMetrics)
+
+                    avgStrokeLength = sessionAvgs.avgStrokeLengthMeters
+                    avgStrokeIndex = sessionAvgs.avgStrokeIndex
+                    avgLapTimeSeconds = sessionAvgs.avgLapTimeSeconds
+                    totalStrokeCount = lapMetrics.sumOf { it.strokeCount }
+
+                    val poolLengthMeters = 50.0
+                    totalDistanceMeters = (poolLengthMeters * lapMetrics.size).toInt()
+
+                    hasMetrics = true
+                }
+            }
+
             withContext(Dispatchers.Main) {
                 // Display exercise details in format: "Name - Sets × Distance @ Effort%"
                 // e.g., "100m Fast Pace - 6 sets × 100m @ 90%"
                 val exerciseDetails = buildString {
                     session.exerciseName?.let { append("$it") } ?: append("Session")
-                    
+
                     // Show sets and distance per set
                     session.sets?.let { sets ->
                         session.distance?.let { distance ->
                             append(" - $sets sets × ${distance}m")
                         }
                     }
-                    
+
                     // Show prescribed effort level from exercise
                     exercise?.effortLevel?.let { append(" @ $it%") }
                 }
                 tvMetricsTitle.text = exerciseDetails
-                
-                // Display actual metrics from session data
-                tvStrokeCount.text = session.strokeCount?.toString() ?: "--"
-                tvStrokeLength.text = session.avgStrokeLength?.let { String.format("%.2f m", it) } ?: "--"
-                tvDistance.text = session.totalDistance?.let { "$it m" } ?: "--"
-                tvStrokeIndex.text = session.strokeIndex?.let { String.format("%.2f", it) } ?: "--"
-                tvLapTime.text = session.avgLapTime?.let { formatTime(it) } ?: "--"
-                
+
+                if (hasMetrics) {
+                    tvStrokeCount.text = totalStrokeCount.toString()
+                    tvStrokeLength.text = String.format("%.2f m", avgStrokeLength)
+                    tvDistance.text = "$totalDistanceMeters m"
+                    tvStrokeIndex.text = String.format("%.2f", avgStrokeIndex)
+                    tvLapTime.text = formatTime(avgLapTimeSeconds.toFloat())
+                } else {
+                    tvStrokeCount.text = "--"
+                    tvStrokeLength.text = "--"
+                    tvDistance.text = "--"
+                    tvStrokeIndex.text = "--"
+                    tvLapTime.text = "--"
+                }
+
                 // Display duration
                 val duration = calculateDuration(session.timeStart, session.timeEnd)
                 tvDuration.text = duration
-                
-                // Setup charts with actual data
+
+                // Keep existing chart behavior for now (dummy if no avgLapTime)
                 session.avgLapTime?.let { setupPerformanceChart(session) } ?: setupDummyPerformanceChart()
                 setupHeartRateChart(session)
             }
