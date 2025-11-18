@@ -8,7 +8,7 @@ import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
 import com.thesisapp.data.AppDatabase
-import com.thesisapp.data.SwimData
+import com.thesisapp.data.non_dao.SwimData
 import com.thesisapp.presentation.StrokeClassifier
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.CoroutineScope

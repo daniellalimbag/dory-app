@@ -1,6 +1,6 @@
 package com.thesisapp.utils
 
-import com.thesisapp.data.SwimData
+import com.thesisapp.data.non_dao.SwimData
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.sqrt

@@ -1,6 +1,9 @@
 package com.thesisapp.utils
 
-import com.thesisapp.data.*
+import com.thesisapp.data.non_dao.Exercise
+import com.thesisapp.data.non_dao.ExerciseCategory
+import com.thesisapp.data.non_dao.MlResult
+import com.thesisapp.data.non_dao.Swimmer
 import java.text.SimpleDateFormat
 import java.util.*
 

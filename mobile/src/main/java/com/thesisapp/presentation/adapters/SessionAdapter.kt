@@ -8,8 +8,8 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.thesisapp.R
-import com.thesisapp.data.MlResult
-import com.thesisapp.presentation.CategorizeSessionActivity
+import com.thesisapp.data.non_dao.MlResult
+import com.thesisapp.presentation.activities.CategorizeSessionActivity
 import java.text.SimpleDateFormat
 import java.util.*
 

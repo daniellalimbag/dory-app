@@ -7,9 +7,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.thesisapp.R
-import com.thesisapp.data.MlResult
-import java.text.SimpleDateFormat
-import java.util.*
+import com.thesisapp.data.non_dao.MlResult
 
 class SessionListAdapter(
     private var sessions: List<MlResult>,

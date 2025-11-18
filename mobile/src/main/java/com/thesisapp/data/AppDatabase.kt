@@ -4,6 +4,24 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.thesisapp.data.dao.ExerciseDao
+import com.thesisapp.data.dao.GoalDao
+import com.thesisapp.data.dao.GoalProgressDao
+import com.thesisapp.data.dao.MlResultDao
+import com.thesisapp.data.dao.SwimDataDao
+import com.thesisapp.data.dao.SwimmerDao
+import com.thesisapp.data.dao.TeamDao
+import com.thesisapp.data.dao.TeamInvitationDao
+import com.thesisapp.data.dao.TeamMembershipDao
+import com.thesisapp.data.non_dao.Exercise
+import com.thesisapp.data.non_dao.Goal
+import com.thesisapp.data.non_dao.GoalProgress
+import com.thesisapp.data.non_dao.MlResult
+import com.thesisapp.data.non_dao.SwimData
+import com.thesisapp.data.non_dao.Swimmer
+import com.thesisapp.data.non_dao.Team
+import com.thesisapp.data.non_dao.TeamInvitation
+import com.thesisapp.data.non_dao.TeamMembership
 
 @Database(
     entities = [Team::class, Swimmer::class, TeamMembership::class, Exercise::class, SwimData::class, MlResult::class, TeamInvitation::class, Goal::class, GoalProgress::class],

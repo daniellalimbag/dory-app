@@ -19,7 +19,7 @@
         android:theme="@style/Theme.ThesisApp"
         android:usesCleartextTraffic="true"
         tools:targetApi="31">
-        <activity android:name=".presentation.SplashActivity"
+        <activity android:name=".presentation.activities.SplashActivity"
             android:theme="@style/Theme.ThesisApp.Splash"
             android:exported="true">
             <intent-filter>
@@ -28,51 +28,51 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".presentation.AuthActivity" 
+        <activity android:name=".presentation.activities.AuthActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.CreateTeamActivity" 
+        <activity android:name=".presentation.activities.CreateTeamActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.EnrollViaCodeActivity" 
+        <activity android:name=".presentation.activities.EnrollViaCodeActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.JoinTeamByCodeActivity" 
+        <activity android:name=".presentation.activities.JoinTeamByCodeActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.ManageCoachesActivity" 
+        <activity android:name=".presentation.activities.ManageCoachesActivity"
             android:windowSoftInputMode="adjustPan"/>
 
-        <activity android:name=".presentation.MainActivity" 
+        <activity android:name=".presentation.activities.MainActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.TrackNoSwimmerActivity" />
-        <activity android:name=".presentation.TrackAddSwimmerActivity" 
+        <activity android:name=".presentation.activities.TrackNoSwimmerActivity" />
+        <activity android:name=".presentation.activities.TrackAddSwimmerActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.TrackSwimmerSuccessActivity" />
-        <activity android:name=".presentation.TrackSwimmerActivity" 
+        <activity android:name=".presentation.activities.TrackSwimmerSuccessActivity" />
+        <activity android:name=".presentation.activities.TrackSwimmerActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.HistoryListActivity" />
-        <activity android:name=".presentation.HistorySessionActivity" />
-        <activity android:name=".presentation.SettingsActivity" />
-        <activity android:name=".presentation.SettingsProfileActivity" 
+        <activity android:name=".presentation.activities.HistoryListActivity" />
+        <activity android:name=".presentation.activities.HistorySessionActivity" />
+        <activity android:name=".presentation.activities.SettingsActivity" />
+        <activity android:name=".presentation.activities.SettingsProfileActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.SettingsExportActivity" />
-        <activity android:name=".presentation.SettingsImportActivity" />
-        <activity android:name=".presentation.ImportAssignActivity" />
+        <activity android:name=".presentation.activities.SettingsExportActivity" />
+        <activity android:name=".presentation.activities.SettingsImportActivity" />
+        <activity android:name=".presentation.activities.ImportAssignActivity" />
 
-        <activity android:name=".presentation.ConnectActivity" />
-        <activity android:name=".presentation.SwimmersActivity" />
-        <activity android:name=".presentation.SwimmerProfileActivity" />
-        <activity android:name=".presentation.CoachSwimmerProfileActivity" 
+        <activity android:name=".presentation.activities.ConnectActivity" />
+        <activity android:name=".presentation.activities.SwimmersActivity" />
+        <activity android:name=".presentation.activities.SwimmerProfileActivity" />
+        <activity android:name=".presentation.activities.CoachSwimmerProfileActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.CreateSwimmerProfileActivity" 
+        <activity android:name=".presentation.activities.CreateSwimmerProfileActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.RegisterActivity" 
+        <activity android:name=".presentation.activities.RegisterActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.ExerciseLibraryActivity" />
-        <activity android:name=".presentation.AddEditExerciseActivity" 
+        <activity android:name=".presentation.activities.ExerciseLibraryActivity" />
+        <activity android:name=".presentation.activities.AddEditExerciseActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.CategorizeSessionActivity"
+        <activity android:name=".presentation.activities.CategorizeSessionActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.CreateExerciseActivity"
+        <activity android:name=".presentation.activities.CreateExerciseActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.UncategorizedSessionsActivity" />
+        <activity android:name=".presentation.activities.UncategorizedSessionsActivity" />
     </application>
 
 

@@ -2,6 +2,8 @@ package com.thesisapp.utils
 
 import android.content.Context
 import com.thesisapp.data.*
+import com.thesisapp.data.non_dao.ExerciseCategory
+import com.thesisapp.data.non_dao.TeamMembership
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
