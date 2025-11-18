@@ -419,6 +419,9 @@ object StrokeMetrics {
         val az = FloatArray(data.size) { i -> data[i].accel_z ?: 0f }
         val t = List(data.size) { i -> data[i].timestamp }
         val fs = estimateSamplingRate(t)
+
+        // Match the Python pipeline: detect swimming bouts from accel_combined,
+        // clean them, and treat each continuous bout as a lap segment.
         val accelCombined = FloatArray(data.size) { i -> abs(ax[i]) + abs(ay[i]) + abs(az[i]) }
         val isSwimming = detectSwimming(accelCombined, 12.0f)
         val gapFillSamples = (7 * fs).toInt()
@@ -428,6 +431,37 @@ object StrokeMetrics {
         val lapMetrics = mutableListOf<LapMetrics>()
         var boutStartIndex: Int? = null
 
+        fun addLapFromBout(start: Int, endExclusive: Int) {
+            if (endExclusive <= start + 1) return
+
+            val firstTs = t[start]
+            val lastTs = t[endExclusive - 1]
+            val lapTimeSec = (lastTs - firstTs) / 1000.0
+            if (lapTimeSec <= 0.0) return
+
+            val lapData = data.subList(start, endExclusive)
+            val lapStrokeCount = computeStrokeCount(lapData)
+            if (lapStrokeCount <= 0) return
+
+            val velocity = poolLengthMeters / lapTimeSec
+            val strokeRatePerSecond = lapStrokeCount / lapTimeSec
+            val lapStrokeRateSpm = strokeRatePerSecond * 60.0
+            val lapStrokeLength = if (strokeRatePerSecond > 0.0) velocity / strokeRatePerSecond else 0.0
+            val strokeIndex = velocity * lapStrokeLength
+
+            lapMetrics.add(
+                LapMetrics(
+                    lapTimeSeconds = lapTimeSec,
+                    strokeCount = lapStrokeCount,
+                    strokeRateSpm = lapStrokeRateSpm,
+                    strokeLengthMeters = lapStrokeLength,
+                    velocityMetersPerSecond = velocity,
+                    strokeRatePerSecond = strokeRatePerSecond,
+                    strokeIndex = strokeIndex
+                )
+            )
+        }
+
         for (i in cleaned.indices) {
             val swimmingNow = cleaned[i] == 1
             if (boutStartIndex == null) {
@@ -436,147 +470,14 @@ object StrokeMetrics {
                 }
             } else {
                 if (!swimmingNow) {
-                    val start = boutStartIndex!!
-                    val end = i
-                    val boutData = data.subList(start, end)
-                    val boutTimestamps = t.subList(start, end)
-
-                    if (boutData.isNotEmpty()) {
-                        val gx = FloatArray(boutData.size) { j -> boutData[j].gyro_x ?: 0f }
-                        val gy = FloatArray(boutData.size) { j -> boutData[j].gyro_y ?: 0f }
-                        val gz = FloatArray(boutData.size) { j -> boutData[j].gyro_z ?: 0f }
-                        val mag = FloatArray(boutData.size) { j ->
-                            val x = gx[j]
-                            val y = gy[j]
-                            val z = gz[j]
-                            sqrt(x * x + y * y + z * z).toFloat()
-                        }
-                        val smoothed = movingAverage(mag, fs)
-                        val filtered = lowPassFilter(smoothed, fs)
-                        val lapTurnTimestamps = detectLapTurns(filtered, boutTimestamps, 12.0f)
-
-                        if (lapTurnTimestamps.size >= 2) {
-                            for (k in 1 until lapTurnTimestamps.size) {
-                                val prevTs = lapTurnTimestamps[k - 1]
-                                val currTs = lapTurnTimestamps[k]
-                                val lapTimeSec = (currTs - prevTs) / 1000.0
-                                if (lapTimeSec <= 0.0) continue
-
-                                var lapStartIdx = start
-                                var lapEndIdx = end - 1
-                                for (idx in start until end) {
-                                    if (t[idx] >= prevTs) {
-                                        lapStartIdx = idx
-                                        break
-                                    }
-                                }
-                                for (idx in end - 1 downTo start) {
-                                    if (t[idx] <= currTs) {
-                                        lapEndIdx = idx
-                                        break
-                                    }
-                                }
-
-                                if (lapEndIdx <= lapStartIdx) continue
-
-                                val lapData = data.subList(lapStartIdx, lapEndIdx + 1)
-                                val lapStrokeCount = computeStrokeCount(lapData)
-                                if (lapStrokeCount <= 0) continue
-
-                                val velocity = poolLengthMeters / lapTimeSec
-                                val strokeRatePerSecond = lapStrokeCount / lapTimeSec
-                                val lapStrokeRateSpm = strokeRatePerSecond * 60.0
-                                val lapStrokeLength = if (strokeRatePerSecond > 0.0) velocity / strokeRatePerSecond else 0.0
-                                val strokeIndex = velocity * lapStrokeLength
-
-                                lapMetrics.add(
-                                    LapMetrics(
-                                        lapTimeSeconds = lapTimeSec,
-                                        strokeCount = lapStrokeCount,
-                                        strokeRateSpm = lapStrokeRateSpm,
-                                        strokeLengthMeters = lapStrokeLength,
-                                        velocityMetersPerSecond = velocity,
-                                        strokeRatePerSecond = strokeRatePerSecond,
-                                        strokeIndex = strokeIndex
-                                    )
-                                )
-                            }
-                        }
-                    }
-
+                    addLapFromBout(boutStartIndex!!, i)
                     boutStartIndex = null
                 }
             }
         }
 
         if (boutStartIndex != null) {
-            val start = boutStartIndex!!
-            val end = data.size
-            val boutData = data.subList(start, end)
-            val boutTimestamps = t.subList(start, end)
-
-            if (boutData.isNotEmpty()) {
-                val gx = FloatArray(boutData.size) { j -> boutData[j].gyro_x ?: 0f }
-                val gy = FloatArray(boutData.size) { j -> boutData[j].gyro_y ?: 0f }
-                val gz = FloatArray(boutData.size) { j -> boutData[j].gyro_z ?: 0f }
-                val mag = FloatArray(boutData.size) { j ->
-                    val x = gx[j]
-                    val y = gy[j]
-                    val z = gz[j]
-                    sqrt(x * x + y * y + z * z).toFloat()
-                }
-                val smoothed = movingAverage(mag, fs)
-                val filtered = lowPassFilter(smoothed, fs)
-                val lapTurnTimestamps = detectLapTurns(filtered, boutTimestamps, 12.0f)
-
-                if (lapTurnTimestamps.size >= 2) {
-                    for (k in 1 until lapTurnTimestamps.size) {
-                        val prevTs = lapTurnTimestamps[k - 1]
-                        val currTs = lapTurnTimestamps[k]
-                        val lapTimeSec = (currTs - prevTs) / 1000.0
-                        if (lapTimeSec <= 0.0) continue
-
-                        var lapStartIdx = start
-                        var lapEndIdx = end - 1
-                        for (idx in start until end) {
-                            if (t[idx] >= prevTs) {
-                                lapStartIdx = idx
-                                break
-                            }
-                        }
-                        for (idx in end - 1 downTo start) {
-                            if (t[idx] <= currTs) {
-                                lapEndIdx = idx
-                                break
-                            }
-                        }
-
-                        if (lapEndIdx <= lapStartIdx) continue
-
-                        val lapData = data.subList(lapStartIdx, lapEndIdx + 1)
-                        val lapStrokeCount = computeStrokeCount(lapData)
-                        if (lapStrokeCount <= 0) continue
-
-                        val velocity = poolLengthMeters / lapTimeSec
-                        val strokeRatePerSecond = lapStrokeCount / lapTimeSec
-                        val lapStrokeRateSpm = strokeRatePerSecond * 60.0
-                        val lapStrokeLength = if (strokeRatePerSecond > 0.0) velocity / strokeRatePerSecond else 0.0
-                        val strokeIndex = velocity * lapStrokeLength
-
-                        lapMetrics.add(
-                            LapMetrics(
-                                lapTimeSeconds = lapTimeSec,
-                                strokeCount = lapStrokeCount,
-                                strokeRateSpm = lapStrokeRateSpm,
-                                strokeLengthMeters = lapStrokeLength,
-                                velocityMetersPerSecond = velocity,
-                                strokeRatePerSecond = strokeRatePerSecond,
-                                strokeIndex = strokeIndex
-                            )
-                        )
-                    }
-                }
-            }
+            addLapFromBout(boutStartIndex!!, data.size)
         }
 
         return lapMetrics

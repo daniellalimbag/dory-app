@@ -23,6 +23,10 @@ import com.thesisapp.data.*
 import com.thesisapp.presentation.adapters.SessionListAdapter
 import com.thesisapp.presentation.dialogs.SetGoalDialogFragment
 import com.thesisapp.utils.StrokeMetrics
+import com.thesisapp.utils.MetricsApiClient
+import com.thesisapp.utils.MetricsSample
+import com.thesisapp.utils.MetricsSessionRequest
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,7 +39,6 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     private lateinit var swimmer: Swimmer
     private var currentGoal: Goal? = null
     private var sessions: List<MlResult> = listOf()
-    
     // Views
     private lateinit var tvSwimmerName: TextView
     private lateinit var btnBack: ImageButton
@@ -59,6 +62,8 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     private lateinit var tvDuration: TextView
     private lateinit var tvStrokeIndex: TextView
     private lateinit var tvLapTime: TextView
+    private lateinit var tvLapBreakdownTitleCoach: TextView
+    private lateinit var tvLapBreakdownCoach: TextView
     
     private lateinit var exerciseListRecycler: RecyclerView
     private lateinit var sessionAdapter: SessionListAdapter
@@ -113,6 +118,8 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         tvDuration = findViewById(R.id.tvDuration)
         tvStrokeIndex = findViewById(R.id.tvStrokeIndex)
         tvLapTime = findViewById(R.id.tvLapTime)
+        tvLapBreakdownTitleCoach = findViewById(R.id.tvLapBreakdownTitleCoach)
+        tvLapBreakdownCoach = findViewById(R.id.tvLapBreakdownCoach)
         
         exerciseListRecycler = findViewById(R.id.exerciseListRecycler)
         
@@ -320,20 +327,97 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             // Load raw samples for this session
             val swimData = db.swimDataDao().getSwimDataForSession(session.sessionId)
 
-            var totalStrokeCount = 0
-            var avgStrokeLength = 0.0
-            var avgStrokeIndex = 0.0
-            var avgLapTimeSeconds = 0.0
-            var totalDistanceMeters = 0
-            var hasMetrics = false
+            // Try calling the external Python metrics API first
+            var lapsFromApi: List<com.thesisapp.utils.MetricsLapOut>? = null
+            var sessionAvgsFromApi: com.thesisapp.utils.MetricsSessionAveragesOut? = null
 
             if (swimData.isNotEmpty()) {
-                val lapMetricsRaw = StrokeMetrics.computeLapMetrics(swimData)
+                try {
+                    val samples = swimData.map { d ->
+                        MetricsSample(
+                            timestamp_ms = d.timestamp,
+                            accel_x = (d.accel_x ?: 0f).toDouble(),
+                            accel_y = (d.accel_y ?: 0f).toDouble(),
+                            accel_z = (d.accel_z ?: 0f).toDouble(),
+                            gyro_x = (d.gyro_x ?: 0f).toDouble(),
+                            gyro_y = (d.gyro_y ?: 0f).toDouble(),
+                            gyro_z = (d.gyro_z ?: 0f).toDouble(),
+                            stroke_type = null
+                        )
+                    }
 
-                // Fallback: if no laps detected, treat whole session as a single lap
-                val lapMetrics = if (lapMetricsRaw.isNotEmpty()) {
-                    lapMetricsRaw
+                    val request = MetricsSessionRequest(
+                        session_id = session.sessionId,
+                        swimmer_id = session.swimmerId,
+                        exercise_id = session.exerciseId,
+                        samples = samples
+                    )
+
+                    val response = MetricsApiClient.service.computeMetrics(request)
+                    lapsFromApi = response.laps
+                    sessionAvgsFromApi = response.session_averages
+
+                    Log.d(
+                        "MetricsDebug",
+                        "API laps stroke_count=" + response.laps.map { it.stroke_count } +
+                            ", avgStrokeCount=" + response.session_averages.stroke_count
+                    )
+                } catch (apiError: Exception) {
+                    // Ignore API errors and fall back to on-device pipeline below
+                }
+            }
+
+            // Decide which metrics source to use.
+            // If the API call returned averages (even with zero laps), we treat Python as the
+            // single source of truth and use its output. We only fall back to StrokeMetrics
+            // when the API call itself failed or there is no swim data.
+            val useApi = sessionAvgsFromApi != null
+
+            val lapMetrics: List<StrokeMetrics.LapMetrics>
+            val sessionAvgs: StrokeMetrics.SessionAverages?
+            val totalStrokeCount: Int
+            val totalDistanceMeters: Int
+
+            if (useApi) {
+                // Map API laps into a light-weight LapMetrics-like view just for charts/text
+                val laps = lapsFromApi.orEmpty()
+                val apiAvgs = sessionAvgsFromApi!!
+
+                // We keep StrokeMetrics.SessionAverages type for convenience when formatting
+                sessionAvgs = StrokeMetrics.SessionAverages(
+                    avgLapTimeSeconds = apiAvgs.avg_lap_time_s,
+                    avgStrokeCount = apiAvgs.stroke_count,
+                    avgVelocityMetersPerSecond = apiAvgs.avg_velocity_m_per_s,
+                    avgStrokeRatePerSecond = apiAvgs.avg_stroke_rate_hz,
+                    avgStrokeLengthMeters = apiAvgs.avg_stroke_length_m,
+                    avgStrokeIndex = apiAvgs.avg_stroke_index
+                )
+
+                lapMetrics = laps.map { m ->
+                    StrokeMetrics.LapMetrics(
+                        lapTimeSeconds = m.lap_time_s,
+                        strokeCount = m.stroke_count,
+                        strokeRateSpm = m.stroke_rate_spm,
+                        strokeLengthMeters = m.stroke_length_m,
+                        velocityMetersPerSecond = m.velocity_m_per_s,
+                        strokeRatePerSecond = m.stroke_rate_hz,
+                        strokeIndex = m.stroke_index
+                    )
+                }
+
+                totalStrokeCount = laps.sumOf { it.stroke_count }
+                totalDistanceMeters = (50.0 * laps.size).toInt()
+            } else {
+                // Fallback: on-device StrokeMetrics pipeline
+                val rawLapMetrics = if (swimData.isNotEmpty()) {
+                    StrokeMetrics.computeLapMetrics(swimData)
                 } else {
+                    emptyList()
+                }
+
+                val effectiveLaps = if (rawLapMetrics.isNotEmpty()) {
+                    rawLapMetrics
+                } else if (swimData.isNotEmpty()) {
                     val firstTs = swimData.first().timestamp
                     val lastTs = swimData.last().timestamp
                     val totalTimeSeconds = (lastTs - firstTs).coerceAtLeast(1L) / 1000.0
@@ -343,35 +427,33 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
                     val velocity = if (totalTimeSeconds > 0.0) poolLengthMeters / totalTimeSeconds else 0.0
                     val strokeRatePerSecond = if (totalTimeSeconds > 0.0) strokeCount / totalTimeSeconds else 0.0
                     val strokeRateSpm = strokeRatePerSecond * 60.0
-                    val strokeLength = if (strokeRatePerSecond > 0.0) velocity / strokeRatePerSecond else 0.0
-                    val strokeIdx = velocity * strokeLength
+                    val strokeLengthFallback = if (strokeRatePerSecond > 0.0) velocity / strokeRatePerSecond else 0.0
+                    val strokeIdx = velocity * strokeLengthFallback
 
                     listOf(
                         StrokeMetrics.LapMetrics(
                             lapTimeSeconds = totalTimeSeconds,
                             strokeCount = strokeCount,
                             strokeRateSpm = strokeRateSpm,
-                            strokeLengthMeters = strokeLength,
+                            strokeLengthMeters = strokeLengthFallback,
                             velocityMetersPerSecond = velocity,
                             strokeRatePerSecond = strokeRatePerSecond,
                             strokeIndex = strokeIdx
                         )
                     )
+                } else {
+                    emptyList()
                 }
 
-                if (lapMetrics.isNotEmpty()) {
-                    val sessionAvgs = StrokeMetrics.computeSessionAverages(lapMetrics)
-
-                    avgStrokeLength = sessionAvgs.avgStrokeLengthMeters
-                    avgStrokeIndex = sessionAvgs.avgStrokeIndex
-                    avgLapTimeSeconds = sessionAvgs.avgLapTimeSeconds
-                    totalStrokeCount = lapMetrics.sumOf { it.strokeCount }
-
-                    val poolLengthMeters = 50.0
-                    totalDistanceMeters = (poolLengthMeters * lapMetrics.size).toInt()
-
-                    hasMetrics = true
+                lapMetrics = effectiveLaps
+                sessionAvgs = if (effectiveLaps.isNotEmpty()) {
+                    StrokeMetrics.computeSessionAverages(effectiveLaps)
+                } else {
+                    null
                 }
+
+                totalStrokeCount = effectiveLaps.sumOf { it.strokeCount }
+                totalDistanceMeters = (50.0 * effectiveLaps.size).toInt()
             }
 
             withContext(Dispatchers.Main) {
@@ -392,26 +474,53 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
                 }
                 tvMetricsTitle.text = exerciseDetails
 
-                if (hasMetrics) {
+                if (sessionAvgs != null && lapMetrics.isNotEmpty()) {
                     tvStrokeCount.text = totalStrokeCount.toString()
-                    tvStrokeLength.text = String.format("%.2f m", avgStrokeLength)
+                    tvStrokeLength.text = String.format("%.2f m", sessionAvgs.avgStrokeLengthMeters)
                     tvDistance.text = "$totalDistanceMeters m"
-                    tvStrokeIndex.text = String.format("%.2f", avgStrokeIndex)
-                    tvLapTime.text = formatTime(avgLapTimeSeconds.toFloat())
+                    tvStrokeIndex.text = String.format("%.2f", sessionAvgs.avgStrokeIndex)
+                    tvLapTime.text = formatTime(sessionAvgs.avgLapTimeSeconds.toFloat())
+
+                    // Build per-lap breakdown similar to HistorySessionActivity
+                    val builder = StringBuilder()
+                    lapMetrics.forEachIndexed { index, m ->
+                        val lapNumber = index + 1
+                        if (builder.isNotEmpty()) builder.append('\n')
+                        builder.append(
+                            "Lap $lapNumber: " +
+                                String.format(
+                                    Locale.getDefault(),
+                                    "time=%.2fs, strokes=%d, v=%.3f m/s, SL=%.3f m, SI=%.3f",
+                                    m.lapTimeSeconds,
+                                    m.strokeCount,
+                                    m.velocityMetersPerSecond,
+                                    m.strokeLengthMeters,
+                                    m.strokeIndex
+                                )
+                        )
+                    }
+                    tvLapBreakdownCoach.text = builder.toString()
+                    tvLapBreakdownTitleCoach.visibility = View.VISIBLE
                 } else {
                     tvStrokeCount.text = "--"
                     tvStrokeLength.text = "--"
                     tvDistance.text = "--"
                     tvStrokeIndex.text = "--"
                     tvLapTime.text = "--"
+                    tvLapBreakdownCoach.text = "No lap metrics available."
+                    tvLapBreakdownTitleCoach.visibility = View.VISIBLE
                 }
 
                 // Display duration
                 val duration = calculateDuration(session.timeStart, session.timeEnd)
                 tvDuration.text = duration
 
-                // Keep existing chart behavior for now (dummy if no avgLapTime)
-                session.avgLapTime?.let { setupPerformanceChart(session) } ?: setupDummyPerformanceChart()
+                // Use real lap metrics for the performance chart; clear if none
+                if (lapMetrics.isNotEmpty()) {
+                    setupPerformanceChart(lapMetrics)
+                } else {
+                    performanceChart.clear()
+                }
                 setupHeartRateChart(session)
             }
         }
@@ -444,14 +553,10 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         }
     }
     
-    private fun setupPerformanceChart(session: MlResult) {
-        // Generate lap times based on average with some variation
-        val avgLapTime = session.avgLapTime ?: 35f
-        val laps = (session.sets ?: 5) * (session.reps ?: 2)
-        
-        val entries = (1..laps).map { lap ->
-            val variation = randomFloat(-3f, 3f)
-            Entry(lap.toFloat(), avgLapTime + variation)
+    private fun setupPerformanceChart(lapMetrics: List<StrokeMetrics.LapMetrics>) {
+        // Plot real lap times from the metrics pipeline
+        val entries = lapMetrics.mapIndexed { index, m ->
+            Entry((index + 1).toFloat(), m.lapTimeSeconds.toFloat())
         }
         
         val dataSet = LineDataSet(entries, "Lap Times (s)").apply {
@@ -481,33 +586,6 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         performanceChart.invalidate()
     }
     
-    private fun randomFloat(min: Float, max: Float): Float {
-        return min + java.util.Random().nextFloat() * (max - min)
-    }
-
-    private fun setupDummyPerformanceChart() {
-        val entries = listOf(
-            Entry(1f, 32.5f),
-            Entry(2f, 31.8f),
-            Entry(3f, 32.2f),
-            Entry(4f, 31.5f),
-            Entry(5f, 31.0f)
-        )
-        
-        val dataSet = LineDataSet(entries, "Lap Times (s)").apply {
-            color = getColor(R.color.primary)
-            setCircleColor(getColor(R.color.primary))
-            lineWidth = 2f
-            circleRadius = 4f
-        }
-        
-        performanceChart.data = LineData(dataSet)
-        performanceChart.description.isEnabled = false
-        performanceChart.xAxis.position = XAxis.XAxisPosition.BOTTOM
-        performanceChart.axisRight.isEnabled = false
-        performanceChart.invalidate()
-    }
-
     private fun setupHeartRateChart(session: MlResult) {
         val hrBefore = session.heartRateBefore?.toFloat() ?: 90f
         val hrAfter = session.heartRateAfter?.toFloat() ?: 150f

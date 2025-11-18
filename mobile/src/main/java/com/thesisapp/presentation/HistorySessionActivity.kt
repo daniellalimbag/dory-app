@@ -20,6 +20,9 @@ import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.SwimData
 import com.thesisapp.utils.StrokeMetrics
+import com.thesisapp.utils.MetricsApiClient
+import com.thesisapp.utils.MetricsSample
+import com.thesisapp.utils.MetricsSessionRequest
 import com.thesisapp.utils.animateClick
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -40,6 +43,7 @@ class HistorySessionActivity : AppCompatActivity() {
     private lateinit var txtStrokeRate: TextView
     private lateinit var txtStrokeLength: TextView
     private lateinit var txtStrokeIndex: TextView
+    private lateinit var txtLapBreakdown: TextView
     private lateinit var chartEfficiencySrSl: ScatterChart
     private lateinit var chartLapTimeTrend: LineChart
     private lateinit var inputNotes: EditText
@@ -61,6 +65,7 @@ class HistorySessionActivity : AppCompatActivity() {
         txtStrokeRate = findViewById(R.id.txtStrokeRate)
         txtStrokeLength = findViewById(R.id.txtStrokeLength)
         txtStrokeIndex = findViewById(R.id.txtStrokeIndex)
+        txtLapBreakdown = findViewById(R.id.txtLapBreakdown)
         chartEfficiencySrSl = findViewById(R.id.chartEfficiencySrSl)
         chartLapTimeTrend = findViewById(R.id.chartLapTimeTrend)
         inputNotes = findViewById(R.id.inputNotes)
@@ -102,65 +107,173 @@ class HistorySessionActivity : AppCompatActivity() {
                 val lapTimeSmoothedEntries = ArrayList<Entry>()
 
                 if (swimData.isNotEmpty()) {
-                    val lapMetricsRaw = StrokeMetrics.computeLapMetrics(swimData)
+                    // First, try to use the external Python metrics API
+                    var lapsFromApi: List<com.thesisapp.utils.MetricsLapOut>? = null
+                    var sessionAvgsFromApi: com.thesisapp.utils.MetricsSessionAveragesOut? = null
 
-                    // Fallback: if no laps detected, treat whole session as a single lap
-                    val lapMetrics = if (lapMetricsRaw.isNotEmpty()) {
-                        lapMetricsRaw
-                    } else {
-                        val firstTs = swimData.first().timestamp
-                        val lastTs = swimData.last().timestamp
-                        val totalTimeSeconds = (lastTs - firstTs).coerceAtLeast(1L) / 1000.0
-                        val strokeCount = StrokeMetrics.computeStrokeCount(swimData)
-
-                        val poolLengthMeters = 50.0
-                        val velocity = if (totalTimeSeconds > 0.0) poolLengthMeters / totalTimeSeconds else 0.0
-                        val strokeRatePerSecond = if (totalTimeSeconds > 0.0) strokeCount / totalTimeSeconds else 0.0
-                        val strokeRateSpm = strokeRatePerSecond * 60.0
-                        val strokeLength = if (strokeRatePerSecond > 0.0) velocity / strokeRatePerSecond else 0.0
-                        val strokeIdx = velocity * strokeLength
-
-                        listOf(
-                            StrokeMetrics.LapMetrics(
-                                lapTimeSeconds = totalTimeSeconds,
-                                strokeCount = strokeCount,
-                                strokeRateSpm = strokeRateSpm,
-                                strokeLengthMeters = strokeLength,
-                                velocityMetersPerSecond = velocity,
-                                strokeRatePerSecond = strokeRatePerSecond,
-                                strokeIndex = strokeIdx
+                    try {
+                        val samples = swimData.map { d ->
+                            MetricsSample(
+                                timestamp_ms = d.timestamp,
+                                accel_x = (d.accel_x ?: 0f).toDouble(),
+                                accel_y = (d.accel_y ?: 0f).toDouble(),
+                                accel_z = (d.accel_z ?: 0f).toDouble(),
+                                gyro_x = (d.gyro_x ?: 0f).toDouble(),
+                                gyro_y = (d.gyro_y ?: 0f).toDouble(),
+                                gyro_z = (d.gyro_z ?: 0f).toDouble(),
+                                stroke_type = null
                             )
+                        }
+
+                        val request = MetricsSessionRequest(
+                            session_id = sessionId,
+                            swimmer_id = mlResult.swimmerId,
+                            exercise_id = mlResult.exerciseId,
+                            samples = samples
                         )
+
+                        val response = MetricsApiClient.service.computeMetrics(request)
+                        lapsFromApi = response.laps
+                        sessionAvgsFromApi = response.session_averages
+                    } catch (apiError: Exception) {
+                        // Swallow API errors and fall back to on-device pipeline below
                     }
 
-                    // Session-level averages from centralized pipeline
-                    val sessionAvgs = StrokeMetrics.computeSessionAverages(lapMetrics)
-                    swimmingVelocity = sessionAvgs.avgVelocityMetersPerSecond
-                    strokeRate = sessionAvgs.avgStrokeRatePerSecond * 60.0
-                    strokeLength = sessionAvgs.avgStrokeLengthMeters
-                    strokeIndex = sessionAvgs.avgStrokeIndex
+                    if (lapsFromApi != null && lapsFromApi!!.isNotEmpty() && sessionAvgsFromApi != null) {
+                        val laps = lapsFromApi!!
+                        val sessionAvgs = sessionAvgsFromApi!!
 
-                    if (lapMetrics.isNotEmpty()) {
-                        lapMetrics.forEachIndexed { index, m ->
+                        swimmingVelocity = sessionAvgs.avg_velocity_m_per_s
+                        strokeRate = sessionAvgs.avg_stroke_rate_hz * 60.0
+                        strokeLength = sessionAvgs.avg_stroke_length_m
+                        strokeIndex = sessionAvgs.avg_stroke_index
+
+                        laps.forEachIndexed { index, m ->
                             val lapIdx = index + 1f
-                            srSlEntries.add(Entry(m.strokeRateSpm.toFloat(), m.strokeLengthMeters.toFloat()))
-                            lapTimeEntries.add(Entry(lapIdx, m.lapTimeSeconds.toFloat()))
+                            srSlEntries.add(Entry(m.stroke_rate_spm.toFloat(), m.stroke_length_m.toFloat()))
+                            lapTimeEntries.add(Entry(lapIdx, m.lap_time_s.toFloat()))
                         }
 
                         val window = 3
-                        val n = lapMetrics.size
+                        val n = laps.size
                         for (i in 0 until n) {
                             val start = maxOf(0, i - (window - 1))
                             val end = i
                             var sum = 0.0
                             var count = 0
                             for (j in start..end) {
-                                sum += lapMetrics[j].lapTimeSeconds
+                                sum += laps[j].lap_time_s
                                 count++
                             }
-                            val avg = if (count > 0) sum / count else lapMetrics[i].lapTimeSeconds
+                            val avg = if (count > 0) sum / count else laps[i].lap_time_s
                             val lapIdx = (i + 1).toFloat()
                             lapTimeSmoothedEntries.add(Entry(lapIdx, avg.toFloat()))
+                        }
+
+                        val breakdownLines = buildString {
+                            laps.forEachIndexed { index, m ->
+                                val lapNum = index + 1
+                                append("Lap $lapNum: ")
+                                append(
+                                    String.format(
+                                        "time=%.2fs, strokes=%d, v=%.3f m/s, SL=%.3f m, SI=%.3f",
+                                        m.lap_time_s,
+                                        m.stroke_count,
+                                        m.velocity_m_per_s,
+                                        m.stroke_length_m,
+                                        m.stroke_index
+                                    )
+                                )
+                                append('\n')
+                            }
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            txtLapBreakdown.text = breakdownLines.trimEnd()
+                        }
+                    } else {
+                        // Fallback: use on-device StrokeMetrics pipeline
+                        val lapMetrics = StrokeMetrics.computeLapMetrics(swimData)
+
+                        // If no laps detected, approximate single-lap metrics as fallback
+                        val effectiveLaps = if (lapMetrics.isNotEmpty()) {
+                            lapMetrics
+                        } else {
+                            val firstTs = swimData.first().timestamp
+                            val lastTs = swimData.last().timestamp
+                            val totalTimeSeconds = (lastTs - firstTs).coerceAtLeast(1L) / 1000.0
+                            val strokeCount = StrokeMetrics.computeStrokeCount(swimData)
+
+                            val poolLengthMeters = 50.0
+                            val velocity = if (totalTimeSeconds > 0.0) poolLengthMeters / totalTimeSeconds else 0.0
+                            val strokeRatePerSecond = if (totalTimeSeconds > 0.0) strokeCount / totalTimeSeconds else 0.0
+                            val strokeRateSpm = strokeRatePerSecond * 60.0
+                            val strokeLengthFallback = if (strokeRatePerSecond > 0.0) velocity / strokeRatePerSecond else 0.0
+                            val strokeIdx = velocity * strokeLengthFallback
+
+                            listOf(
+                                StrokeMetrics.LapMetrics(
+                                    lapTimeSeconds = totalTimeSeconds,
+                                    strokeCount = strokeCount,
+                                    strokeRateSpm = strokeRateSpm,
+                                    strokeLengthMeters = strokeLengthFallback,
+                                    velocityMetersPerSecond = velocity,
+                                    strokeRatePerSecond = strokeRatePerSecond,
+                                    strokeIndex = strokeIdx
+                                )
+                            )
+                        }
+
+                        val sessionAvgs = StrokeMetrics.computeSessionAverages(effectiveLaps)
+                        swimmingVelocity = sessionAvgs.avgVelocityMetersPerSecond
+                        strokeRate = sessionAvgs.avgStrokeRatePerSecond * 60.0
+                        strokeLength = sessionAvgs.avgStrokeLengthMeters
+                        strokeIndex = sessionAvgs.avgStrokeIndex
+
+                        if (effectiveLaps.isNotEmpty()) {
+                            effectiveLaps.forEachIndexed { index, m ->
+                                val lapIdx = index + 1f
+                                srSlEntries.add(Entry(m.strokeRateSpm.toFloat(), m.strokeLengthMeters.toFloat()))
+                                lapTimeEntries.add(Entry(lapIdx, m.lapTimeSeconds.toFloat()))
+                            }
+
+                            val window = 3
+                            val n = effectiveLaps.size
+                            for (i in 0 until n) {
+                                val start = maxOf(0, i - (window - 1))
+                                val end = i
+                                var sum = 0.0
+                                var count = 0
+                                for (j in start..end) {
+                                    sum += effectiveLaps[j].lapTimeSeconds
+                                    count++
+                                }
+                                val avg = if (count > 0) sum / count else effectiveLaps[i].lapTimeSeconds
+                                val lapIdx = (i + 1).toFloat()
+                                lapTimeSmoothedEntries.add(Entry(lapIdx, avg.toFloat()))
+                            }
+
+                            val breakdownLines = buildString {
+                                effectiveLaps.forEachIndexed { index, m ->
+                                    val lapNum = index + 1
+                                    append("Lap $lapNum: ")
+                                    append(
+                                        String.format(
+                                            "time=%.2fs, strokes=%d, v=%.3f m/s, SL=%.3f m, SI=%.3f",
+                                            m.lapTimeSeconds,
+                                            m.strokeCount,
+                                            m.velocityMetersPerSecond,
+                                            m.strokeLengthMeters,
+                                            m.strokeIndex
+                                        )
+                                    )
+                                    append('\n')
+                                }
+                            }
+
+                            withContext(Dispatchers.Main) {
+                                txtLapBreakdown.text = breakdownLines.trimEnd()
+                            }
                         }
                     }
                 }
@@ -235,6 +348,10 @@ class HistorySessionActivity : AppCompatActivity() {
                         chartLapTimeTrend.invalidate()
                     } else {
                         chartLapTimeTrend.clear()
+                    }
+
+                    if (swimData.isEmpty()) {
+                        txtLapBreakdown.text = "No lap metrics available."
                     }
 
                     inputNotes.setText(mlResult.notes)
