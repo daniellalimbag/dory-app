@@ -55,7 +55,10 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     private lateinit var metricsCard: MaterialCardView
     private lateinit var tvMetricsTitle: TextView
     private lateinit var performanceChart: LineChart
+    private lateinit var velocityChart: LineChart
     private lateinit var heartRateChart: BarChart
+    private lateinit var sessionDrilldownChart: BarChart
+    private lateinit var tvSessionDrilldownTitle: TextView
     private lateinit var tvStrokeCount: TextView
     private lateinit var tvStrokeLength: TextView
     private lateinit var tvDistance: TextView
@@ -63,7 +66,8 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     private lateinit var tvStrokeIndex: TextView
     private lateinit var tvLapTime: TextView
     private lateinit var tvLapBreakdownTitleCoach: TextView
-    private lateinit var tvLapBreakdownCoach: TextView
+    private lateinit var tableLapBreakdownCoach: android.widget.TableLayout
+    private lateinit var tvLapBreakdownEmptyCoach: TextView
     
     private lateinit var exerciseListRecycler: RecyclerView
     private lateinit var sessionAdapter: SessionListAdapter
@@ -111,6 +115,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         metricsCard = findViewById(R.id.metricsCard)
         tvMetricsTitle = findViewById(R.id.tvMetricsTitle)
         performanceChart = findViewById(R.id.performanceChart)
+        velocityChart = findViewById(R.id.velocityChart)
         heartRateChart = findViewById(R.id.heartRateChart)
         tvStrokeCount = findViewById(R.id.tvStrokeCount)
         tvStrokeLength = findViewById(R.id.tvStrokeLength)
@@ -119,7 +124,10 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         tvStrokeIndex = findViewById(R.id.tvStrokeIndex)
         tvLapTime = findViewById(R.id.tvLapTime)
         tvLapBreakdownTitleCoach = findViewById(R.id.tvLapBreakdownTitleCoach)
-        tvLapBreakdownCoach = findViewById(R.id.tvLapBreakdownCoach)
+        tableLapBreakdownCoach = findViewById(R.id.tableLapBreakdownCoach)
+        tvLapBreakdownEmptyCoach = findViewById(R.id.tvLapBreakdownEmptyCoach)
+        tvSessionDrilldownTitle = findViewById(R.id.tvSessionDrilldownTitle)
+        sessionDrilldownChart = findViewById(R.id.sessionDrilldownChart)
         
         exerciseListRecycler = findViewById(R.id.exerciseListRecycler)
         
@@ -475,55 +483,173 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
                 tvMetricsTitle.text = exerciseDetails
 
                 if (sessionAvgs != null && lapMetrics.isNotEmpty()) {
-                    tvStrokeCount.text = totalStrokeCount.toString()
+                    // Use session averages computed by the Python pipeline
+                    tvStrokeCount.text = String.format("%.0f", sessionAvgs.avgStrokeCount)
                     tvStrokeLength.text = String.format("%.2f m", sessionAvgs.avgStrokeLengthMeters)
-                    tvDistance.text = "$totalDistanceMeters m"
+                    // Lap count from number of laps
+                    tvDistance.text = lapMetrics.size.toString()
+                    // Velocity from session averages
+                    tvDuration.text = String.format("%.2f m/s", sessionAvgs.avgVelocityMetersPerSecond)
                     tvStrokeIndex.text = String.format("%.2f", sessionAvgs.avgStrokeIndex)
                     tvLapTime.text = formatTime(sessionAvgs.avgLapTimeSeconds.toFloat())
 
-                    // Build per-lap breakdown similar to HistorySessionActivity
-                    val builder = StringBuilder()
+                    // Populate per-lap breakdown table
+                    tableLapBreakdownCoach.removeViews(1, maxOf(0, tableLapBreakdownCoach.childCount - 1))
+
+                    // Compute simple performance bands for heat-style coloring based on lap time
+                    val lapTimes = lapMetrics.map { it.lapTimeSeconds }
+                    val minLap = lapTimes.minOrNull() ?: 0.0
+                    val maxLap = lapTimes.maxOrNull() ?: 0.0
+
                     lapMetrics.forEachIndexed { index, m ->
-                        val lapNumber = index + 1
-                        if (builder.isNotEmpty()) builder.append('\n')
-                        builder.append(
-                            "Lap $lapNumber: " +
-                                String.format(
-                                    Locale.getDefault(),
-                                    "time=%.2fs, strokes=%d, v=%.3f m/s, SL=%.3f m, SI=%.3f",
-                                    m.lapTimeSeconds,
-                                    m.strokeCount,
-                                    m.velocityMetersPerSecond,
-                                    m.strokeLengthMeters,
-                                    m.strokeIndex
-                                )
-                        )
+                        val row = android.widget.TableRow(this@CoachSwimmerProfileActivity)
+
+                        fun makeCell(text: String, center: Boolean = true): TextView {
+                            return TextView(this@CoachSwimmerProfileActivity).apply {
+                                this.text = text
+                                textSize = 12f
+                                setTextColor(getColor(R.color.text))
+                                if (center) {
+                                    gravity = android.view.Gravity.CENTER
+                                }
+                            }
+                        }
+
+                        row.addView(makeCell("${index + 1}"))
+                        row.addView(makeCell(String.format(Locale.getDefault(), "%.2f", m.lapTimeSeconds)))
+                        row.addView(makeCell(m.strokeCount.toString()))
+                        row.addView(makeCell(String.format(Locale.getDefault(), "%.3f", m.strokeLengthMeters)))
+                        row.addView(makeCell(String.format(Locale.getDefault(), "%.3f", m.velocityMetersPerSecond)))
+                        row.addView(makeCell(String.format(Locale.getDefault(), "%.3f", m.strokeIndex)))
+
+                        // Apply background color based on lap time relative to session range
+                        if (maxLap > minLap) {
+                            val normalized = ((m.lapTimeSeconds - minLap) / (maxLap - minLap)).coerceIn(0.0, 1.0)
+                            val bgColor = when {
+                                normalized < 0.33 -> getColor(R.color.primary) // fastest laps
+                                normalized > 0.66 -> getColor(R.color.error)   // slowest laps
+                                else -> getColor(R.color.background)          // middle
+                            }
+                            row.setBackgroundColor(bgColor)
+                        }
+
+                        tableLapBreakdownCoach.addView(row)
                     }
-                    tvLapBreakdownCoach.text = builder.toString()
+
                     tvLapBreakdownTitleCoach.visibility = View.VISIBLE
+                    tableLapBreakdownCoach.visibility = View.VISIBLE
+                    tvLapBreakdownEmptyCoach.visibility = View.GONE
+                    tvSessionDrilldownTitle.visibility = View.VISIBLE
+                    sessionDrilldownChart.visibility = View.VISIBLE
                 } else {
                     tvStrokeCount.text = "--"
                     tvStrokeLength.text = "--"
                     tvDistance.text = "--"
                     tvStrokeIndex.text = "--"
                     tvLapTime.text = "--"
-                    tvLapBreakdownCoach.text = "No lap metrics available."
+                    tableLapBreakdownCoach.removeViews(1, maxOf(0, tableLapBreakdownCoach.childCount - 1))
                     tvLapBreakdownTitleCoach.visibility = View.VISIBLE
+                    tableLapBreakdownCoach.visibility = View.GONE
+                    tvLapBreakdownEmptyCoach.visibility = View.VISIBLE
+                    tvSessionDrilldownTitle.visibility = View.GONE
+                    sessionDrilldownChart.visibility = View.GONE
                 }
 
                 // Display duration
                 val duration = calculateDuration(session.timeStart, session.timeEnd)
                 tvDuration.text = duration
 
-                // Use real lap metrics for the performance chart; clear if none
+                // Use real lap metrics for the performance charts and drilldown chart; clear if none
                 if (lapMetrics.isNotEmpty()) {
                     setupPerformanceChart(lapMetrics)
+                    setupVelocityChart(lapMetrics)
+                    setupSessionDrilldownChart(lapMetrics)
                 } else {
                     performanceChart.clear()
+                    velocityChart.clear()
+                    sessionDrilldownChart.clear()
                 }
                 setupHeartRateChart(session)
             }
         }
+    }
+
+    private fun setupSessionDrilldownChart(lapMetrics: List<StrokeMetrics.LapMetrics>) {
+        if (lapMetrics.isEmpty()) {
+            sessionDrilldownChart.clear()
+            return
+        }
+
+        val strokeEntries = mutableListOf<BarEntry>()
+        val strokeRateEntries = mutableListOf<BarEntry>()
+        val velocityEntries = mutableListOf<BarEntry>()
+
+        lapMetrics.forEachIndexed { index, m ->
+            val x = index.toFloat()
+            strokeEntries.add(BarEntry(x, m.strokeCount.toFloat()))
+            strokeRateEntries.add(BarEntry(x, m.strokeRateSpm.toFloat()))
+            velocityEntries.add(BarEntry(x, m.velocityMetersPerSecond.toFloat()))
+        }
+
+        val strokeSet = BarDataSet(strokeEntries, "Strokes").apply {
+            color = getColor(R.color.primary)
+            valueTextSize = 10f
+            setDrawValues(false)
+        }
+
+        val rateSet = BarDataSet(strokeRateEntries, "Stroke Rate (spm)").apply {
+            color = getColor(R.color.accent)
+            valueTextSize = 10f
+            setDrawValues(false)
+        }
+
+        val velocitySet = BarDataSet(velocityEntries, "Velocity (m/s)").apply {
+            color = getColor(R.color.error)
+            valueTextSize = 10f
+            setDrawValues(false)
+        }
+
+        val data = BarData(strokeSet, rateSet, velocitySet)
+
+        // Configure grouped bars
+        val groupSpace = 0.2f
+        val barSpace = 0.02f
+        val barWidth = (1f - groupSpace) / 3f - barSpace
+        data.barWidth = barWidth.coerceAtMost(0.3f)
+
+        sessionDrilldownChart.data = data
+        sessionDrilldownChart.description.isEnabled = false
+        sessionDrilldownChart.setTouchEnabled(true)
+        sessionDrilldownChart.setScaleEnabled(false)
+        sessionDrilldownChart.legend.apply {
+            isEnabled = true
+            textSize = 11f
+        }
+
+        val xAxis = sessionDrilldownChart.xAxis
+        xAxis.position = XAxis.XAxisPosition.BOTTOM
+        xAxis.setDrawGridLines(false)
+        xAxis.granularity = 1f
+        xAxis.textSize = 10f
+        xAxis.axisMinimum = 0f
+        xAxis.axisMaximum = lapMetrics.size.toFloat()
+        xAxis.valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+            override fun getFormattedValue(value: Float): String {
+                val idx = value.toInt()
+                return if (idx in 0 until lapMetrics.size) "Lap ${idx + 1}" else ""
+            }
+        }
+
+        sessionDrilldownChart.axisLeft.apply {
+            axisMinimum = 0f
+            setDrawGridLines(true)
+            textSize = 10f
+        }
+        sessionDrilldownChart.axisRight.isEnabled = false
+
+        sessionDrilldownChart.groupBars(0f, groupSpace, barSpace)
+        sessionDrilldownChart.animateY(800)
+        sessionDrilldownChart.invalidate()
     }
     
     private fun formatTime(seconds: Float): String {
@@ -554,36 +680,100 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     }
     
     private fun setupPerformanceChart(lapMetrics: List<StrokeMetrics.LapMetrics>) {
-        // Plot real lap times from the metrics pipeline
-        val entries = lapMetrics.mapIndexed { index, m ->
+        // Plot ONLY lap time on a single-axis chart
+        val timeEntries = lapMetrics.mapIndexed { index, m ->
             Entry((index + 1).toFloat(), m.lapTimeSeconds.toFloat())
         }
-        
-        val dataSet = LineDataSet(entries, "Lap Times (s)").apply {
+
+        val timeDataSet = LineDataSet(timeEntries, "Lap Time (s)").apply {
             color = getColor(R.color.primary)
             setCircleColor(getColor(R.color.primary))
-            lineWidth = 2f
+            lineWidth = 2.5f
             circleRadius = 4f
+            mode = LineDataSet.Mode.CUBIC_BEZIER
+            setDrawValues(false)
+            setDrawCircleHole(false)
+            axisDependency = com.github.mikephil.charting.components.YAxis.AxisDependency.LEFT
         }
-        
-        performanceChart.data = LineData(dataSet)
+
+        performanceChart.data = LineData(timeDataSet)
         performanceChart.description.isEnabled = false
+        performanceChart.setTouchEnabled(true)
+        performanceChart.isDragEnabled = true
+        performanceChart.setScaleEnabled(false)
+        performanceChart.legend.apply {
+            isEnabled = true
+            textSize = 11f
+        }
+
         performanceChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
             setDrawGridLines(false)
             granularity = 1f
+            textSize = 11f
             valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
-                    return "Lap ${value.toInt()}"
+                    val lapIndex = value.toInt()
+                    return if (lapIndex >= 1 && lapIndex <= lapMetrics.size) "Lap $lapIndex" else ""
                 }
             }
         }
-        performanceChart.axisRight.isEnabled = false
         performanceChart.axisLeft.apply {
             setDrawGridLines(true)
-            granularity = 5f
+            granularity = 2f
+            textSize = 11f
         }
+        performanceChart.axisRight.isEnabled = false
+        performanceChart.animateX(800)
         performanceChart.invalidate()
+    }
+
+    private fun setupVelocityChart(lapMetrics: List<StrokeMetrics.LapMetrics>) {
+        val velocityEntries = lapMetrics.mapIndexed { index, m ->
+            Entry((index + 1).toFloat(), m.velocityMetersPerSecond.toFloat())
+        }
+
+        val velocityDataSet = LineDataSet(velocityEntries, "Velocity (m/s)").apply {
+            color = getColor(R.color.error)
+            setCircleColor(getColor(R.color.error))
+            lineWidth = 2.5f
+            circleRadius = 4f
+            mode = LineDataSet.Mode.CUBIC_BEZIER
+            setDrawValues(false)
+            setDrawCircleHole(false)
+            axisDependency = com.github.mikephil.charting.components.YAxis.AxisDependency.LEFT
+        }
+
+        velocityChart.data = LineData(velocityDataSet)
+        velocityChart.description.isEnabled = false
+        velocityChart.setTouchEnabled(true)
+        velocityChart.isDragEnabled = true
+        velocityChart.setScaleEnabled(false)
+        velocityChart.legend.apply {
+            isEnabled = true
+            textSize = 11f
+        }
+
+        velocityChart.xAxis.apply {
+            position = XAxis.XAxisPosition.BOTTOM
+            setDrawGridLines(false)
+            granularity = 1f
+            textSize = 11f
+            valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+                override fun getFormattedValue(value: Float): String {
+                    val lapIndex = value.toInt()
+                    return if (lapIndex >= 1 && lapIndex <= lapMetrics.size) "Lap $lapIndex" else ""
+                }
+            }
+        }
+        velocityChart.axisLeft.apply {
+            setDrawGridLines(true)
+            granularity = 0.1f
+            textSize = 11f
+        }
+        velocityChart.axisRight.isEnabled = false
+        velocityChart.animateX(800)
+        velocityChart.invalidate()
     }
     
     private fun setupHeartRateChart(session: MlResult) {
@@ -600,14 +790,21 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             colors = listOf(getColor(R.color.accent), getColor(R.color.error))
             valueTextSize = 12f
             valueTextColor = getColor(R.color.text)
+            setDrawValues(true)
         }
-        
-        heartRateChart.data = BarData(dataSet)
+
+        heartRateChart.data = BarData(dataSet).apply {
+            barWidth = 0.4f
+        }
         heartRateChart.description.isEnabled = false
+        heartRateChart.setTouchEnabled(true)
+        heartRateChart.setScaleEnabled(false)
+
         heartRateChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
             setDrawGridLines(false)
             granularity = 1f
+            textSize = 11f
             valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     return when (value.toInt()) {
@@ -621,10 +818,12 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         heartRateChart.axisRight.isEnabled = false
         heartRateChart.axisLeft.apply {
             axisMinimum = 0f
-            granularity = 20f
+            granularity = 10f
+            textSize = 11f
             setDrawGridLines(true)
         }
         heartRateChart.legend.isEnabled = false
+        heartRateChart.animateY(700)
         heartRateChart.invalidate()
     }
 

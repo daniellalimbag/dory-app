@@ -194,12 +194,46 @@
                         android:textStyle="bold"
                         android:textColor="@color/text" />
 
-                    <!-- Performance Graph -->
+                    <!-- Lap Time Chart Title -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Lap Time per Lap"
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary" />
+
+                    <!-- Performance Graph: Lap Time -->
                     <com.github.mikephil.charting.charts.LineChart
                         android:id="@+id/performanceChart"
                         android:layout_width="match_parent"
                         android:layout_height="150dp"
                         android:layout_marginTop="12dp" />
+
+                    <!-- Velocity Chart Title -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Velocity per Lap"
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary" />
+
+                    <!-- Performance Graph: Velocity -->
+                    <com.github.mikephil.charting.charts.LineChart
+                        android:id="@+id/velocityChart"
+                        android:layout_width="match_parent"
+                        android:layout_height="150dp"
+                        android:layout_marginTop="12dp" />
+
+                    <!-- Heart Rate Chart Title -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Heart Rate Before / After"
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary" />
 
                     <!-- Heart Rate Chart -->
                     <com.github.mikephil.charting.charts.BarChart
@@ -289,7 +323,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Distance"
+                                android:text="Lap Count"
                                 android:textSize="12sp"
                                 android:textColor="@color/text_secondary" />
 
@@ -316,7 +350,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Duration"
+                                android:text="Velocity"
                                 android:textSize="12sp"
                                 android:textColor="@color/text_secondary" />
 
@@ -407,15 +441,101 @@
                 android:textStyle="bold"
                 android:textColor="@color/text" />
 
-            <TextView
-                android:id="@+id/tvLapBreakdownCoach"
+            <TableLayout
+                android:id="@+id/tableLapBreakdownCoach"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:background="@color/background"
+                android:padding="8dp"
+                android:stretchColumns="0,1,2,3,4,5">
+
+                <!-- Header row -->
+                <TableRow>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Lap"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Time (s)"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Strokes"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="SL (m)"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="v (m/s)"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="SI"
+                        android:textStyle="bold"
+                        android:textSize="12sp"
+                        android:textColor="@color/text_secondary"
+                        android:gravity="center" />
+                </TableRow>
+
+            </TableLayout>
+
+            <TextView
+                android:id="@+id/tvLapBreakdownEmptyCoach"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 android:text="No lap metrics available."
                 android:textSize="13sp"
                 android:textColor="@color/text_secondary" />
+
+            <!-- SESSION DRILLDOWN CHART -->
+            <TextView
+                android:id="@+id/tvSessionDrilldownTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Session Drilldown"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/text" />
+
+            <com.github.mikephil.charting.charts.BarChart
+                android:id="@+id/sessionDrilldownChart"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="16dp" />
 
             <!-- EXERCISE LIST SECTION -->
             <TextView
