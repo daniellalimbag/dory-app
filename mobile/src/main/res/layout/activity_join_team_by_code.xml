@@ -24,12 +24,16 @@
         android:textColor="@color/text"
         android:layout_marginTop="8dp"/>
 
-    <EditText
+        <EditText
         android:id="@+id/inputTeamCode"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:hint="Enter team code"/>
+        android:hint="Enter team code"
+        android:textColorHint="@color/text"
+        android:inputType="text"
+        android:padding="16dp"
+        android:background="@android:drawable/edit_text"
+        android:layout_marginBottom="24dp"/>
 
     <Button
         android:id="@+id/btnJoinTeam"

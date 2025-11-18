@@ -3,10 +3,12 @@ package com.thesisapp.presentation
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.widget.ImageButton
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.button.MaterialButton
@@ -54,15 +56,9 @@ class SwimmerProfileActivity : AppCompatActivity() {
         // Set up top row
         tvTeamSwitcher = findViewById(R.id.tvTeamSwitcher)
         tvAccount = findViewById(R.id.tvAccount)
-        val btnConnectProfile: com.google.android.material.button.MaterialButton? = findViewById(R.id.btnConnectProfile)
 
         tvTeamSwitcher.setOnClickListener { showSwitchTeamDialog() }
         tvAccount.setOnClickListener { showAccountMenu() }
-
-        btnConnectProfile?.setOnClickListener {
-            val intent = Intent(this, ConnectActivity::class.java)
-            startActivity(intent)
-        }
 
         updateTopRow()
 
@@ -73,12 +69,12 @@ class SwimmerProfileActivity : AppCompatActivity() {
         val adapter = SwimmerPagerAdapter(this, swimmer)
         viewPager.adapter = adapter
 
-        // Connect TabLayout with ViewPager2 - STATS first, then Sessions, then Profile
+        // Connect TabLayout with ViewPager2 - Home, Exercise Library, Profile
         TabLayoutMediator(tabLayout, viewPager) { tab, position ->
             tab.text = when (position) {
-                0 -> getString(R.string.tab_stats)      // Stats FIRST (most important)
-                1 -> getString(R.string.tab_sessions)   // Sessions second
-                2 -> getString(R.string.tab_profile)    // Profile last
+                0 -> "Home"                             // Home (core loop)
+                1 -> "Exercises"                        // Exercise Library
+                2 -> getString(R.string.tab_profile)    // Profile
                 else -> ""
             }
         }.attach()
@@ -144,12 +140,16 @@ class SwimmerProfileActivity : AppCompatActivity() {
     }
 
     private fun showAccountMenu() {
-        val items = arrayOf("Logout")
+        val items = arrayOf("Create Test Session", "Logout")
         AlertDialog.Builder(this)
             .setTitle("Account")
             .setItems(items) { _, which ->
                 when (which) {
                     0 -> {
+                        // Create test session
+                        createTestSession()
+                    }
+                    1 -> {
                         AuthManager.logout(this)
                         startActivity(Intent(this, AuthActivity::class.java))
                         finish()
@@ -157,5 +157,49 @@ class SwimmerProfileActivity : AppCompatActivity() {
                 }
             }
             .show()
+    }
+
+    private fun createTestSession() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val currentTime = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+            val timeNow = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+            
+            val testSession = com.thesisapp.data.MlResult(
+                sessionId = 0,
+                swimmerId = swimmer.id,
+                exerciseId = null,
+                date = currentTime,
+                timeStart = timeNow,
+                timeEnd = timeNow,
+                exerciseName = "Uncategorized Session",
+                distance = 100,
+                sets = 4,
+                reps = 1,
+                effortLevel = "Moderate",
+                strokeCount = 40,
+                avgStrokeLength = 2.5f,
+                strokeIndex = 3.75f,
+                avgLapTime = 30.0f,
+                totalDistance = 100,
+                heartRateBefore = 70,
+                heartRateAfter = 140,
+                avgHeartRate = 130,
+                maxHeartRate = 150,
+                backstroke = 0f,
+                breaststroke = 0f,
+                butterfly = 0f,
+                freestyle = 100f,
+                notes = "Auto-generated test session"
+            )
+            db.mlResultDao().insert(testSession)
+            
+            withContext(Dispatchers.Main) {
+                android.widget.Toast.makeText(
+                    this@SwimmerProfileActivity,
+                    "Test session created! Check Home tab.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+        }
     }
 }

@@ -50,9 +50,23 @@ class ExerciseLibraryActivity : AppCompatActivity() {
         // Initialize adapter
         adapter = ExerciseAdapter(
             exercises = mutableListOf(),
-            onEditClick = { exercise -> if (isCoach) showEditExerciseDialog(exercise) },
-            onDeleteClick = { exercise -> if (isCoach) showDeleteConfirmation(exercise) },
-            readOnly = !isCoach
+            onEditClick = { exercise -> 
+                if (isCoach) {
+                    showEditExerciseDialog(exercise)
+                } else if (exercise.teamId == -1) {
+                    // Swimmers can edit personal exercises
+                    editPersonalExercise(exercise)
+                }
+            },
+            onDeleteClick = { exercise -> 
+                if (isCoach) {
+                    showDeleteConfirmation(exercise)
+                } else if (exercise.teamId == -1) {
+                    // Swimmers can delete personal exercises
+                    showDeleteConfirmation(exercise)
+                }
+            },
+            readOnly = false
         )
         recyclerView.adapter = adapter
 
@@ -76,7 +90,12 @@ class ExerciseLibraryActivity : AppCompatActivity() {
                 showAddExerciseDialog()
             }
         } else {
-            fabAddExercise.hide()
+            // Swimmers can create personal exercises
+            fabAddExercise.text = "Add Personal Exercise"
+            fabAddExercise.setOnClickListener {
+                val intent = Intent(this, CreateExerciseActivity::class.java)
+                startActivity(intent)
+            }
         }
 
         loadExercises()
@@ -89,16 +108,28 @@ class ExerciseLibraryActivity : AppCompatActivity() {
 
     private fun loadExercises() {
         val teamId = AuthManager.currentTeamId(this)
-        if (teamId == null) {
-            Toast.makeText(this, "No team selected", Toast.LENGTH_SHORT).show()
-            return
-        }
+        val isCoach = AuthManager.currentUser(this)?.role == com.thesisapp.utils.UserRole.COACH
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val exercises = db.exerciseDao().getExercisesByCategory(teamId, currentCategory)
+                val allExercises = mutableListOf<Exercise>()
+                
+                if (isCoach) {
+                    // Coaches only see their team's exercises
+                    if (teamId != null) {
+                        allExercises.addAll(db.exerciseDao().getExercisesByCategory(teamId, currentCategory))
+                    }
+                } else {
+                    // Swimmers see team exercises + personal exercises
+                    if (teamId != null) {
+                        allExercises.addAll(db.exerciseDao().getExercisesByCategory(teamId, currentCategory))
+                    }
+                    // Add personal exercises (teamId = -1)
+                    allExercises.addAll(db.exerciseDao().getExercisesByCategory(-1, currentCategory))
+                }
+                
                 withContext(Dispatchers.Main) {
-                    adapter.updateExercises(exercises)
+                    adapter.updateExercises(allExercises)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -116,6 +147,12 @@ class ExerciseLibraryActivity : AppCompatActivity() {
 
     private fun showEditExerciseDialog(exercise: Exercise) {
         val intent = Intent(this, AddEditExerciseActivity::class.java)
+        intent.putExtra("EXERCISE_ID", exercise.id)
+        startActivity(intent)
+    }
+
+    private fun editPersonalExercise(exercise: Exercise) {
+        val intent = Intent(this, CreateExerciseActivity::class.java)
         intent.putExtra("EXERCISE_ID", exercise.id)
         startActivity(intent)
     }

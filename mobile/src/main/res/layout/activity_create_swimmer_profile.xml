@@ -8,14 +8,16 @@
     android:fillViewport="true"
     android:clickable="true"
     android:focusableInTouchMode="true"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    android:paddingTop="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:padding="24dp"
+        android:paddingHorizontal="24dp"
+        android:paddingBottom="24dp"
         android:clickable="true"
         android:focusableInTouchMode="true">
 
@@ -84,17 +86,12 @@
                 <com.google.android.material.textfield.TextInputLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="24dp"
                     android:hint="Name"
-                    app:boxBackgroundMode="outline"
-                    app:boxCornerRadiusTopStart="12dp"
-                    app:boxCornerRadiusTopEnd="12dp"
-                    app:boxCornerRadiusBottomStart="12dp"
-                    app:boxCornerRadiusBottomEnd="12dp"
+                    app:hintTextColor="@color/text"
+                    app:boxBackgroundColor="@color/white"
                     app:boxStrokeColor="@color/primary"
-                    app:hintTextColor="@color/primary">
-
-                    <com.google.android.material.textfield.TextInputEditText
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox">                    <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/inputSwimmerName"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -164,13 +161,13 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
                     android:hint="Height (cm)"
+                    app:hintTextColor="@color/text"
                     app:boxBackgroundMode="outline"
                     app:boxCornerRadiusTopStart="12dp"
                     app:boxCornerRadiusTopEnd="12dp"
                     app:boxCornerRadiusBottomStart="12dp"
                     app:boxCornerRadiusBottomEnd="12dp"
-                    app:boxStrokeColor="@color/primary"
-                    app:hintTextColor="@color/primary">
+                    app:boxStrokeColor="@color/primary">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/inputSwimmerHeight"
@@ -187,13 +184,13 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
                     android:hint="Weight (kg)"
+                    app:hintTextColor="@color/text"
                     app:boxBackgroundMode="outline"
                     app:boxCornerRadiusTopStart="12dp"
                     app:boxCornerRadiusTopEnd="12dp"
                     app:boxCornerRadiusBottomStart="12dp"
                     app:boxCornerRadiusBottomEnd="12dp"
-                    app:boxStrokeColor="@color/primary"
-                    app:hintTextColor="@color/primary">
+                    app:boxStrokeColor="@color/primary">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/inputSwimmerWeight"
@@ -210,13 +207,13 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
                     android:hint="Wingspan (cm)"
+                    app:hintTextColor="@color/text"
                     app:boxBackgroundMode="outline"
                     app:boxCornerRadiusTopStart="12dp"
                     app:boxCornerRadiusTopEnd="12dp"
                     app:boxCornerRadiusBottomStart="12dp"
                     app:boxCornerRadiusBottomEnd="12dp"
-                    app:boxStrokeColor="@color/primary"
-                    app:hintTextColor="@color/primary">
+                    app:boxStrokeColor="@color/primary">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/inputSwimmerWingspan"
@@ -251,6 +248,7 @@
                         android:layout_weight="1"
                         android:text="Male"
                         android:textSize="16sp"
+                        android:textColor="@color/text"
                         android:buttonTint="@color/primary" />
 
                     <RadioButton
@@ -260,6 +258,46 @@
                         android:layout_weight="1"
                         android:text="Female"
                         android:textSize="16sp"
+                        android:textColor="@color/text"
+                        android:buttonTint="@color/primary" />
+                </RadioGroup>
+
+                <!-- Swimmer Type Radio Group -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Swimmer Type"
+                    android:textColor="@color/text"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <RadioGroup
+                    android:id="@+id/radioGroupSwimmerType"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginBottom="32dp">
+
+                    <RadioButton
+                        android:id="@+id/radioSprint"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Sprint"
+                        android:textSize="16sp"
+                        android:textColor="@color/text"
+                        android:checked="true"
+                        android:buttonTint="@color/primary" />
+
+                    <RadioButton
+                        android:id="@+id/radioDistance"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Distance"
+                        android:textSize="16sp"
+                        android:textColor="@color/text"
                         android:buttonTint="@color/primary" />
                 </RadioGroup>
 

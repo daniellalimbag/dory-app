@@ -33,7 +33,13 @@ class ExerciseAdapter(
     override fun onBindViewHolder(holder: ExerciseViewHolder, position: Int) {
         val exercise = exercises[position]
         
-        holder.tvExerciseName.text = exercise.name
+        // Show if exercise is personal
+        val exerciseName = if (exercise.teamId == -1) {
+            "${exercise.name} (Personal)"
+        } else {
+            exercise.name
+        }
+        holder.tvExerciseName.text = exerciseName
         
         // Set description or hide if empty
         if (!exercise.description.isNullOrBlank()) {
@@ -57,14 +63,19 @@ class ExerciseAdapter(
             holder.tvExerciseDetails.visibility = View.GONE
         }
 
+        // For swimmers: only allow editing/deleting personal exercises (teamId = -1)
+        // For coaches: allow editing/deleting all exercises
         if (readOnly) {
             holder.btnEdit.visibility = View.GONE
             holder.btnDelete.visibility = View.GONE
         } else {
-            holder.btnEdit.visibility = View.VISIBLE
-            holder.btnDelete.visibility = View.VISIBLE
-            holder.btnEdit.setOnClickListener { onEditClick(exercise) }
-            holder.btnDelete.setOnClickListener { onDeleteClick(exercise) }
+            val canEdit = exercise.teamId == -1 // Only personal exercises for swimmers
+            holder.btnEdit.visibility = if (canEdit) View.VISIBLE else View.GONE
+            holder.btnDelete.visibility = if (canEdit) View.VISIBLE else View.GONE
+            if (canEdit) {
+                holder.btnEdit.setOnClickListener { onEditClick(exercise) }
+                holder.btnDelete.setOnClickListener { onDeleteClick(exercise) }
+            }
         }
     }
 

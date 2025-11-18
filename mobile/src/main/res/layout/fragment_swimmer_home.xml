@@ -4,15 +4,17 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:paddingTop="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:paddingHorizontal="24dp"
+        android:paddingBottom="24dp">
 
-        <!-- Goal Progress Card -->
+        <!-- Goal Progress Card (reused from coach view) -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/goalCard"
             android:layout_width="match_parent"
@@ -55,7 +57,7 @@
                         android:gravity="center" />
                 </LinearLayout>
 
-                <!-- Goal Exists State -->
+                <!-- Goal Exists State with Progress Graph -->
                 <LinearLayout
                     android:id="@+id/goalExistsLayout"
                     android:layout_width="match_parent"
@@ -63,101 +65,148 @@
                     android:orientation="vertical"
                     android:visibility="visible">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Your Goal"
-                        android:textSize="14sp"
-                        android:textColor="@color/text_secondary"
-                        android:layout_marginBottom="8dp" />
-
-                    <TextView
-                        android:id="@+id/tvGoalTitle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="100m Freestyle &lt; 1:00.00"
-                        android:textSize="20sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/text" />
-
-                    <TextView
-                        android:id="@+id/tvGoalDeadline"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="Deadline: Dec 31, 2025"
-                        android:textSize="14sp"
-                        android:textColor="@color/text_secondary" />
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:background="@color/divider"
-                        android:layout_marginVertical="12dp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Current Progress"
-                        android:textSize="14sp"
-                        android:textColor="@color/text_secondary"
-                        android:layout_marginBottom="8dp" />
-
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:gravity="center_vertical">
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
 
-                        <TextView
-                            android:id="@+id/tvCurrentTime"
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:text="1:02.50"
-                            android:textSize="32sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/primary" />
-
-                        <LinearLayout
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical"
-                            android:background="@drawable/pill_background"
-                            android:paddingHorizontal="12dp"
-                            android:paddingVertical="6dp">
-
-                            <View
-                                android:id="@+id/progressIndicator"
-                                android:layout_width="10dp"
-                                android:layout_height="10dp"
-                                android:background="@drawable/ic_back"
-                                android:backgroundTint="@color/error"
-                                android:layout_marginEnd="8dp" />
+                            android:orientation="vertical">
 
                             <TextView
-                                android:id="@+id/tvProgressDiff"
+                                android:id="@+id/tvGoalTitle"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="+2.5s"
+                                android:text="100m Freestyle &lt; 1:00.00"
                                 android:textSize="18sp"
                                 android:textStyle="bold"
-                                android:textColor="@color/error" />
+                                android:textColor="@color/text" />
+
+                            <TextView
+                                android:id="@+id/tvGoalDeadline"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="Deadline: Dec 31, 2025"
+                                android:textSize="13sp"
+                                android:textColor="@color/text_secondary" />
                         </LinearLayout>
                     </LinearLayout>
+
+                    <!-- Goal Progress Graph (same as coach view) -->
+                    <com.github.mikephil.charting.charts.LineChart
+                        android:id="@+id/goalProgressChart"
+                        android:layout_width="match_parent"
+                        android:layout_height="200dp" />
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Watch Connection & Recording Card -->
+        <!-- Record Session Button -->
+        <!-- Watch Connection & Record Card -->
         <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <!-- Watch Status -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp">
+
+                    <View
+                        android:id="@+id/watchStatusIndicatorCard"
+                        android:layout_width="12dp"
+                        android:layout_height="12dp"
+                        android:background="@drawable/ic_back"
+                        android:backgroundTint="@color/error" />
+
+                    <TextView
+                        android:id="@+id/tvWatchStatus"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="8dp"
+                        android:text="Watch Not Connected"
+                        android:textSize="14sp"
+                        android:textColor="@color/error" />
+
+                </LinearLayout>
+
+                <!-- Record Button -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnRecordSession"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Record Session"
+                    android:textSize="16sp"
+                    app:icon="@drawable/ic_play"
+                    app:iconGravity="textStart"
+                    style="@style/Widget.Material3.Button" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Recent Sessions Section -->        <!-- Recent Sessions with Pending Categorization Badge -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="All Sessions"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/text" />
+
+            <!-- Pending Categorization Badge - Clickable Button Style -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/pendingBadge"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="0 pending"
+                android:textSize="12sp"
+                android:textColor="@color/error"
+                app:icon="@drawable/ic_back"
+                app:iconTint="@color/error"
+                app:iconSize="12dp"
+                app:backgroundTint="#FFEBEE"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- Session Metrics Card (graph on top) -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/metricsCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
             app:cardCornerRadius="16dp"
             app:cardElevation="4dp"
-            app:cardBackgroundColor="@color/white">
+            app:cardBackgroundColor="@color/white"
+            android:visibility="gone">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -165,109 +214,238 @@
                 android:orientation="vertical"
                 android:padding="20dp">
 
-                <!-- Watch Connection Status -->
+                <TextView
+                    android:id="@+id/tvMetricsTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Session Details"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- Metrics Grid (reuse from coach view) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="16dp">
+                    android:orientation="vertical">
 
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:src="@android:drawable/ic_dialog_info"
-                        app:tint="@color/primary"
-                        android:layout_marginEnd="12dp" />
-
+                    <!-- Row 1: Stroke Count, Stroke Length -->
                     <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical">
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="16dp">
 
-                        <TextView
-                            android:layout_width="wrap_content"
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:text="Watch Status"
-                            android:textSize="14sp"
-                            android:textColor="@color/text_secondary" />
+                            android:orientation="vertical"
+                            android:layout_marginEnd="8dp">
 
-                        <TextView
-                            android:id="@+id/tvWatchStatus"
-                            android:layout_width="wrap_content"
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Stroke Count"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:id="@+id/tvStrokeCount"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text"
+                                android:layout_marginTop="4dp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
                             android:layout_height="wrap_content"
-                            android:text="Not Connected"
-                            android:textSize="16sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/error" />
+                            android:orientation="vertical"
+                            android:layout_marginStart="8dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Avg Stroke Length"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:id="@+id/tvStrokeLength"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text"
+                                android:layout_marginTop="4dp" />
+                        </LinearLayout>
                     </LinearLayout>
 
-                    <View
-                        android:id="@+id/watchStatusIndicator"
-                        android:layout_width="12dp"
-                        android:layout_height="12dp"
-                        android:background="@drawable/ic_back"
-                        android:backgroundTint="@color/error" />
+                    <!-- Row 2: Distance, Duration -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="16dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginEnd="8dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Distance"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:id="@+id/tvDistance"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text"
+                                android:layout_marginTop="4dp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginStart="8dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Duration"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:id="@+id/tvDuration"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text"
+                                android:layout_marginTop="4dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Row 3: Stroke Index, Lap Time -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="16dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginEnd="8dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Stroke Index"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:id="@+id/tvStrokeIndex"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text"
+                                android:layout_marginTop="4dp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_weight="1"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginStart="8dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Avg Lap Time"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary" />
+
+                            <TextView
+                                android:id="@+id/tvLapTime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text"
+                                android:layout_marginTop="4dp" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Charts Section -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Performance"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text"
+                        android:layout_marginBottom="8dp" />
+
+                    <com.github.mikephil.charting.charts.LineChart
+                        android:id="@+id/performanceChart"
+                        android:layout_width="match_parent"
+                        android:layout_height="180dp"
+                        android:layout_marginBottom="16dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Heart Rate"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/text"
+                        android:layout_marginBottom="8dp" />
+
+                    <com.github.mikephil.charting.charts.BarChart
+                        android:id="@+id/heartRateChart"
+                        android:layout_width="match_parent"
+                        android:layout_height="180dp" />
                 </LinearLayout>
-
-                <!-- Record Session Button -->
-                <Button
-                    android:id="@+id/btnRecordSession"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Record Session"
-                    android:textColor="@color/white"
-                    android:backgroundTint="@color/primary"
-                    android:enabled="false"
-                    android:padding="16dp"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="Connect your watch to record sessions"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_secondary"
-                    android:gravity="center"
-                    android:layout_gravity="center_horizontal" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Past Sessions Section -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Past Sessions"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="@color/text"
-            android:layout_marginBottom="12dp" />
-
+        <!-- Sessions RecyclerView (max 3 visible, scrollable) -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/sessionsRecycler"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:maxHeight="360dp"
             android:layout_marginBottom="16dp"
-            android:nestedScrollingEnabled="false" />
-
-        <!-- Exercises Section -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Available Exercises"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="@color/text"
-            android:layout_marginBottom="12dp" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/exercisesRecycler"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false" />
+            android:scrollbars="vertical"
+            android:overScrollMode="ifContentScrolls" />
 
     </LinearLayout>
 </ScrollView>

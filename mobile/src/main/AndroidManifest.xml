@@ -66,6 +66,11 @@
         <activity android:name=".presentation.ExerciseLibraryActivity" />
         <activity android:name=".presentation.AddEditExerciseActivity" 
             android:windowSoftInputMode="adjustPan"/>
+        <activity android:name=".presentation.CategorizeSessionActivity"
+            android:windowSoftInputMode="adjustPan"/>
+        <activity android:name=".presentation.CreateExerciseActivity"
+            android:windowSoftInputMode="adjustPan"/>
+        <activity android:name=".presentation.UncategorizedSessionsActivity" />
     </application>
 
 

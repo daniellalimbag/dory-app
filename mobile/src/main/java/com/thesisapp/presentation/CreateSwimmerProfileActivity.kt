@@ -155,6 +155,14 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
                 else -> ""
             }
 
+            // Get swimmer type from radio buttons
+            val radioGroupSwimmerType = findViewById<RadioGroup>(R.id.radioGroupSwimmerType)
+            val swimmerType = when (radioGroupSwimmerType.checkedRadioButtonId) {
+                R.id.radioSprint -> com.thesisapp.data.ExerciseCategory.SPRINT
+                R.id.radioDistance -> com.thesisapp.data.ExerciseCategory.DISTANCE
+                else -> com.thesisapp.data.ExerciseCategory.SPRINT
+            }
+
             // Validation
             if (name.isEmpty()) {
                 Toast.makeText(this, "Please enter your name", Toast.LENGTH_SHORT).show()
@@ -203,7 +211,8 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
                 height = height,
                 weight = weight,
                 sex = sex,
-                wingspan = wingspan
+                wingspan = wingspan,
+                category = swimmerType
             )
 
             // Save to database

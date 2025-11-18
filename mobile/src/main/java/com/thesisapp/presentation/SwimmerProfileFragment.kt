@@ -1,5 +1,6 @@
 package com.thesisapp.presentation
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -8,8 +9,10 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import com.google.android.material.button.MaterialButton
 import com.thesisapp.R
 import com.thesisapp.data.Swimmer
+import com.thesisapp.utils.AuthManager
 
 class SwimmerProfileFragment : Fragment() {
 
@@ -56,6 +59,14 @@ class SwimmerProfileFragment : Fragment() {
             view.findViewById<TextView>(R.id.swimmerSex).text = swimmer.sex
             view.findViewById<TextView>(R.id.swimmerWingspan).text =
                 getString(R.string.swimmer_wingspan, swimmer.wingspan)
+            view.findViewById<TextView>(R.id.swimmerCategory).text =
+                "Swimmer Type: ${swimmer.category.name}"
+        }
+
+        // Logout button
+        view.findViewById<MaterialButton>(R.id.btnLogout).setOnClickListener {
+            AuthManager.logout(requireContext())
+            requireActivity().finish()
         }
     }
 
