@@ -396,6 +396,27 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- LAP BREAKDOWN SECTION -->
+            <TextView
+                android:id="@+id/tvLapBreakdownTitleCoach"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Lap Breakdown"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/text" />
+
+            <TextView
+                android:id="@+id/tvLapBreakdownCoach"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="16dp"
+                android:text="No lap metrics available."
+                android:textSize="13sp"
+                android:textColor="@color/text_secondary" />
+
             <!-- EXERCISE LIST SECTION -->
             <TextView
                 android:layout_width="wrap_content"

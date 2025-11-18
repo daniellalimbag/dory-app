@@ -423,6 +423,28 @@
                 android:layout_marginTop="8dp"
                 android:background="@android:color/transparent" />
 
+            <!-- Per-lap breakdown (textual) -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:layout_marginLeft="4dp"
+                android:text="Lap Breakdown"
+                android:textColor="@color/black"
+                android:textSize="14dp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/txtLapBreakdown"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:layout_marginLeft="8dp"
+                android:layout_marginRight="8dp"
+                android:text=""
+                android:textColor="@color/text"
+                android:textSize="12dp" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

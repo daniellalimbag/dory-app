@@ -87,4 +87,9 @@ dependencies {
     
     // MPAndroidChart for goal progress graphs
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+    // Retrofit for HTTP calls to the Python metrics API
+    val retrofitVersion = "2.11.0"
+    implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
+    implementation("com.squareup.retrofit2:converter-gson:$retrofitVersion")
 }
