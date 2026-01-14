@@ -6,7 +6,7 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 // NOTE: For Android emulator, 10.0.2.2 points to the host machine's localhost.
-private const val DEFAULT_BASE_URL = "http://10.0.2.2:8000/"
+private const val DEFAULT_BASE_URL = "http://ccscloud.dlsu.edu.ph:11526/"
 
 // Data classes mirroring the FastAPI models
 
