@@ -1,5 +1,7 @@
 # DORY
 
+![DORY](./dory.png)
+
 Data-Oriented Reporting for Your swim (DORY) is a multi-module Android project consisting of a phone app and a Wear OS companion. The project uses Kotlin, Jetpack Compose, Room, Retrofit, Coroutines, and integrates Google Play Services for Wearable data sync.
 
 ## Modules
