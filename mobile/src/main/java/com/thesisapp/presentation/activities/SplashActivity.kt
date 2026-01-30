@@ -7,6 +7,7 @@ import android.os.Looper
 import androidx.appcompat.app.AppCompatActivity
 import com.thesisapp.R
 import com.thesisapp.utils.AuthManager
+import com.thesisapp.utils.UserRole
 
 class SplashActivity : AppCompatActivity() {
 
@@ -15,9 +16,36 @@ class SplashActivity : AppCompatActivity() {
         setContentView(R.layout.activity_splash)
 
         Handler(Looper.getMainLooper()).postDelayed({
-            val next = if (AuthManager.isLoggedIn(this)) MainActivity::class.java else AuthActivity::class.java
-            val intent = Intent(this, next)
-            startActivity(intent)
+            if (!AuthManager.isLoggedIn(this)) {
+                startActivity(Intent(this, AuthActivity::class.java))
+                finish()
+                return@postDelayed
+            }
+
+            val user = AuthManager.currentUser(this)
+            if (user?.role == UserRole.SWIMMER) {
+                var teamId = AuthManager.currentTeamId(this)
+                if (teamId == null) {
+                    val teams = AuthManager.getSwimmerTeams(this, user.email)
+                    if (teams.isNotEmpty()) {
+                        teamId = teams.first()
+                        AuthManager.setCurrentTeamId(this, teamId)
+                    }
+                }
+                val swimmerId = AuthManager.getLinkedSwimmerId(this, user.email, teamId)
+                if (teamId != null && swimmerId != null) {
+                    startActivity(
+                        Intent(this, SwimmerProfileActivity::class.java).apply {
+                            putExtra(SwimmerProfileActivity.EXTRA_SWIMMER_ID, swimmerId)
+                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        }
+                    )
+                    finish()
+                    return@postDelayed
+                }
+            }
+
+            startActivity(Intent(this, MainActivity::class.java))
             finish()
         }, 1000)
     }

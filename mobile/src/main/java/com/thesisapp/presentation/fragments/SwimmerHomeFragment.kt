@@ -4,6 +4,7 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.os.Build
 import android.os.Bundle
+
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,6 +17,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
@@ -28,17 +30,20 @@ import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
+import com.google.android.gms.wearable.Wearable
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.Goal
 import com.thesisapp.data.non_dao.GoalProgress
 import com.thesisapp.data.non_dao.MlResult
 import com.thesisapp.data.non_dao.Swimmer
+import com.thesisapp.presentation.activities.ConnectActivity
 import com.thesisapp.presentation.activities.TrackSwimmerActivity
 import com.thesisapp.presentation.activities.UncategorizedSessionsActivity
 import com.thesisapp.presentation.adapters.SessionAdapter
 import com.thesisapp.presentation.adapters.SessionListAdapter
 import com.thesisapp.utils.AuthManager
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -64,6 +69,7 @@ class SwimmerHomeFragment : Fragment() {
     private lateinit var btnRecordSession: Button
     private lateinit var tvWatchStatus: TextView
     private lateinit var watchStatusIndicatorCard: View
+    private var isSmartwatchConnected = false
 
     // Sessions
     private lateinit var sessionsRecycler: RecyclerView
@@ -140,7 +146,11 @@ class SwimmerHomeFragment : Fragment() {
 
         // Setup record button
         btnRecordSession.setOnClickListener {
-            startRecording()
+            if (isSmartwatchConnected) {
+                startRecording()
+            } else {
+                startActivity(Intent(requireContext(), ConnectActivity::class.java))
+            }
         }
 
         // Load data
@@ -463,9 +473,19 @@ class SwimmerHomeFragment : Fragment() {
     }
 
     private fun updateWatchStatus() {
-        val isConnected = checkWatchConnection()
+        Wearable.getNodeClient(requireContext()).connectedNodes
+            .addOnSuccessListener { nodes ->
+                isSmartwatchConnected = nodes.isNotEmpty()
+                updateWatchStatusUi()
+            }
+            .addOnFailureListener {
+                isSmartwatchConnected = false
+                updateWatchStatusUi()
+            }
+    }
 
-        if (isConnected) {
+    private fun updateWatchStatusUi() {
+        if (isSmartwatchConnected) {
             tvWatchStatus.text = "Watch Connected"
             tvWatchStatus.setTextColor(requireContext().getColor(R.color.accent))
             ViewCompat.setBackgroundTintList(
@@ -473,6 +493,7 @@ class SwimmerHomeFragment : Fragment() {
                 ColorStateList.valueOf(requireContext().getColor(R.color.accent))
             )
             btnRecordSession.isEnabled = true
+            btnRecordSession.text = "Record Session"
         } else {
             tvWatchStatus.text = "Watch Not Connected"
             tvWatchStatus.setTextColor(requireContext().getColor(R.color.error))
@@ -480,13 +501,9 @@ class SwimmerHomeFragment : Fragment() {
                 watchStatusIndicatorCard,
                 ColorStateList.valueOf(requireContext().getColor(R.color.error))
             )
-            btnRecordSession.isEnabled = false
+            btnRecordSession.isEnabled = true
+            btnRecordSession.text = "Connect Watch"
         }
-    }
-
-    private fun checkWatchConnection(): Boolean {
-        // TODO: Implement actual Bluetooth watch connection check
-        return false
     }
 
     private fun startRecording() {

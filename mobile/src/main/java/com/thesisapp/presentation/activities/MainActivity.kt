@@ -63,9 +63,31 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         val user = AuthManager.currentUser(this)
-        
+        db = AppDatabase.getInstance(applicationContext)
+
+        if (user?.role == UserRole.SWIMMER) {
+            var teamId = AuthManager.currentTeamId(this)
+            if (teamId == null) {
+                val teams = AuthManager.getSwimmerTeams(this, user.email)
+                if (teams.isNotEmpty()) {
+                    teamId = teams.first()
+                    AuthManager.setCurrentTeamId(this, teamId)
+                }
+            }
+            val swimmerId = AuthManager.getLinkedSwimmerId(this, user.email, teamId)
+            if (teamId != null && swimmerId != null) {
+                val intent = Intent(this, SwimmerProfileActivity::class.java).apply {
+                    putExtra(SwimmerProfileActivity.EXTRA_SWIMMER_ID, swimmerId)
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+                startActivity(intent)
+                finish()
+                return
+            }
+        }
+
         // Set different layouts based on role
         if (user?.role == UserRole.COACH) {
             setContentView(R.layout.activity_main_coach)
@@ -74,8 +96,6 @@ class MainActivity : AppCompatActivity() {
             setContentView(R.layout.activity_main_dashboard)
             setupSwimmerView()
         }
-
-        db = AppDatabase.getInstance(applicationContext)
     }
 
     private fun setupCoachView() {

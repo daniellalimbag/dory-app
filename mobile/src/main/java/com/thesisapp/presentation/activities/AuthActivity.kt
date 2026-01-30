@@ -61,10 +61,23 @@ class AuthActivity : AppCompatActivity() {
             UserRole.SWIMMER -> {
                 val user = AuthManager.currentUser(this)!!
                 val teams = AuthManager.getSwimmerTeams(this, user.email)
-                // Always go to MainActivity - it will show empty state if no teams
                 if (teams.isNotEmpty()) {
-                    AuthManager.setCurrentTeamId(this, teams.first())
+                    val teamId = teams.first()
+                    AuthManager.setCurrentTeamId(this, teamId)
+                    val swimmerId = AuthManager.getLinkedSwimmerId(this, user.email, teamId)
+                    if (swimmerId != null) {
+                        startActivity(
+                            Intent(this, SwimmerProfileActivity::class.java).apply {
+                                putExtra(SwimmerProfileActivity.EXTRA_SWIMMER_ID, swimmerId)
+                                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                            }
+                        )
+                        finish()
+                        return
+                    }
                 }
+
+                // Fall back to MainActivity for empty state / not linked yet
                 startActivity(Intent(this, MainActivity::class.java))
                 finish()
             }

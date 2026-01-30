@@ -36,6 +36,7 @@ class SwimmerProfileActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_SWIMMER = "extra_swimmer"
+        const val EXTRA_SWIMMER_ID = "extra_swimmer_id"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,16 +46,46 @@ class SwimmerProfileActivity : AppCompatActivity() {
         db = AppDatabase.getInstance(this)
 
         // Get swimmer from intent (handling deprecated API)
-        swimmer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val swimmerFromExtra = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(EXTRA_SWIMMER, Swimmer::class.java)
         } else {
             @Suppress("DEPRECATION")
             intent.getParcelableExtra(EXTRA_SWIMMER)
-        } ?: run {
+        }
+
+        if (swimmerFromExtra != null) {
+            swimmer = swimmerFromExtra
+            initUi()
+            return
+        }
+
+        val swimmerId = intent.getIntExtra(EXTRA_SWIMMER_ID, -1)
+        if (swimmerId <= 0) {
             finish()
             return
         }
 
+        lifecycleScope.launch(Dispatchers.IO) {
+            val loaded = db.swimmerDao().getById(swimmerId)
+            withContext(Dispatchers.Main) {
+                if (loaded == null) {
+                    finish()
+                    return@withContext
+                }
+                swimmer = loaded
+                initUi()
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::tvTeamSwitcher.isInitialized) {
+            updateTopRow()
+        }
+    }
+
+    private fun initUi() {
         // Set up top row
         tvTeamSwitcher = findViewById(R.id.tvTeamSwitcher)
         tvAccount = findViewById(R.id.tvAccount)
@@ -80,11 +111,6 @@ class SwimmerProfileActivity : AppCompatActivity() {
                 else -> ""
             }
         }.attach()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        updateTopRow()
     }
 
     private fun updateTopRow() {
@@ -117,8 +143,12 @@ class SwimmerProfileActivity : AppCompatActivity() {
                                 val newSwimmer = db.swimmerDao().getById(swimmerId)
                                 withContext(Dispatchers.Main) {
                                     if (newSwimmer != null) {
-                                        swimmer = newSwimmer
-                                        recreate() // Refresh the activity with new swimmer data
+                                        val intent = Intent(this@SwimmerProfileActivity, SwimmerProfileActivity::class.java).apply {
+                                            putExtra(EXTRA_SWIMMER_ID, newSwimmer.id)
+                                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                        }
+                                        startActivity(intent)
+                                        finish()
                                     }
                                 }
                             }
