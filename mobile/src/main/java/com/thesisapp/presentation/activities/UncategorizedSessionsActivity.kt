@@ -78,6 +78,7 @@ class UncategorizedSessionsActivity : AppCompatActivity() {
                         val intent =
                             Intent(this@UncategorizedSessionsActivity, CategorizeSessionActivity::class.java)
                         intent.putExtra("sessionId", session.sessionId)
+                        intent.putExtra("SWIMMER_ID", session.swimmerId)
                         startActivity(intent)
                     }
                     sessionsRecyclerView.adapter = adapter

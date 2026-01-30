@@ -28,18 +28,18 @@ import com.thesisapp.communication.PhoneSender
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.MlResult
 import com.thesisapp.data.non_dao.SwimData
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 import java.util.Locale
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import com.thesisapp.presentation.HandModelView
 import com.thesisapp.presentation.StrokeClassifier
+import com.thesisapp.utils.StrokeMetrics
 import java.text.SimpleDateFormat
 import java.util.Date
-
+import kotlin.math.roundToInt
 
 class TrackSwimmerActivity : AppCompatActivity() {
     private lateinit var receiver: PhoneReceiver
@@ -120,33 +120,25 @@ fun RealtimeSensorScreen(
     val sensorData by sensorDataFlow.collectAsState(initial = null)
     var isRecording by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val strokeResults = mutableListOf<String>()
+    val strokeResults = remember { mutableStateListOf<String>() }
 
     var startTime by remember { mutableLongStateOf(0L) }
-    var newSessionId = 0
+    var currentSessionId by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(sensorData) {
         sensorData?.let { data ->
-            if (data.timestamp <= startTime) return@LaunchedEffect
+            if (!isRecording) return@LaunchedEffect
+            if (currentSessionId <= 0) return@LaunchedEffect
+            if (startTime <= 0L) return@LaunchedEffect
+            if (data.timestamp < startTime) return@LaunchedEffect
 
-            if (isRecording) {
-                val swim = SwimData(
-                    sessionId = newSessionId,
-                    timestamp = System.currentTimeMillis(),
-                    accel_x = data.accel_x,
-                    accel_y = data.accel_y,
-                    accel_z = data.accel_z,
-                    gyro_x = data.gyro_x,
-                    gyro_y = data.gyro_y,
-                    gyro_z = data.gyro_z,
-                    heart_rate = data.heart_rate,
-                    ppg = data.ppg,
-                    ecg = data.ecg
-                )
+            if (predictedLabel.value.isNotBlank() && predictedLabel.value != "Waiting...") {
+                strokeResults.add(predictedLabel.value)
+            }
 
-                (context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
-                    db.swimDataDao().insert(swim)
-                }
+            val swim = data.copy(sessionId = currentSessionId)
+            (context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
+                db.swimDataDao().insert(swim)
             }
         }
     }
@@ -176,8 +168,7 @@ fun RealtimeSensorScreen(
                     )
                 }
 
-                val predictedStroke = StrokePrediction(predictedLabel)
-                strokeResults.add(predictedStroke.toString())
+                StrokePrediction(predictedLabel)
 
                 Text(
                     "Accel: x=${data.accel_x.format()}, y=${data.accel_y.format()}, z=${data.accel_z.format()}",
@@ -196,73 +187,148 @@ fun RealtimeSensorScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(onClick = {
-                val target = !isRecording
-                phoneSender.sendCommand(
-                    start = target,
-                    onSuccess = {
-                        isRecording = target
+                val activity = context as? AppCompatActivity
+                if (activity == null) return@Button
 
-                        (context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
-                            val maxSessionId = db.mlResultDao().getMaxSessionId() ?: 0
-                            newSessionId = maxSessionId + 1
-                        }
-
-                        if (isRecording) {
-                            phoneSender.sendId(
-                                id = newSessionId,
-                                onSuccess = {startTime = System.currentTimeMillis()},
-                                onFailure = {}
+                if (!isRecording) {
+                    activity.lifecycleScope.launch(Dispatchers.IO) {
+                        val maxSessionId = db.mlResultDao().getMaxSessionId() ?: 0
+                        val newId = maxSessionId + 1
+                        withContext(Dispatchers.Main) {
+                            phoneSender.sendCommand(
+                                start = true,
+                                onSuccess = {
+                                    phoneSender.sendId(
+                                        id = newId,
+                                        onSuccess = {
+                                            currentSessionId = newId
+                                            strokeResults.clear()
+                                            startTime = System.currentTimeMillis()
+                                            isRecording = true
+                                        },
+                                        onFailure = {
+                                            Toast.makeText(
+                                                context,
+                                                "Watch not listening. Please open the app on your watch.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    )
+                                },
+                                onFailure = {
+                                    Toast.makeText(
+                                        context,
+                                        "Watch not listening. Please open the app on your watch.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                             )
                         }
+                    }
+                } else {
+                    phoneSender.sendCommand(
+                        start = false,
+                        onSuccess = {
+                            val sessionIdToSave = currentSessionId
+                            val startTimeToSave = startTime
+                            isRecording = false
 
-                        if (!target) { // Recording stopped → save MLResult
-                            (context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
-                                val swimDataList = db.swimDataDao().getSwimDataForSession(newSessionId)
+                            activity.lifecycleScope.launch(Dispatchers.IO) {
+                                val swimDataList = db.swimDataDao().getSwimDataForSession(sessionIdToSave)
+                                if (swimDataList.isEmpty()) return@launch
 
-                                if (swimDataList.isNotEmpty()) {
-                                    val formatterDate = SimpleDateFormat(
-                                        "MMMM dd, yyyy",
-                                        Locale.getDefault()
-                                    )
-                                    val formatterTime =
-                                        SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                                val formatterDate = SimpleDateFormat(
+                                    "MMMM dd, yyyy",
+                                    Locale.getDefault()
+                                )
+                                val formatterTime =
+                                    SimpleDateFormat("HH:mm:ss", Locale.getDefault())
 
-                                    val firstTime = startTime
-                                    val lastTime = Date(swimDataList.last().timestamp)
+                                val firstTime = startTimeToSave
+                                val lastTs = swimDataList.last().timestamp
 
-                                    val timeStart = formatterTime.format(firstTime)
-                                    val timeEnd = formatterTime.format(lastTime)
-                                    val date = formatterDate.format(firstTime)
+                                val timeStart = formatterTime.format(firstTime)
+                                val timeEnd = formatterTime.format(Date(lastTs))
+                                val date = formatterDate.format(firstTime)
 
-                                    val percentages = calculateStrokePercentages(strokeResults)
+                                val percentages = calculateStrokePercentages(strokeResults)
 
-                                    val mlResult = MlResult(
-                                        sessionId = newSessionId,
-                                        swimmerId = swimmerId,
-                                        date = date,
-                                        timeStart = timeStart,
-                                        timeEnd = timeEnd,
-                                        backstroke = percentages["backstroke"] ?: 0f,
-                                        breaststroke = percentages["breaststroke"] ?: 0f,
-                                        butterfly = percentages["butterfly"] ?: 0f,
-                                        freestyle = percentages["freestyle"] ?: 0f,
-                                        notes = "[Editable Text Field]"
-                                    )
+                                val lapMetrics = StrokeMetrics.computeLapMetrics(swimDataList)
 
-                                    db.mlResultDao().insert(mlResult)
+                                val totalStrokeCount: Int
+                                val avgStrokeLength: Float
+                                val strokeIndex: Float
+                                val avgLapTime: Float
+                                val totalDistanceMeters: Int
 
+                                if (lapMetrics.isNotEmpty()) {
+                                    val sessionAvgs = StrokeMetrics.computeSessionAverages(lapMetrics)
+                                    totalStrokeCount = lapMetrics.sumOf { it.strokeCount }
+                                    avgStrokeLength = sessionAvgs.avgStrokeLengthMeters.toFloat()
+                                    strokeIndex = sessionAvgs.avgStrokeIndex.toFloat()
+                                    avgLapTime = sessionAvgs.avgLapTimeSeconds.toFloat()
+                                    totalDistanceMeters = (50.0 * lapMetrics.size).toInt()
+                                } else {
+                                    totalStrokeCount = StrokeMetrics.computeStrokeCount(swimDataList)
+                                    val totalTimeSeconds = ((lastTs - firstTime).coerceAtLeast(1L) / 1000.0)
+                                    val poolLengthMeters = 50.0
+                                    val velocity = poolLengthMeters / totalTimeSeconds
+                                    val strokeRatePerSecond = if (totalTimeSeconds > 0.0) totalStrokeCount / totalTimeSeconds else 0.0
+                                    val strokeLengthFallback = if (strokeRatePerSecond > 0.0) velocity / strokeRatePerSecond else 0.0
+                                    avgStrokeLength = strokeLengthFallback.toFloat()
+                                    strokeIndex = (velocity * strokeLengthFallback).toFloat()
+                                    avgLapTime = totalTimeSeconds.toFloat()
+                                    totalDistanceMeters = poolLengthMeters.toInt()
+                                }
+
+                                val hrValues = swimDataList.mapNotNull { it.heart_rate?.roundToInt() }
+                                val hrBefore = hrValues.firstOrNull()
+                                val hrAfter = hrValues.lastOrNull()
+                                val avgHr = if (hrValues.isNotEmpty()) (hrValues.sum().toDouble() / hrValues.size).roundToInt() else null
+                                val maxHr = hrValues.maxOrNull()
+
+                                val mlResult = MlResult(
+                                    sessionId = sessionIdToSave,
+                                    swimmerId = swimmerId,
+                                    date = date,
+                                    timeStart = timeStart,
+                                    timeEnd = timeEnd,
+                                    strokeCount = totalStrokeCount,
+                                    avgStrokeLength = avgStrokeLength,
+                                    strokeIndex = strokeIndex,
+                                    avgLapTime = avgLapTime,
+                                    totalDistance = totalDistanceMeters,
+                                    heartRateBefore = hrBefore,
+                                    heartRateAfter = hrAfter,
+                                    avgHeartRate = avgHr,
+                                    maxHeartRate = maxHr,
+                                    backstroke = percentages["backstroke"] ?: 0f,
+                                    breaststroke = percentages["breaststroke"] ?: 0f,
+                                    butterfly = percentages["butterfly"] ?: 0f,
+                                    freestyle = percentages["freestyle"] ?: 0f,
+                                    notes = ""
+                                )
+
+                                db.mlResultDao().insert(mlResult)
+
+                                withContext(Dispatchers.Main) {
+                                    val intent = Intent(context, CategorizeSessionActivity::class.java)
+                                    intent.putExtra("sessionId", sessionIdToSave)
+                                    intent.putExtra("SWIMMER_ID", swimmerId)
+                                    context.startActivity(intent)
+                                    activity.finish()
                                 }
                             }
+                        },
+                        onFailure = {
+                            Toast.makeText(
+                                context,
+                                "Watch not listening. Please open the app on your watch.",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
-                    },
-                    onFailure = {
-                        Toast.makeText(
-                            context,
-                            "Watch not listening. Please open the app on your watch.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                )
+                    )
+                }
             }) {
                 Text(if (isRecording) "Stop Recording" else "Start Recording")
             }
@@ -327,8 +393,7 @@ fun ReturnButton(modifier: Modifier = Modifier) {
 
     Button(
         onClick = {
-            val intent = Intent(context, MainActivity::class.java)
-            context.startActivity(intent)
+            (context as? AppCompatActivity)?.finish()
         },
         modifier = modifier
             .padding(horizontal = 32.dp)

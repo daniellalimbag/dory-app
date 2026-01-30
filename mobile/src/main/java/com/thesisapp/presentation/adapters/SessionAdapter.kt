@@ -58,6 +58,7 @@ class SessionAdapter(
             btnCategorize?.setOnClickListener {
                 val intent = Intent(itemView.context, CategorizeSessionActivity::class.java)
                 intent.putExtra("sessionId", session.sessionId)
+                intent.putExtra("SWIMMER_ID", session.swimmerId)
                 itemView.context.startActivity(intent)
             }
 

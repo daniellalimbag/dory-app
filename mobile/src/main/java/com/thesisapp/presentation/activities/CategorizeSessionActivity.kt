@@ -166,13 +166,26 @@ class CategorizeSessionActivity : AppCompatActivity() {
 
         val selectedExercise = exercises[exercisePosition]
 
+        val effortLabel = selectedExercise.effortLevel?.let { percent ->
+            when {
+                percent <= 40 -> "Easy"
+                percent <= 70 -> "Moderate"
+                percent <= 90 -> "Hard"
+                else -> "Max Effort"
+            }
+        }
+
         lifecycleScope.launch(Dispatchers.IO) {
             // Update the session with categorization
             val session = db.mlResultDao().getBySessionId(sessionId)
             if (session != null) {
                 val updated = session.copy(
                     exerciseId = selectedExercise.id, // Use the actual ID (including -1 for General Training)
-                    exerciseName = selectedExercise.name
+                    exerciseName = selectedExercise.name,
+                    distance = selectedExercise.distance,
+                    sets = selectedExercise.sets,
+                    reps = 1,
+                    effortLevel = effortLabel
                 )
                 db.mlResultDao().update(updated)
 

@@ -108,7 +108,8 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         receiver = WearReceiver(
             context = this,
             onStartRecording = { startRecording() },
-            onStopRecording = { stopRecording() }
+            onStopRecording = { stopRecording() },
+            onSessionIdReceived = { newId -> id = newId }
         )
         receiver.register()
 

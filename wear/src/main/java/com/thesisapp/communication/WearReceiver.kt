@@ -10,7 +10,8 @@ import java.nio.ByteBuffer
 class WearReceiver(
     private val context: Context,
     private val onStartRecording: () -> Unit,
-    private val onStopRecording: () -> Unit
+    private val onStopRecording: () -> Unit,
+    private val onSessionIdReceived: (Int) -> Unit
 ) : MessageClient.OnMessageReceivedListener {
 
     private val TAG = "WearReceiver"
@@ -55,6 +56,8 @@ class WearReceiver(
         else if (event.path == "/sentIds"){
             val id = ByteBuffer.wrap(event.data).int
             Log.d(TAG, "Received id: $id")
+
+            onSessionIdReceived(id)
 
             // Send ACK
             Wearable.getMessageClient(context)

@@ -7,14 +7,10 @@ import androidx.compose.runtime.mutableStateOf
 import com.google.android.gms.wearable.MessageClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
-import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.SwimData
 import com.thesisapp.presentation.StrokeClassifier
 import kotlinx.serialization.json.Json
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 
 
 class PhoneReceiver(private val context: Context, private val liveSensorFlow: MutableStateFlow<SwimData?>) : MessageClient.OnMessageReceivedListener {
@@ -58,14 +54,6 @@ class PhoneReceiver(private val context: Context, private val liveSensorFlow: Mu
 
                 // 🔥 Fast UI update
                 liveSensorFlow.value = sensorData
-
-                // 💾 Background DB insert
-                CoroutineScope(Dispatchers.IO).launch {
-                    AppDatabase.getInstance(context)
-                        .swimDataDao()
-                        .insert(sensorData)
-                    Log.d(TAG, "Inserted received sensor data into database.")
-                }
 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to deserialize SensorData: ${e.message}", e)
