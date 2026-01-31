@@ -2,10 +2,10 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/nav_swimmers"
-        android:icon="@android:drawable/ic_menu_myplaces"
+        android:icon="@drawable/swimmer"
         android:title="Swimmers" />
     <item
         android:id="@+id/nav_exercises"
-        android:icon="@android:drawable/ic_menu_agenda"
+        android:icon="@drawable/exercise"
         android:title="Exercises" />
 </menu>

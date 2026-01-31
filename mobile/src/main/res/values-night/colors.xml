@@ -1,0 +1,50 @@
+<resources>
+    <color name="black">#FFFFFF</color>
+    <color name="white">#0F1720</color>
+
+    <color name="background">#0B1220</color>
+    <color name="divider">#223042</color>
+    <color name="text">#E6EEF7</color>
+    <color name="text_secondary">#B7C7D6</color>
+
+    <color name="primary">#2B8FE8</color>
+    <color name="primary_dark">#1E6FB8</color>
+    <color name="primary_light">#5CA8EF</color>
+    <color name="secondary">#FF9800</color>
+    <color name="accent">#24BFBF</color>
+    <color name="accent_light">#4DD4D4</color>
+
+    <color name="connect">#3B9FFF</color>
+    <color name="disconnect">#4ECB71</color>
+    <color name="dashboard_button">#142235</color>
+    <color name="disabled">#2A3A4D</color>
+    <color name="disabled_text">#90A4B5</color>
+
+    <color name="button">#24BFBF</color>
+    <color name="progress">#1A2A3F</color>
+    <color name="done">#34A853</color>
+
+    <color name="notify">#0F2C2B</color>
+    <color name="notify_text">#4ECB71</color>
+    <color name="register">#B7C7D6</color>
+    <color name="sub">#90A4B5</color>
+    <color name="track">#B7C7D6</color>
+
+    <color name="link_blue">#5CA8EF</color>
+    <color name="details">#B7C7D6</color>
+
+    <color name="stroke">#FF7A7A</color>
+    <color name="export">#8FB0FF</color>
+    <color name="session">#B7C7D6</color>
+    <color name="confirm">#8FB0FF</color>
+
+    <color name="card_swimmers">#142235</color>
+    <color name="card_sessions">#0F2C2B</color>
+
+    <color name="success">#34A853</color>
+    <color name="warning">#FBBC04</color>
+    <color name="error">#FF5A5A</color>
+
+    <color name="overlay">#80000000</color>
+    <color name="shadow">#40000000</color>
+</resources>

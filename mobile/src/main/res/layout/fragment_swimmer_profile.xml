@@ -98,11 +98,18 @@
                     android:orientation="horizontal"
                     android:layout_marginBottom="12dp">
 
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/height"
+                        android:tint="@color/track"
+                        android:layout_marginEnd="8dp" />
+
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="📏 Height"
+                        android:text="Height"
                         android:textSize="16sp"
                         android:textColor="@color/track" />
 
@@ -123,11 +130,18 @@
                     android:orientation="horizontal"
                     android:layout_marginBottom="12dp">
 
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/weight"
+                        android:tint="@color/track"
+                        android:layout_marginEnd="8dp" />
+
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="⚖️ Weight"
+                        android:text="Weight"
                         android:textSize="16sp"
                         android:textColor="@color/track" />
 
@@ -148,11 +162,18 @@
                     android:orientation="horizontal"
                     android:layout_marginBottom="12dp">
 
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/sex"
+                        android:tint="@color/track"
+                        android:layout_marginEnd="8dp" />
+
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="⚧ Sex"
+                        android:text="Sex"
                         android:textSize="16sp"
                         android:textColor="@color/track" />
 
@@ -172,11 +193,18 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal">
 
+                    <ImageView
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
+                        android:src="@drawable/wingspan"
+                        android:tint="@color/track"
+                        android:layout_marginEnd="8dp" />
+
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="🦅 Wingspan"
+                        android:text="Wingspan"
                         android:textSize="16sp"
                         android:textColor="@color/track" />
 

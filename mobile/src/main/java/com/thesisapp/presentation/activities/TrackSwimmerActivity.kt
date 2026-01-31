@@ -9,11 +9,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -87,13 +87,15 @@ class TrackSwimmerActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             runOnUiThread {
                 setContent {
-                    RealtimeSensorScreen(
-                        sensorDataFlow = liveSensorData,
-                        phoneSender = sender,
-                        predictedLabel = receiver.predictedLabel,
-                        db = db,
-                        swimmerId = swimmerId
-                    )
+                    MaterialTheme {
+                        RealtimeSensorScreen(
+                            sensorDataFlow = liveSensorData,
+                            phoneSender = sender,
+                            predictedLabel = receiver.predictedLabel,
+                            db = db,
+                            swimmerId = swimmerId
+                        )
+                    }
                 }
             }
         }
@@ -146,7 +148,7 @@ fun RealtimeSensorScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -154,7 +156,7 @@ fun RealtimeSensorScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Text("LATEST SENSOR DATA", color = Color.White)
+            Text("LATEST SENSOR DATA", color = MaterialTheme.colorScheme.onBackground)
 
             sensorData?.let { data ->
                 sensorData?.let { data ->
@@ -172,17 +174,17 @@ fun RealtimeSensorScreen(
 
                 Text(
                     "Accel: x=${data.accel_x.format()}, y=${data.accel_y.format()}, z=${data.accel_z.format()}",
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
                     "Gyro: x=${data.gyro_x.format()}, y=${data.gyro_y.format()}, z=${data.gyro_z.format()}",
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
                     "HR: ${data.heart_rate.format()}, PPG: ${data.ppg.format()}, ECG: ${data.ecg.format()}",
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-            } ?: Text("Start recording to see swimmer data.", color = Color.White)
+            } ?: Text("Start recording to see swimmer data.", color = MaterialTheme.colorScheme.onBackground)
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -375,12 +377,12 @@ fun StrokePrediction(predictedLabel: State<String>) {
             Text(
                 text = "Detected Stroke: ",
                 fontSize = 16.sp,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
             )
             Text(
                 text = predictedLabel.value,
                 fontSize = 24.sp,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Bold
             )
         }

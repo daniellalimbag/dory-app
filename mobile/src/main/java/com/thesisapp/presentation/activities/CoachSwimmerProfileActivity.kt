@@ -16,6 +16,7 @@ import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.*
+import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.google.android.material.card.MaterialCardView
 import com.thesisapp.R
@@ -31,7 +32,6 @@ import android.view.Gravity
 import android.widget.TableLayout
 import android.widget.TableRow
 import com.github.mikephil.charting.components.YAxis
-import com.github.mikephil.charting.formatter.ValueFormatter
 import com.thesisapp.data.non_dao.Goal
 import com.thesisapp.data.non_dao.GoalProgress
 import com.thesisapp.data.non_dao.MlResult
@@ -268,6 +268,9 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     }
 
     private fun setupGoalProgressGraph(progressPoints: List<GoalProgress>) {
+        val axisTextColor = getColor(R.color.text)
+        val secondaryTextColor = getColor(R.color.text_secondary)
+
         val entries = progressPoints.mapIndexed { index, point ->
             // Convert time string to float (seconds)
             val timeFloat = timeStringToFloat(point.projectedRaceTime)
@@ -281,18 +284,15 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             circleRadius = 6f
             setDrawValues(true) // Show values on dots
             valueTextSize = 10f
-            valueTextColor = getColor(R.color.primary)
+            valueTextColor = axisTextColor
             mode = LineDataSet.Mode.LINEAR // Use linear to show clear month-to-month progression
             
             // Format values as time strings
             valueFormatter = object : ValueFormatter() {
-                override fun getPointLabel(entry: Entry?): String {
-                    entry?.let {
-                        val minutes = (it.y.toInt() / 60)
-                        val seconds = it.y % 60
-                        return String.format("%d:%05.2f", minutes, seconds)
-                    }
-                    return ""
+                override fun getFormattedValue(value: Float): String {
+                    val minutes = (value.toInt() / 60)
+                    val seconds = value % 60
+                    return String.format(Locale.getDefault(), "%d:%05.2f", minutes, seconds)
                 }
             }
         }
@@ -343,17 +343,23 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             valueFormatter = IndexAxisValueFormatter(monthLabels)
             granularity = 1f
             textSize = 11f
+            textColor = secondaryTextColor
             setDrawGridLines(false)
         }
         
         goalProgressChart.axisLeft.apply {
             textSize = 10f
+            textColor = secondaryTextColor
             setDrawGridLines(true)
         }
         
         goalProgressChart.description.isEnabled = false
         goalProgressChart.axisRight.isEnabled = false
-        goalProgressChart.legend.textSize = 12f
+        goalProgressChart.legend.apply {
+            textSize = 12f
+            textColor = axisTextColor
+        }
+        goalProgressChart.setNoDataTextColor(axisTextColor)
         goalProgressChart.animateX(1000)
         goalProgressChart.invalidate()
     }
@@ -620,6 +626,9 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             return
         }
 
+        val axisTextColor = getColor(R.color.text)
+        val secondaryTextColor = getColor(R.color.text_secondary)
+
         val strokeEntries = mutableListOf<BarEntry>()
         val strokeRateEntries = mutableListOf<BarEntry>()
         val velocityEntries = mutableListOf<BarEntry>()
@@ -664,6 +673,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         sessionDrilldownChart.legend.apply {
             isEnabled = true
             textSize = 11f
+            textColor = axisTextColor
         }
 
         val xAxis = sessionDrilldownChart.xAxis
@@ -671,6 +681,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         xAxis.setDrawGridLines(false)
         xAxis.granularity = 1f
         xAxis.textSize = 10f
+        xAxis.textColor = secondaryTextColor
         xAxis.axisMinimum = 0f
         xAxis.axisMaximum = lapMetrics.size.toFloat()
         xAxis.valueFormatter = object : ValueFormatter() {
@@ -684,9 +695,10 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             axisMinimum = 0f
             setDrawGridLines(true)
             textSize = 10f
+            textColor = secondaryTextColor
         }
         sessionDrilldownChart.axisRight.isEnabled = false
-
+        sessionDrilldownChart.setNoDataTextColor(axisTextColor)
         sessionDrilldownChart.groupBars(0f, groupSpace, barSpace)
         sessionDrilldownChart.animateY(800)
         sessionDrilldownChart.invalidate()
@@ -720,6 +732,9 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     }
     
     private fun setupPerformanceChart(lapMetrics: List<StrokeMetrics.LapMetrics>) {
+        val axisTextColor = getColor(R.color.text)
+        val secondaryTextColor = getColor(R.color.text_secondary)
+
         // Plot ONLY lap time on a single-axis chart
         val timeEntries = lapMetrics.mapIndexed { index, m ->
             Entry((index + 1).toFloat(), m.lapTimeSeconds.toFloat())
@@ -730,7 +745,6 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             setCircleColor(getColor(R.color.primary))
             lineWidth = 2.5f
             circleRadius = 4f
-            mode = LineDataSet.Mode.CUBIC_BEZIER
             setDrawValues(false)
             setDrawCircleHole(false)
             axisDependency = YAxis.AxisDependency.LEFT
@@ -744,6 +758,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         performanceChart.legend.apply {
             isEnabled = true
             textSize = 11f
+            textColor = axisTextColor
         }
 
         performanceChart.xAxis.apply {
@@ -751,6 +766,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             setDrawGridLines(false)
             granularity = 1f
             textSize = 11f
+            textColor = secondaryTextColor
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     val lapIndex = value.toInt()
@@ -762,13 +778,18 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             setDrawGridLines(true)
             granularity = 2f
             textSize = 11f
+            textColor = secondaryTextColor
         }
         performanceChart.axisRight.isEnabled = false
+        performanceChart.setNoDataTextColor(axisTextColor)
         performanceChart.animateX(800)
         performanceChart.invalidate()
     }
 
     private fun setupVelocityChart(lapMetrics: List<StrokeMetrics.LapMetrics>) {
+        val axisTextColor = getColor(R.color.text)
+        val secondaryTextColor = getColor(R.color.text_secondary)
+
         val velocityEntries = lapMetrics.mapIndexed { index, m ->
             Entry((index + 1).toFloat(), m.velocityMetersPerSecond.toFloat())
         }
@@ -778,7 +799,6 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             setCircleColor(getColor(R.color.error))
             lineWidth = 2.5f
             circleRadius = 4f
-            mode = LineDataSet.Mode.CUBIC_BEZIER
             setDrawValues(false)
             setDrawCircleHole(false)
             axisDependency = YAxis.AxisDependency.LEFT
@@ -792,6 +812,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         velocityChart.legend.apply {
             isEnabled = true
             textSize = 11f
+            textColor = axisTextColor
         }
 
         velocityChart.xAxis.apply {
@@ -799,6 +820,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             setDrawGridLines(false)
             granularity = 1f
             textSize = 11f
+            textColor = secondaryTextColor
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     val lapIndex = value.toInt()
@@ -810,13 +832,18 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             setDrawGridLines(true)
             granularity = 0.1f
             textSize = 11f
+            textColor = secondaryTextColor
         }
         velocityChart.axisRight.isEnabled = false
+        velocityChart.setNoDataTextColor(axisTextColor)
         velocityChart.animateX(800)
         velocityChart.invalidate()
     }
     
     private fun setupHeartRateChart(session: MlResult) {
+        val axisTextColor = getColor(R.color.text)
+        val secondaryTextColor = getColor(R.color.text_secondary)
+
         val hrBefore = session.heartRateBefore?.toFloat() ?: 90f
         val hrAfter = session.heartRateAfter?.toFloat() ?: 150f
         
@@ -829,7 +856,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         val dataSet = BarDataSet(entries, "Heart Rate (BPM)").apply {
             colors = listOf(getColor(R.color.accent), getColor(R.color.error))
             valueTextSize = 12f
-            valueTextColor = getColor(R.color.text)
+            valueTextColor = axisTextColor
             setDrawValues(true)
         }
 
@@ -845,6 +872,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             setDrawGridLines(false)
             granularity = 1f
             textSize = 11f
+            textColor = secondaryTextColor
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     return when (value.toInt()) {
@@ -861,8 +889,10 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             granularity = 10f
             textSize = 11f
             setDrawGridLines(true)
+            textColor = secondaryTextColor
         }
         heartRateChart.legend.isEnabled = false
+        heartRateChart.setNoDataTextColor(axisTextColor)
         heartRateChart.animateY(700)
         heartRateChart.invalidate()
     }

@@ -12,6 +12,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -291,10 +292,13 @@ class SwimmerHomeFragment : Fragment() {
 
         goalProgressChart.data = LineData(dataSet)
         goalProgressChart.description.isEnabled = false
+        val axisTextColor = ContextCompat.getColor(requireContext(), R.color.text)
+        val secondaryTextColor = ContextCompat.getColor(requireContext(), R.color.text_secondary)
         goalProgressChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
             setDrawGridLines(false)
             granularity = 86400000f  // 1 day in milliseconds
+            textColor = secondaryTextColor
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     val sdf = SimpleDateFormat("MMM dd", Locale.getDefault())
@@ -304,6 +308,7 @@ class SwimmerHomeFragment : Fragment() {
         }
         goalProgressChart.axisRight.isEnabled = false
         goalProgressChart.axisLeft.apply {
+            textColor = secondaryTextColor
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     val minutes = (value / 60).toInt()
@@ -313,6 +318,7 @@ class SwimmerHomeFragment : Fragment() {
             }
         }
         goalProgressChart.legend.isEnabled = false
+        goalProgressChart.setNoDataTextColor(axisTextColor)
         goalProgressChart.animateX(1000)
         goalProgressChart.invalidate()
     }
@@ -410,10 +416,13 @@ class SwimmerHomeFragment : Fragment() {
 
         performanceChart.data = LineData(dataSet)
         performanceChart.description.isEnabled = false
+        val axisTextColor = ContextCompat.getColor(requireContext(), R.color.text)
+        val secondaryTextColor = ContextCompat.getColor(requireContext(), R.color.text_secondary)
         performanceChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
             setDrawGridLines(false)
             granularity = 1f
+            textColor = secondaryTextColor
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     return "Lap ${value.toInt()}"
@@ -424,7 +433,10 @@ class SwimmerHomeFragment : Fragment() {
         performanceChart.axisLeft.apply {
             setDrawGridLines(true)
             granularity = 5f
+            textColor = secondaryTextColor
         }
+        performanceChart.legend.textColor = axisTextColor
+        performanceChart.setNoDataTextColor(axisTextColor)
         performanceChart.invalidate()
     }
 
@@ -443,15 +455,18 @@ class SwimmerHomeFragment : Fragment() {
                 requireContext().getColor(R.color.error)
             )
             valueTextSize = 12f
-            valueTextColor = requireContext().getColor(R.color.text)
+            valueTextColor = ContextCompat.getColor(requireContext(), R.color.text)
         }
 
         heartRateChart.data = BarData(dataSet)
         heartRateChart.description.isEnabled = false
+        val axisTextColor = ContextCompat.getColor(requireContext(), R.color.text)
+        val secondaryTextColor = ContextCompat.getColor(requireContext(), R.color.text_secondary)
         heartRateChart.xAxis.apply {
             position = XAxis.XAxisPosition.BOTTOM
             setDrawGridLines(false)
             granularity = 1f
+            textColor = secondaryTextColor
             valueFormatter = object : ValueFormatter() {
                 override fun getFormattedValue(value: Float): String {
                     return when (value.toInt()) {
@@ -467,8 +482,10 @@ class SwimmerHomeFragment : Fragment() {
             axisMinimum = 0f
             granularity = 20f
             setDrawGridLines(true)
+            textColor = secondaryTextColor
         }
         heartRateChart.legend.isEnabled = false
+        heartRateChart.setNoDataTextColor(axisTextColor)
         heartRateChart.invalidate()
     }
 

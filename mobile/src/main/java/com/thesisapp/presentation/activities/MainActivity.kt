@@ -7,6 +7,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ImageSpan
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
@@ -14,9 +17,11 @@ import android.widget.Toast
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.color.MaterialColors
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.DrawableCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.gms.wearable.Wearable
@@ -440,9 +445,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Menu removed - all actions now in Team and Account dropdowns
-    // Team dropdown: Switch team, Invite swimmer/coach, Edit team, Create/Join team
-    // Account dropdown: View profile, Settings, Logout, Switch user
+    private fun menuItemWithIcon(
+        iconRes: Int,
+        label: String,
+        tintColor: Int
+    ): CharSequence {
+        val drawable = ContextCompat.getDrawable(this, iconRes) ?: return label
+        val wrapped = DrawableCompat.wrap(drawable.mutate())
+        DrawableCompat.setTint(wrapped, tintColor)
+
+        val iconSize = (20 * resources.displayMetrics.density).toInt()
+        wrapped.setBounds(0, 0, iconSize, iconSize)
+
+        val text = "  $label"
+        val spannable = SpannableString(text)
+        spannable.setSpan(
+            ImageSpan(wrapped, ImageSpan.ALIGN_BOTTOM),
+            0,
+            1,
+            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        return spannable
+    }
 
     private fun showSwitchTeamDialog(withCreateOption: Boolean = false) {
         val user = AuthManager.currentUser(this) ?: return
@@ -450,8 +474,14 @@ class MainActivity : AppCompatActivity() {
             val teamIds = if (user.role == UserRole.COACH) AuthManager.getCoachTeams(this@MainActivity, user.email) else AuthManager.getSwimmerTeams(this@MainActivity, user.email)
             val teams: List<Team> = teamIds.mapNotNull { db.teamDao().getById(it) }
             withContext(Dispatchers.Main) {
-                val items = mutableListOf<String>()
+                val items = mutableListOf<CharSequence>()
                 val actions = mutableListOf<() -> Unit>()
+
+                val iconTint = MaterialColors.getColor(
+                    this@MainActivity,
+                    com.google.android.material.R.attr.colorOnSurface,
+                    0
+                )
                 
                 // Add existing teams
                 teams.forEach { team ->
@@ -477,13 +507,13 @@ class MainActivity : AppCompatActivity() {
                 
                 // Team actions (only for coaches)
                 if (user.role == UserRole.COACH) {
-                    items.add("✉️ Invite Swimmer")
+                    items.add(menuItemWithIcon(R.drawable.invite, "Invite Swimmer", iconTint))
                     actions.add { showInviteSwimmerDialog() }
                     
-                    items.add("👥 Invite Coach")
+                    items.add(menuItemWithIcon(R.drawable.swimmer, "Invite Coach", iconTint))
                     actions.add { showInviteCoachDialog() }
                     
-                    items.add("⚙️ Edit Team")
+                    items.add(menuItemWithIcon(R.drawable.edit, "Edit Team", iconTint))
                     actions.add { 
                         // TODO: Navigate to EditTeamActivity when created
                         Toast.makeText(this@MainActivity, "Edit team coming soon", Toast.LENGTH_SHORT).show()
@@ -519,7 +549,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAccountMenu() {
-        val items = arrayOf("⚙️ Settings", "🚪 Logout", "🔄 Switch User")
+        val iconTint = MaterialColors.getColor(
+            this@MainActivity,
+            com.google.android.material.R.attr.colorOnSurface,
+            0
+        )
+        val items = arrayOf(
+            menuItemWithIcon(R.drawable.settings, "Settings", iconTint),
+            menuItemWithIcon(R.drawable.logout, "Logout", iconTint),
+            menuItemWithIcon(R.drawable.resource_switch, "Switch User", iconTint)
+        )
         AlertDialog.Builder(this)
             .setTitle("Account")
             .setItems(items) { _, which ->

@@ -120,7 +120,7 @@ class InviteSwimmerActivity : AppCompatActivity() {
 
             val swimmerName = inputSwimmerName.text.toString().trim()
             val shareMessage = """
-                🏊 You're invited to join $currentTeamName!
+                You're invited to join $currentTeamName!
                 
                 Swimmer: $swimmerName
                 Invitation Code: $currentInviteCode

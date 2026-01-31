@@ -17,6 +17,7 @@ import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.data.ScatterData
 import com.github.mikephil.charting.data.ScatterDataSet
+import androidx.core.content.ContextCompat
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.SwimData
@@ -334,6 +335,9 @@ class HistorySessionActivity : AppCompatActivity() {
                     }
 
                     if (srSlEntries.isNotEmpty()) {
+                        val axisTextColor = ContextCompat.getColor(this@HistorySessionActivity, R.color.text)
+                        val secondaryTextColor = ContextCompat.getColor(this@HistorySessionActivity, R.color.text_secondary)
+
                         val ds = ScatterDataSet(srSlEntries, "Laps").apply {
                             color = resources.getColor(R.color.primary, null)
                             setScatterShape(ScatterChart.ScatterShape.CIRCLE)
@@ -342,18 +346,27 @@ class HistorySessionActivity : AppCompatActivity() {
                         chartEfficiencySrSl.data = ScatterData(ds)
                         chartEfficiencySrSl.xAxis.apply {
                             axisMinimum = 0f
+                            textColor = secondaryTextColor
                         }
-                        chartEfficiencySrSl.axisLeft.axisMinimum = 0f
+                        chartEfficiencySrSl.axisLeft.apply {
+                            axisMinimum = 0f
+                            textColor = secondaryTextColor
+                        }
                         chartEfficiencySrSl.axisRight.isEnabled = false
                         chartEfficiencySrSl.description = Description().apply { text = "" }
                         chartEfficiencySrSl.legend.verticalAlignment = Legend.LegendVerticalAlignment.TOP
                         chartEfficiencySrSl.legend.horizontalAlignment = Legend.LegendHorizontalAlignment.RIGHT
+                        chartEfficiencySrSl.legend.textColor = axisTextColor
+                        chartEfficiencySrSl.setNoDataTextColor(axisTextColor)
                         chartEfficiencySrSl.invalidate()
                     } else {
                         chartEfficiencySrSl.clear()
                     }
 
                     if (lapTimeEntries.isNotEmpty()) {
+                        val axisTextColor = ContextCompat.getColor(this@HistorySessionActivity, R.color.text)
+                        val secondaryTextColor = ContextCompat.getColor(this@HistorySessionActivity, R.color.text_secondary)
+
                         val lapDs = LineDataSet(lapTimeEntries, "Lap Time (s)").apply {
                             color = resources.getColor(R.color.primary, null)
                             lineWidth = 2f
@@ -370,12 +383,20 @@ class HistorySessionActivity : AppCompatActivity() {
                         }
 
                         chartLapTimeTrend.data = LineData(lapDs, smoothDs)
-                        chartLapTimeTrend.axisLeft.axisMinimum = 0f
+                        chartLapTimeTrend.axisLeft.apply {
+                            axisMinimum = 0f
+                            textColor = secondaryTextColor
+                        }
                         chartLapTimeTrend.axisRight.isEnabled = false
-                        chartLapTimeTrend.xAxis.granularity = 1f
+                        chartLapTimeTrend.xAxis.apply {
+                            granularity = 1f
+                            textColor = secondaryTextColor
+                        }
                         chartLapTimeTrend.description = Description().apply { text = "" }
                         chartLapTimeTrend.legend.verticalAlignment = Legend.LegendVerticalAlignment.TOP
                         chartLapTimeTrend.legend.horizontalAlignment = Legend.LegendHorizontalAlignment.RIGHT
+                        chartLapTimeTrend.legend.textColor = axisTextColor
+                        chartLapTimeTrend.setNoDataTextColor(axisTextColor)
                         chartLapTimeTrend.invalidate()
                     } else {
                         chartLapTimeTrend.clear()
