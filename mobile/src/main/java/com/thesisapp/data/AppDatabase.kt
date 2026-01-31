@@ -25,7 +25,7 @@ import com.thesisapp.data.non_dao.TeamMembership
 
 @Database(
     entities = [Team::class, Swimmer::class, TeamMembership::class, Exercise::class, SwimData::class, MlResult::class, TeamInvitation::class, Goal::class, GoalProgress::class],
-    version = 21,
+    version = 22,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

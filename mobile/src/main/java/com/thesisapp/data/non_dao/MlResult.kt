@@ -20,6 +20,10 @@ data class MlResult(
     val reps: Int? = null, // reps per set
     val effortLevel: String? = null, // "Easy", "Moderate", "Hard", "Max Effort"
 
+    // New fields for Task 3
+    val energyZone: String? = null, // e.g., "EN1", "SP1"
+    val seasonPhase: String? = null, // e.g., "Loading", "Taper"
+
     // Performance metrics
     val strokeCount: Int? = null, // total strokes
     val avgStrokeLength: Float? = null, // in meters

@@ -10,6 +10,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.textfield.TextInputEditText
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.Exercise
@@ -25,12 +26,19 @@ class CategorizeSessionActivity : AppCompatActivity() {
     private lateinit var tvTitle: TextView
     private lateinit var spinnerContext: Spinner
     private lateinit var spinnerExercise: Spinner
+    private lateinit var spinnerEnergyZone: Spinner
+    private lateinit var spinnerSeasonPhase: Spinner
+    private lateinit var inputHrBefore: TextInputEditText
+    private lateinit var inputHrAfter: TextInputEditText
     private lateinit var btnSave: Button
     private lateinit var btnSkip: Button
 
     private var sessionId: Int = -1
     private var contexts = mutableListOf<Pair<String, Int?>>() // (name, teamId or null for personal)
     private var exercises = mutableListOf<Exercise>()
+
+    private val energyZones = listOf("Select Zone", "REC", "EN1", "EN2", "EN3", "SP1", "SP2", "SP3")
+    private val seasonPhases = listOf("Select Phase", "Preparation", "Loading", "Taper", "Competition", "Recovery")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,10 +56,16 @@ class CategorizeSessionActivity : AppCompatActivity() {
         tvTitle = findViewById(R.id.tvTitle)
         spinnerContext = findViewById(R.id.spinnerContext)
         spinnerExercise = findViewById(R.id.spinnerExercise)
+        spinnerEnergyZone = findViewById(R.id.spinnerEnergyZone)
+        spinnerSeasonPhase = findViewById(R.id.spinnerSeasonPhase)
+        inputHrBefore = findViewById(R.id.inputHrBefore)
+        inputHrAfter = findViewById(R.id.inputHrAfter)
         btnSave = findViewById(R.id.btnSave)
         btnSkip = findViewById(R.id.btnSkip)
 
         tvTitle.text = "Categorize Your Session"
+
+        setupSpinners()
 
         // Setup context change listener
         spinnerContext.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -70,6 +84,43 @@ class CategorizeSessionActivity : AppCompatActivity() {
         }
 
         loadContexts()
+        prefillData()
+    }
+
+    private fun setupSpinners() {
+        // Energy Zones
+        val ezAdapter = ArrayAdapter(this, R.layout.spinner_item, energyZones)
+        ezAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
+        spinnerEnergyZone.adapter = ezAdapter
+
+        // Season Phases
+        val spAdapter = ArrayAdapter(this, R.layout.spinner_item, seasonPhases)
+        spAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
+        spinnerSeasonPhase.adapter = spAdapter
+    }
+
+    private fun prefillData() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val session = db.mlResultDao().getBySessionId(sessionId)
+            withContext(Dispatchers.Main) {
+                session?.let {
+                    it.heartRateBefore?.let { hr -> inputHrBefore.setText(hr.toString()) }
+                    it.heartRateAfter?.let { hr -> inputHrAfter.setText(hr.toString()) }
+                    
+                    // Pre-select Energy Zone
+                    it.energyZone?.let { zone ->
+                        val index = energyZones.indexOf(zone)
+                        if (index >= 0) spinnerEnergyZone.setSelection(index)
+                    }
+                    
+                    // Pre-select Season Phase
+                    it.seasonPhase?.let { phase ->
+                        val index = seasonPhases.indexOf(phase)
+                        if (index >= 0) spinnerSeasonPhase.setSelection(index)
+                    }
+                }
+            }
+        }
     }
 
     private fun loadContexts() {
@@ -175,17 +226,29 @@ class CategorizeSessionActivity : AppCompatActivity() {
             }
         }
 
+        // Get manual HR values
+        val hrBeforeManual = inputHrBefore.text.toString().toIntOrNull()
+        val hrAfterManual = inputHrAfter.text.toString().toIntOrNull()
+
+        // Get Energy Zone and Season Phase
+        val selectedEnergyZone = if (spinnerEnergyZone.selectedItemPosition > 0) energyZones[spinnerEnergyZone.selectedItemPosition] else null
+        val selectedSeasonPhase = if (spinnerSeasonPhase.selectedItemPosition > 0) seasonPhases[spinnerSeasonPhase.selectedItemPosition] else null
+
         lifecycleScope.launch(Dispatchers.IO) {
             // Update the session with categorization
             val session = db.mlResultDao().getBySessionId(sessionId)
             if (session != null) {
                 val updated = session.copy(
-                    exerciseId = selectedExercise.id, // Use the actual ID (including -1 for General Training)
+                    exerciseId = selectedExercise.id,
                     exerciseName = selectedExercise.name,
                     distance = selectedExercise.distance,
                     sets = selectedExercise.sets,
                     reps = 1,
-                    effortLevel = effortLabel
+                    effortLevel = effortLabel,
+                    heartRateBefore = hrBeforeManual,
+                    heartRateAfter = hrAfterManual,
+                    energyZone = selectedEnergyZone,
+                    seasonPhase = selectedSeasonPhase
                 )
                 db.mlResultDao().update(updated)
 

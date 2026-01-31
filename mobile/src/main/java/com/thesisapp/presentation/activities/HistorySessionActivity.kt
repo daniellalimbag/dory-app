@@ -1,6 +1,7 @@
 package com.thesisapp.presentation.activities
 
 import android.os.Bundle
+import android.view.View
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.TextView
@@ -38,6 +39,10 @@ class HistorySessionActivity : AppCompatActivity() {
     private lateinit var txtDuration: TextView
     private lateinit var txtStart: TextView
     private lateinit var txtEnd: TextView
+    private lateinit var txtEnergyZone: TextView
+    private lateinit var txtSeasonPhase: TextView
+    private lateinit var txtHrBeforeDisplay: TextView
+    private lateinit var txtHrAfterDisplay: TextView
     private lateinit var txtStrokeBack: TextView
     private lateinit var txtStrokeBreast: TextView
     private lateinit var txtStrokeFly: TextView
@@ -60,6 +65,10 @@ class HistorySessionActivity : AppCompatActivity() {
         txtDuration = findViewById(R.id.txtDuration)
         txtStart = findViewById(R.id.txtStart)
         txtEnd = findViewById(R.id.txtEnd)
+        txtEnergyZone = findViewById(R.id.txtEnergyZone)
+        txtSeasonPhase = findViewById(R.id.txtSeasonPhase)
+        txtHrBeforeDisplay = findViewById(R.id.txtHrBeforeDisplay)
+        txtHrAfterDisplay = findViewById(R.id.txtHrAfterDisplay)
         txtStrokeBack = findViewById(R.id.txtStrokeBack)
         txtStrokeBreast = findViewById(R.id.txtStrokeBreast)
         txtStrokeFly = findViewById(R.id.txtStrokeFly)
@@ -287,6 +296,25 @@ class HistorySessionActivity : AppCompatActivity() {
                     txtEnd.text = mlResult.timeEnd
 
                     txtDuration.text = calculateDuration(mlResult.timeStart, mlResult.timeEnd)
+                    
+                    // Display Tags (Task 3)
+                    if (!mlResult.energyZone.isNullOrEmpty()) {
+                        txtEnergyZone.text = mlResult.energyZone
+                        txtEnergyZone.visibility = View.VISIBLE
+                    } else {
+                        txtEnergyZone.visibility = View.GONE
+                    }
+
+                    if (!mlResult.seasonPhase.isNullOrEmpty()) {
+                        txtSeasonPhase.text = mlResult.seasonPhase
+                        txtSeasonPhase.visibility = View.VISIBLE
+                    } else {
+                        txtSeasonPhase.visibility = View.GONE
+                    }
+
+                    // Display HR Text (Task 2)
+                    txtHrBeforeDisplay.text = if (mlResult.heartRateBefore != null) "${mlResult.heartRateBefore} BPM" else "-- BPM"
+                    txtHrAfterDisplay.text = if (mlResult.heartRateAfter != null) "${mlResult.heartRateAfter} BPM" else "-- BPM"
 
                     txtStrokeBack.text = "${mlResult.backstroke}%"
                     txtStrokeBreast.text = "${mlResult.breaststroke}%"
