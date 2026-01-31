@@ -52,6 +52,16 @@ class SwimmerProfileFragment : Fragment() {
             )
 
             view.findViewById<TextView>(R.id.swimmerName).text = swimmer.name
+
+            // Display specialty if available
+            val tvSpecialty = view.findViewById<TextView>(R.id.swimmerSpecialty)
+            if (!swimmer.specialty.isNullOrEmpty()) {
+                tvSpecialty.text = swimmer.specialty
+                tvSpecialty.visibility = View.VISIBLE
+            } else {
+                tvSpecialty.visibility = View.GONE
+            }
+
             view.findViewById<TextView>(R.id.swimmerAge).text =
                 getString(R.string.years_old, calculateAge(swimmer.birthday))
             view.findViewById<TextView>(R.id.swimmerHeight).text =

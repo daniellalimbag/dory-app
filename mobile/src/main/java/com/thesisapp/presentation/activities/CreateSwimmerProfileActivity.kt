@@ -27,6 +27,7 @@ import java.util.Calendar
 class CreateSwimmerProfileActivity : AppCompatActivity() {
 
     private lateinit var inputName: TextInputEditText
+    private lateinit var inputSpecialty: TextInputEditText
     private lateinit var pickerMonth: NumberPicker
     private lateinit var pickerDay: NumberPicker
     private lateinit var pickerYear: NumberPicker
@@ -116,6 +117,7 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
 
         // Initialize views
         inputName = findViewById(R.id.inputSwimmerName)
+        inputSpecialty = findViewById(R.id.inputSpecialty)
         pickerMonth = findViewById(R.id.pickerMonth)
         pickerDay = findViewById(R.id.pickerDay)
         pickerYear = findViewById(R.id.pickerYear)
@@ -139,6 +141,7 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
             it.animateClick()
 
             val name = inputName.text.toString().trim()
+            val specialty = inputSpecialty.text.toString().trim().takeIf { it.isNotEmpty() }
             val heightStr = inputHeight.text.toString().trim()
             val weightStr = inputWeight.text.toString().trim()
             val wingspanStr = inputWingspan.text.toString().trim()
@@ -213,7 +216,8 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
                 weight = weight,
                 sex = sex,
                 wingspan = wingspan,
-                category = swimmerType
+                category = swimmerType,
+                specialty = specialty
             )
 
             // Save to database

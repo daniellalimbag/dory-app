@@ -16,5 +16,6 @@ data class Swimmer(
     val weight: Float, // in kg
     val sex: String, // "Male" or "Female"
     val wingspan: Float, // in cm
-    val category: ExerciseCategory = ExerciseCategory.SPRINT // SPRINT or DISTANCE
+    val category: ExerciseCategory = ExerciseCategory.SPRINT, // SPRINT or DISTANCE
+    val specialty: String? = null // e.g., "Butterfly", "Individual Medley"
 ) : Parcelable

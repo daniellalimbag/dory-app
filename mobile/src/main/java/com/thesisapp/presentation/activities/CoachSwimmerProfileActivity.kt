@@ -53,6 +53,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     private var sessions: List<MlResult> = listOf()
     // Views
     private lateinit var tvSwimmerName: TextView
+    private lateinit var tvSwimmerSpecialtyCoach: TextView
     private lateinit var btnBack: ImageButton
     private lateinit var goalCard: MaterialCardView
     private lateinit var noGoalLayout: View
@@ -112,6 +113,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
 
     private fun initializeViews() {
         tvSwimmerName = findViewById(R.id.tvSwimmerName)
+        tvSwimmerSpecialtyCoach = findViewById(R.id.tvSwimmerSpecialtyCoach)
         btnBack = findViewById(R.id.btnBack)
         
         goalCard = findViewById(R.id.goalCard)
@@ -144,6 +146,14 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         exerciseListRecycler = findViewById(R.id.exerciseListRecycler)
         
         tvSwimmerName.text = swimmer.name
+
+        // Set specialty if present
+        if (!swimmer.specialty.isNullOrEmpty()) {
+            tvSwimmerSpecialtyCoach.text = swimmer.specialty
+            tvSwimmerSpecialtyCoach.visibility = View.VISIBLE
+        } else {
+            tvSwimmerSpecialtyCoach.visibility = View.GONE
+        }
     }
 
     private fun setupListeners() {

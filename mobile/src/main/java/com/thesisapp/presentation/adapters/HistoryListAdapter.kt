@@ -27,6 +27,14 @@ class HistoryListAdapter(
         holder.txtDate.text = session.date
         holder.txtTime.text = session.time
         holder.txtSwimmer.text = session.swimmerName
+        
+        // Bind specialty
+        if (!session.swimmerSpecialty.isNullOrEmpty()) {
+            holder.txtSpecialty.text = session.swimmerSpecialty
+            holder.txtSpecialty.visibility = View.VISIBLE
+        } else {
+            holder.txtSpecialty.visibility = View.GONE
+        }
 
         holder.btnViewDetails.setOnClickListener {
             it.animateClick()
@@ -50,6 +58,7 @@ class HistoryListAdapter(
         val txtDate: TextView = itemView.findViewById(R.id.txtDate)
         val txtTime: TextView = itemView.findViewById(R.id.txtTime)
         val txtSwimmer: TextView = itemView.findViewById(R.id.txtSwimmer)
+        val txtSpecialty: TextView = itemView.findViewById(R.id.txtSpecialty)
         val btnViewDetails: Button = itemView.findViewById(R.id.btnViewDetails)
     }
 }

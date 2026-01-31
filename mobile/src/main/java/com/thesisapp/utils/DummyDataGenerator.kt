@@ -20,6 +20,8 @@ object DummyDataGenerator {
                                "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
                                "Anderson", "Taylor", "Thomas", "Moore", "Jackson")
         
+        val specialties = listOf("Butterfly", "Backstroke", "Breaststroke", "Freestyle", "Individual Medley")
+        
         val usedNames = mutableSetOf<String>()
         
         return (1..count).mapNotNull { i ->
@@ -51,7 +53,8 @@ object DummyDataGenerator {
                         weight = if (isMale) randomFloat(60f, 90f) else randomFloat(50f, 75f),
                         sex = if (isMale) "Male" else "Female",
                         wingspan = if (isMale) randomFloat(170f, 200f) else randomFloat(160f, 185f),
-                        category = if (i % 3 == 0) ExerciseCategory.DISTANCE else ExerciseCategory.SPRINT // 2/3 sprint, 1/3 distance
+                        category = if (i % 3 == 0) ExerciseCategory.DISTANCE else ExerciseCategory.SPRINT, // 2/3 sprint, 1/3 distance
+                        specialty = specialties.random()
                     )
                 }
                 attempts++

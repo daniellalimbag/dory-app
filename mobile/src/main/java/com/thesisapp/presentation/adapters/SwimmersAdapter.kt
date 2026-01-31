@@ -39,6 +39,7 @@ class SwimmersAdapter(
 
     class SwimmerViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val name: TextView = view.findViewById(R.id.swimmerName)
+        val specialty: TextView = view.findViewById(R.id.swimmerSpecialty)
         val age: TextView = view.findViewById(R.id.swimmerAge)
         val height: TextView = view.findViewById(R.id.swimmerHeight)
         val weight: TextView = view.findViewById(R.id.swimmerWeight)
@@ -64,6 +65,15 @@ class SwimmersAdapter(
         val context = holder.itemView.context
 
         holder.name.text = swimmer.name
+        
+        // Bind specialty
+        if (!swimmer.specialty.isNullOrEmpty()) {
+            holder.specialty.text = swimmer.specialty
+            holder.specialty.visibility = View.VISIBLE
+        } else {
+            holder.specialty.visibility = View.GONE
+        }
+
         holder.age.text = context.getString(R.string.swimmer_age, calculateAge(swimmer.birthday))
         holder.height.text = context.getString(R.string.swimmer_height, swimmer.height)
         holder.weight.text = context.getString(R.string.swimmer_weight, swimmer.weight)

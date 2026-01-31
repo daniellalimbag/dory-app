@@ -6,5 +6,6 @@ data class Session(
     val date: String,
     val time: String,
     val swimmerName: String,
-    val swimmerId: Int
+    val swimmerId: Int,
+    val swimmerSpecialty: String? = null
 )
