@@ -1,9 +1,13 @@
 package com.thesisapp.data.repository
 
 import android.content.Context
+import android.util.Log
 import com.thesisapp.data.dao.TeamDao
+import com.thesisapp.data.dao.TeamMembershipDao
+import com.thesisapp.data.dao.SwimmerDao
 import com.thesisapp.data.dao.UserDao
 import com.thesisapp.data.non_dao.Team
+import com.thesisapp.data.non_dao.TeamMembership
 import com.thesisapp.utils.AuthManager
 import com.thesisapp.utils.LocalUserBootstrapper
 import com.thesisapp.utils.UserRole
@@ -29,6 +33,8 @@ class AuthRepository @Inject constructor(
     private val bootstrapper: LocalUserBootstrapper,
     private val userDao: UserDao,
     private val teamDao: TeamDao,
+    private val swimmerDao: SwimmerDao,
+    private val teamMembershipDao: TeamMembershipDao,
     @ApplicationContext private val context: Context
 ) {
 
@@ -53,6 +59,7 @@ class AuthRepository @Inject constructor(
 
     @Serializable
     private data class RemoteSwimmerRow(
+        val id: Long,
         @SerialName("user_id") val userId: String,
         val name: String,
         val birthday: String,
@@ -62,6 +69,13 @@ class AuthRepository @Inject constructor(
         val wingspan: Float,
         val category: String,
         val specialty: String? = null
+    )
+
+    @Serializable
+    private data class RemoteMembershipRow(
+        val id: Long,
+        @SerialName("team_id") val teamId: Int,
+        @SerialName("swimmer_id") val swimmerId: Long
     )
 
     @Serializable
@@ -217,6 +231,91 @@ class AuthRepository @Inject constructor(
             AuthManager.setCurrentTeamId(context, coachTeamId)
             AuthManager.addCoachTeam(context, remoteUser.email, coachTeamId)
             AuthManager.addCoachToTeam(context, coachTeamId, remoteUser.email)
+        }
+
+        if (role == UserRole.SWIMMER) {
+            withContext(Dispatchers.IO) {
+                val swimmerJson = supabase.from("swimmers").select {
+                    filter { eq("user_id", userId) }
+                    limit(1)
+                }.data
+
+                val remoteSwimmer = json.decodeFromString<List<RemoteSwimmerRow>>(swimmerJson).firstOrNull()
+                    ?: return@withContext
+
+                val swimmerId = remoteSwimmer.id.toInt()
+
+                // Ensure the local swimmer row uses the SAME numeric id as Supabase.
+                val localExisting = swimmerDao.getByUserId(userId)
+                val localRow = if (localExisting == null) {
+                    com.thesisapp.data.non_dao.Swimmer(
+                        id = swimmerId,
+                        userId = userId,
+                        name = remoteSwimmer.name,
+                        birthday = remoteSwimmer.birthday,
+                        height = remoteSwimmer.height,
+                        weight = remoteSwimmer.weight,
+                        sex = remoteSwimmer.sex,
+                        wingspan = remoteSwimmer.wingspan,
+                        category = runCatching { com.thesisapp.data.non_dao.ExerciseCategory.valueOf(remoteSwimmer.category) }
+                            .getOrElse { com.thesisapp.data.non_dao.ExerciseCategory.SPRINT },
+                        specialty = remoteSwimmer.specialty
+                    )
+                } else {
+                    localExisting.copy(
+                        id = swimmerId,
+                        userId = userId,
+                        name = remoteSwimmer.name,
+                        birthday = remoteSwimmer.birthday,
+                        height = remoteSwimmer.height,
+                        weight = remoteSwimmer.weight,
+                        sex = remoteSwimmer.sex,
+                        wingspan = remoteSwimmer.wingspan,
+                        category = runCatching { com.thesisapp.data.non_dao.ExerciseCategory.valueOf(remoteSwimmer.category) }
+                            .getOrElse { com.thesisapp.data.non_dao.ExerciseCategory.SPRINT },
+                        specialty = remoteSwimmer.specialty
+                    )
+                }
+
+                swimmerDao.insertSwimmer(localRow)
+
+                val membershipsJson = supabase.from("team_memberships").select {
+                    filter { eq("swimmer_id", remoteSwimmer.id) }
+                }.data
+
+                val memberships = runCatching {
+                    json.decodeFromString<List<RemoteMembershipRow>>(membershipsJson)
+                }.getOrElse {
+                    Log.d("DEBUG", "Failed to decode team_memberships", it)
+                    emptyList()
+                }
+
+                if (memberships.isNotEmpty()) {
+                    val teamIds = memberships.map { it.teamId }.distinct()
+
+                    teamIds.forEach { teamId ->
+                        AuthManager.linkSwimmerToTeam(context, remoteUser.email, teamId, swimmerId)
+
+                        val teamJson = supabase.from("teams").select {
+                            filter { eq("id", teamId) }
+                            limit(1)
+                        }.data
+                        val remoteTeam = json.decodeFromString<List<RemoteTeamRow>>(teamJson).firstOrNull()
+                        if (remoteTeam != null) {
+                            teamDao.insert(Team(id = remoteTeam.id, name = remoteTeam.name, joinCode = remoteTeam.joinCode))
+                        }
+
+                        val existingMembership = teamMembershipDao.getMembership(teamId = teamId, swimmerId = swimmerId)
+                        if (existingMembership == null) {
+                            teamMembershipDao.insert(TeamMembership(teamId = teamId, swimmerId = swimmerId))
+                        }
+                    }
+
+                    if (AuthManager.currentTeamId(context) == null) {
+                        AuthManager.setCurrentTeamId(context, teamIds.first())
+                    }
+                }
+            }
         }
     }
 

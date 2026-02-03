@@ -4,6 +4,8 @@ import android.content.Context
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.dao.CoachDao
 import com.thesisapp.data.dao.ExerciseDao
+import com.thesisapp.data.dao.MlResultDao
+import com.thesisapp.data.dao.SwimDataDao
 import com.thesisapp.data.dao.SwimmerDao
 import com.thesisapp.data.dao.TeamDao
 import com.thesisapp.data.dao.TeamMembershipDao
@@ -35,6 +37,12 @@ object DatabaseModule {
 
     @Provides
     fun provideSwimmerDao(db: AppDatabase): SwimmerDao = db.swimmerDao()
+
+    @Provides
+    fun provideSwimDataDao(db: AppDatabase): SwimDataDao = db.swimDataDao()
+
+    @Provides
+    fun provideMlResultDao(db: AppDatabase): MlResultDao = db.mlResultDao()
 
     @Provides
     fun provideTeamDao(db: AppDatabase): TeamDao = db.teamDao()

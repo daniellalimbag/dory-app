@@ -28,6 +28,8 @@ import com.thesisapp.communication.PhoneSender
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.MlResult
 import com.thesisapp.data.non_dao.SwimData
+import com.thesisapp.data.repository.SwimSessionUploadRepository
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,11 +39,16 @@ import androidx.compose.runtime.setValue
 import com.thesisapp.presentation.HandModelView
 import com.thesisapp.presentation.StrokeClassifier
 import com.thesisapp.utils.StrokeMetrics
+import javax.inject.Inject
 import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.roundToInt
 
+@AndroidEntryPoint
 class TrackSwimmerActivity : AppCompatActivity() {
+    @Inject
+    lateinit var swimSessionUploadRepository: SwimSessionUploadRepository
+
     private lateinit var receiver: PhoneReceiver
     private lateinit var sender: PhoneSender
     private lateinit var classifier: StrokeClassifier
@@ -93,7 +100,8 @@ class TrackSwimmerActivity : AppCompatActivity() {
                             phoneSender = sender,
                             predictedLabel = receiver.predictedLabel,
                             db = db,
-                            swimmerId = swimmerId
+                            swimmerId = swimmerId,
+                            swimSessionUploadRepository = swimSessionUploadRepository
                         )
                     }
                 }
@@ -117,7 +125,8 @@ fun RealtimeSensorScreen(
     phoneSender: PhoneSender,
     predictedLabel: State<String>,
     db: AppDatabase,
-    swimmerId: Int
+    swimmerId: Int,
+    swimSessionUploadRepository: SwimSessionUploadRepository
 ) {
     val sensorData by sensorDataFlow.collectAsState(initial = null)
     var isRecording by remember { mutableStateOf(false) }
@@ -312,6 +321,22 @@ fun RealtimeSensorScreen(
                                 )
 
                                 db.mlResultDao().insert(mlResult)
+
+                                try {
+                                    swimSessionUploadRepository.uploadSession(
+                                        sessionId = sessionIdToSave,
+                                        includeSamples = true
+                                    )
+                                } catch (e: Exception) {
+                                    android.util.Log.d("DEBUG", "Supabase uploadSession failed", e)
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(
+                                            context,
+                                            e.message ?: "Failed to upload session to Supabase",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
 
                                 withContext(Dispatchers.Main) {
                                     val intent = Intent(context, CategorizeSessionActivity::class.java)
