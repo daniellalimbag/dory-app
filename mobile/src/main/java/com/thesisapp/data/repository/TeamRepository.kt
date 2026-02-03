@@ -32,6 +32,42 @@ class TeamRepository @Inject constructor(
         @SerialName("join_code") val joinCode: String
     )
 
+    @Serializable
+    private data class RemoteMembershipRow(
+        val id: Int,
+        @SerialName("team_id") val teamId: Int,
+        @SerialName("swimmer_id") val swimmerId: Int
+    )
+
+    suspend fun joinTeam(teamId: Int, swimmerId: Int) {
+        withContext(Dispatchers.IO) {
+            val payload = buildJsonObject {
+                put("team_id", teamId)
+                put("swimmer_id", swimmerId)
+            }
+
+            // Throws on RLS/network errors.
+            supabase.from("team_memberships").insert(payload)
+
+            // Verify it actually exists (helps debug and avoids false-success).
+            val verifyJson = supabase.from("team_memberships").select {
+                filter {
+                    eq("team_id", teamId)
+                    eq("swimmer_id", swimmerId)
+                }
+                limit(1)
+            }.data
+
+            val exists = runCatching {
+                json.decodeFromString<List<RemoteMembershipRow>>(verifyJson).isNotEmpty()
+            }.getOrDefault(false)
+
+            if (!exists) {
+                error("Supabase insert completed but membership row not found (teamId=$teamId, swimmerId=$swimmerId)")
+            }
+        }
+    }
+
     suspend fun createTeam(
         name: String,
         coachId: String

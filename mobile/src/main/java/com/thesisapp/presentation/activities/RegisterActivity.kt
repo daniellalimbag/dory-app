@@ -105,8 +105,8 @@ class RegisterActivity : AppCompatActivity() {
                     }
                 }
 
-                // Fall back to MainActivity for empty state / not linked yet
-                startActivity(Intent(this, MainActivity::class.java))
+                // Create swimmer profile right after registration (not tied to a team)
+                startActivity(Intent(this, CreateSwimmerProfileActivity::class.java))
                 finish()
             }
         }

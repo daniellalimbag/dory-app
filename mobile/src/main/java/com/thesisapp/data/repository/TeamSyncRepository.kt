@@ -125,7 +125,10 @@ class TeamSyncRepository @Inject constructor(
             membershipDao.upsertAll(mappedMemberships)
 
             // Optional reconciliation: delete local memberships that no longer exist remotely
-            membershipDao.removeMembershipsNotInTeam(teamId, swimmerIds)
+            val localCount = membershipDao.getSwimmerCountForTeam(teamId)
+            if (swimmerIds.isNotEmpty() || localCount == 0) {
+                membershipDao.removeMembershipsNotInTeam(teamId, swimmerIds)
+            }
         }
     }
 }
