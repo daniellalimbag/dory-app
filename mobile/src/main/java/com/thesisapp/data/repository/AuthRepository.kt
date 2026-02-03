@@ -1,7 +1,9 @@
 package com.thesisapp.data.repository
 
 import android.content.Context
+import com.thesisapp.data.dao.TeamDao
 import com.thesisapp.data.dao.UserDao
+import com.thesisapp.data.non_dao.Team
 import com.thesisapp.utils.AuthManager
 import com.thesisapp.utils.LocalUserBootstrapper
 import com.thesisapp.utils.UserRole
@@ -26,6 +28,7 @@ class AuthRepository @Inject constructor(
     private val supabase: SupabaseClient,
     private val bootstrapper: LocalUserBootstrapper,
     private val userDao: UserDao,
+    private val teamDao: TeamDao,
     @ApplicationContext private val context: Context
 ) {
 
@@ -59,6 +62,13 @@ class AuthRepository @Inject constructor(
         val wingspan: Float,
         val category: String,
         val specialty: String? = null
+    )
+
+    @Serializable
+    private data class RemoteTeamRow(
+        val id: Int,
+        val name: String,
+        @SerialName("join_code") val joinCode: String
     )
 
     suspend fun signUp(
@@ -174,6 +184,20 @@ class AuthRepository @Inject constructor(
             json.decodeFromString<List<RemoteCoachRow>>(coachJson).firstOrNull()?.teamId
         } else {
             null
+        }
+
+        if (role == UserRole.COACH && coachTeamId != null) {
+            val teamJson = supabase.from("teams").select {
+                filter { eq("id", coachTeamId) }
+                limit(1)
+            }.data
+
+            val remoteTeam = json.decodeFromString<List<RemoteTeamRow>>(teamJson).firstOrNull()
+            if (remoteTeam != null) {
+                withContext(Dispatchers.IO) {
+                    teamDao.insert(Team(id = remoteTeam.id, name = remoteTeam.name, joinCode = remoteTeam.joinCode))
+                }
+            }
         }
 
         withContext(Dispatchers.IO) {
