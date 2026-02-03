@@ -4,6 +4,7 @@ import android.content.Context
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.dao.CoachDao
 import com.thesisapp.data.dao.SwimmerDao
+import com.thesisapp.data.dao.TeamDao
 import com.thesisapp.data.dao.UserDao
 import dagger.Module
 import dagger.Provides
@@ -32,4 +33,7 @@ object DatabaseModule {
 
     @Provides
     fun provideSwimmerDao(db: AppDatabase): SwimmerDao = db.swimmerDao()
+
+    @Provides
+    fun provideTeamDao(db: AppDatabase): TeamDao = db.teamDao()
 }

@@ -29,6 +29,11 @@ class AuthRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
+    private val json = Json {
+        ignoreUnknownKeys = true
+        explicitNulls = false
+    }
+
     @Serializable
     private data class RemoteUserRow(
         val id: String,
@@ -135,7 +140,7 @@ class AuthRepository @Inject constructor(
             limit(1)
         }.data
 
-        val remoteUser = Json.decodeFromString<List<RemoteUserRow>>(userRowJson).firstOrNull()
+        val remoteUser = json.decodeFromString<List<RemoteUserRow>>(userRowJson).firstOrNull()
             ?: error("No user profile found in users table")
 
         val role = runCatching { UserRole.valueOf(remoteUser.role) }.getOrElse {
@@ -148,7 +153,7 @@ class AuthRepository @Inject constructor(
                     filter { eq("user_id", userId) }
                     limit(1)
                 }.data
-                Json.decodeFromString<List<RemoteCoachRow>>(coachJson).firstOrNull()?.name ?: email
+                json.decodeFromString<List<RemoteCoachRow>>(coachJson).firstOrNull()?.name ?: email
             }
 
             UserRole.SWIMMER -> {
@@ -156,7 +161,7 @@ class AuthRepository @Inject constructor(
                     filter { eq("user_id", userId) }
                     limit(1)
                 }.data
-                Json.decodeFromString<List<RemoteSwimmerRow>>(swimmerJson).firstOrNull()?.name ?: email
+                json.decodeFromString<List<RemoteSwimmerRow>>(swimmerJson).firstOrNull()?.name ?: email
             }
         }
 
