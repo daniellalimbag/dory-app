@@ -63,12 +63,10 @@ class AuthActivity : AppCompatActivity() {
     private fun onAuthSuccessful(role: UserRole) {
         when (role) {
             UserRole.COACH -> {
-                val user = AuthManager.currentUser(this)!!
-                val teams = AuthManager.getCoachTeams(this, user.email)
-                if (teams.isEmpty()) {
+                val teamId = AuthManager.currentTeamId(this)
+                if (teamId == null) {
                     startActivity(Intent(this, CreateTeamActivity::class.java))
                 } else {
-                    AuthManager.setCurrentTeamId(this, teams.first())
                     startActivity(Intent(this, MainActivity::class.java))
                 }
                 finish()

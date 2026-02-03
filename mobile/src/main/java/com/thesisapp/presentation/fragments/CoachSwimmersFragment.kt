@@ -20,7 +20,6 @@ import com.thesisapp.presentation.activities.CoachSwimmerProfileActivity
 import com.thesisapp.presentation.activities.CreateSwimmerProfileActivity
 import com.thesisapp.presentation.adapters.SwimmersAdapter
 import com.thesisapp.utils.AuthManager
-import com.thesisapp.utils.populateDummyData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -93,12 +92,6 @@ class CoachSwimmersFragment : Fragment() {
             try {
                 var swimmers = db.teamMembershipDao().getSwimmersForTeam(teamId)
 
-                // If no swimmers exist, populate dummy data
-                if (swimmers.isEmpty()) {
-                    populateDummyData(teamId)
-                    swimmers = db.teamMembershipDao().getSwimmersForTeam(teamId)
-                }
-
                 withContext(Dispatchers.Main) {
                     adapter.updateSwimmers(swimmers)
                 }
@@ -106,11 +99,6 @@ class CoachSwimmersFragment : Fragment() {
                 // Handle error silently
             }
         }
-    }
-
-    private suspend fun populateDummyData(teamId: Int) {
-        // Use the extension function
-        db.populateDummyData(requireContext(), teamId)
     }
 
     private fun showInviteSwimmerDialog() {

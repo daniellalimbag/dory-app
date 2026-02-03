@@ -44,7 +44,8 @@ class AuthRepository @Inject constructor(
     @Serializable
     private data class RemoteCoachRow(
         @SerialName("user_id") val userId: String,
-        val name: String
+        val name: String,
+        @SerialName("team_id") val teamId: Int? = null
     )
 
     @Serializable
@@ -165,17 +166,34 @@ class AuthRepository @Inject constructor(
             }
         }
 
+        val coachTeamId: Int? = if (role == UserRole.COACH) {
+            val coachJson = supabase.from("coaches").select {
+                filter { eq("user_id", userId) }
+                limit(1)
+            }.data
+            json.decodeFromString<List<RemoteCoachRow>>(coachJson).firstOrNull()?.teamId
+        } else {
+            null
+        }
+
         withContext(Dispatchers.IO) {
             bootstrapper.ensureLocalDataForSupabaseUser(
                 userId = userId,
                 email = remoteUser.email,
                 role = role,
-                name = resolvedName
+                name = resolvedName,
+                coachTeamId = coachTeamId
             )
         }
 
         AuthManager.logout(context)
         AuthManager.setCurrentUser(context, email = remoteUser.email, role = role)
+
+        if (role == UserRole.COACH && coachTeamId != null) {
+            AuthManager.setCurrentTeamId(context, coachTeamId)
+            AuthManager.addCoachTeam(context, remoteUser.email, coachTeamId)
+            AuthManager.addCoachToTeam(context, coachTeamId, remoteUser.email)
+        }
     }
 
     suspend fun signOut() {

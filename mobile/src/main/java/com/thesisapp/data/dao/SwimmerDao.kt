@@ -3,6 +3,7 @@ package com.thesisapp.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.thesisapp.data.non_dao.Swimmer
@@ -24,7 +25,7 @@ interface SwimmerDao {
     @Query("UPDATE swimmers SET userId = :userId WHERE id = :swimmerId")
     suspend fun setUserIdForSwimmer(swimmerId: Int, userId: String)
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSwimmer(swimmer: Swimmer): Long
 
     @Update

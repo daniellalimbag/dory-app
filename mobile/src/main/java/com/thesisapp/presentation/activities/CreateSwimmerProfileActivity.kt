@@ -82,9 +82,10 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
                     lifecycleScope.launch(Dispatchers.IO) {
                         val db = AppDatabase.getInstance(this@CreateSwimmerProfileActivity)
 
-                        val userId = LocalUserBootstrapper.getOrCreateStableUserIdForEmail(this@CreateSwimmerProfileActivity, user.email)
-                        LocalUserBootstrapper.ensureRoomUserForAuth(this@CreateSwimmerProfileActivity, db)
-                        db.swimmerDao().setUserIdForSwimmer(swimmerId = swimmerId, userId = userId)
+                        val userId = LocalUserBootstrapper.ensureRoomUserForAuth(this@CreateSwimmerProfileActivity, db)
+                        if (userId != null) {
+                            db.swimmerDao().setUserIdForSwimmer(swimmerId = swimmerId, userId = userId)
+                        }
                         
                         // Check if already a member
                         val existingMembership = db.teamMembershipDao().getMembership(teamId, swimmerId)
@@ -215,13 +216,9 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
 
             // Create swimmer profile (team-independent)
             val authUser = AuthManager.currentUser(this)
-            val userId = if (authUser != null) {
-                LocalUserBootstrapper.getOrCreateStableUserIdForEmail(this, authUser.email)
-            } else {
-                null
-            }
+            val initialUserId = if (authUser != null) null else null
             val swimmer = Swimmer(
-                userId = userId ?: "",
+                userId = initialUserId ?: "",
                 name = name,
                 birthday = birthday,
                 height = height,
@@ -241,7 +238,23 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
                         LocalUserBootstrapper.createStandaloneSwimmerUser(db)
                     }
 
-                    val newId = db.swimmerDao().insertSwimmer(swimmer.copy(userId = resolvedUserId ?: swimmer.userId)).toInt()
+                    if (authUser != null && resolvedUserId.isNullOrBlank()) {
+                        throw IllegalStateException("Unable to resolve local user id")
+                    }
+
+                    val finalUserId = resolvedUserId ?: swimmer.userId
+                    if (finalUserId.isBlank()) {
+                        throw IllegalStateException("Unable to resolve local user id")
+                    }
+
+                    val existing = db.swimmerDao().getByUserId(finalUserId)
+                    val newId = if (existing != null) {
+                        val updated = swimmer.copy(id = existing.id, userId = finalUserId)
+                        db.swimmerDao().updateSwimmer(updated)
+                        existing.id
+                    } else {
+                        db.swimmerDao().insertSwimmer(swimmer.copy(userId = finalUserId)).toInt()
+                    }
                     
                     // Create team membership (junction table entry)
                     db.teamMembershipDao().insert(

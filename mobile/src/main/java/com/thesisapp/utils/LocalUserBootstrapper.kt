@@ -24,7 +24,8 @@ class LocalUserBootstrapper @Inject constructor(
         userId: String,
         email: String,
         role: UserRole,
-        name: String
+        name: String,
+        coachTeamId: Int? = null
     ) {
         withContext(Dispatchers.IO) {
             val existingUser = db.userDao().getById(userId)
@@ -41,9 +42,11 @@ class LocalUserBootstrapper @Inject constructor(
                             Coach(
                                 userId = userId,
                                 name = name,
-                                teamId = null
+                                teamId = coachTeamId
                             )
                         )
+                    } else if (coachTeamId != existingCoach.teamId) {
+                        db.coachDao().updateCoach(existingCoach.copy(teamId = coachTeamId))
                     }
                 }
 
@@ -93,6 +96,12 @@ class LocalUserBootstrapper @Inject constructor(
         suspend fun ensureRoomUserForAuth(context: Context, db: AppDatabase): String? {
             return withContext(Dispatchers.IO) {
                 val authUser = AuthManager.currentUser(context) ?: return@withContext null
+
+                val existing = db.userDao().getByEmail(authUser.email)
+                if (existing != null) {
+                    return@withContext existing.id
+                }
+
                 val userId = getOrCreateStableUserIdForEmail(context, authUser.email)
                 val dbRole = if (authUser.role == UserRole.COACH) DbUserRole.COACH else DbUserRole.SWIMMER
                 db.userDao().insertUser(User(id = userId, email = authUser.email, role = dbRole))
