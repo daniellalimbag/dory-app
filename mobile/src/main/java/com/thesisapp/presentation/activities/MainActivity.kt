@@ -32,10 +32,12 @@ import com.thesisapp.presentation.adapters.CoachPagerAdapter
 import com.thesisapp.utils.AuthManager
 import com.thesisapp.utils.UserRole
 import com.thesisapp.utils.animateClick
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
     private lateinit var db: AppDatabase

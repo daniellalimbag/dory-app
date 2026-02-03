@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
@@ -16,20 +17,28 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
+import com.thesisapp.data.repository.TeamSyncRepository
 import com.thesisapp.presentation.activities.CoachSwimmerProfileActivity
 import com.thesisapp.presentation.activities.CreateSwimmerProfileActivity
 import com.thesisapp.presentation.adapters.SwimmersAdapter
 import com.thesisapp.utils.AuthManager
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@AndroidEntryPoint
 class CoachSwimmersFragment : Fragment() {
+
+    @Inject
+    lateinit var teamSyncRepository: TeamSyncRepository
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var fabAddSwimmer: ExtendedFloatingActionButton
     private lateinit var adapter: SwimmersAdapter
     private lateinit var db: AppDatabase
+    private lateinit var progressSync: ProgressBar
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -45,6 +54,7 @@ class CoachSwimmersFragment : Fragment() {
         db = AppDatabase.Companion.getInstance(requireContext())
         recyclerView = view.findViewById(R.id.swimmersRecyclerView)
         fabAddSwimmer = view.findViewById(R.id.fabAddSwimmer)
+        progressSync = view.findViewById(R.id.progressSyncSwimmers)
 
         val teamId = AuthManager.currentTeamId(requireContext()) ?: -1
 
@@ -77,12 +87,31 @@ class CoachSwimmersFragment : Fragment() {
             showInviteSwimmerDialog()
         }
 
-        loadSwimmers()
+        refreshSwimmers()
     }
 
     override fun onResume() {
         super.onResume()
-        loadSwimmers()
+        refreshSwimmers()
+    }
+
+    private fun refreshSwimmers() {
+        val teamId = AuthManager.currentTeamId(requireContext()) ?: return
+
+        lifecycleScope.launch {
+            progressSync.visibility = View.VISIBLE
+            try {
+                withContext(Dispatchers.IO) {
+                    teamSyncRepository.syncTeamMembers(teamId)
+                }
+            } catch (_: Exception) {
+                // best-effort sync; fall back to local
+            } finally {
+                progressSync.visibility = View.GONE
+            }
+
+            loadSwimmers()
+        }
     }
 
     private fun loadSwimmers() {

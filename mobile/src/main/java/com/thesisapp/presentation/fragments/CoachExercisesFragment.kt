@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ProgressBar
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -13,22 +14,30 @@ import com.google.android.material.chip.ChipGroup
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
+import com.thesisapp.data.repository.ExerciseSyncRepository
 import com.thesisapp.data.non_dao.Exercise
 import com.thesisapp.data.non_dao.ExerciseCategory
 import com.thesisapp.presentation.activities.AddEditExerciseActivity
 import com.thesisapp.presentation.adapters.ExerciseAdapter
 import com.thesisapp.utils.AuthManager
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@AndroidEntryPoint
 class CoachExercisesFragment : Fragment() {
+
+    @Inject
+    lateinit var exerciseSyncRepository: ExerciseSyncRepository
 
     private lateinit var categoryChipGroup: ChipGroup
     private lateinit var recyclerView: RecyclerView
     private lateinit var fabAddExercise: ExtendedFloatingActionButton
     private lateinit var adapter: ExerciseAdapter
     private lateinit var db: AppDatabase
+    private lateinit var progressSync: ProgressBar
 
     private var currentCategory: ExerciseCategory? = null // null means "All"
 
@@ -47,6 +56,7 @@ class CoachExercisesFragment : Fragment() {
         categoryChipGroup = view.findViewById(R.id.categoryChipGroup)
         recyclerView = view.findViewById(R.id.exercisesRecyclerView)
         fabAddExercise = view.findViewById(R.id.fabAddExercise)
+        progressSync = view.findViewById(R.id.progressSyncExercises)
 
         adapter = ExerciseAdapter(
             exercises = mutableListOf(),
@@ -62,7 +72,7 @@ class CoachExercisesFragment : Fragment() {
                 R.id.chipDistance -> ExerciseCategory.DISTANCE
                 else -> null // "All" selected
             }
-            loadExercises()
+            refreshExercises()
         }
 
         fabAddExercise.setOnClickListener {
@@ -71,12 +81,30 @@ class CoachExercisesFragment : Fragment() {
             startActivity(intent)
         }
 
-        loadExercises()
+        refreshExercises()
     }
 
     override fun onResume() {
         super.onResume()
-        loadExercises()
+        refreshExercises()
+    }
+
+    private fun refreshExercises() {
+        val teamId = AuthManager.currentTeamId(requireContext()) ?: return
+
+        lifecycleScope.launch {
+            progressSync.visibility = View.VISIBLE
+            try {
+                withContext(Dispatchers.IO) {
+                    exerciseSyncRepository.syncExercises(teamId)
+                }
+            } catch (_: Exception) {
+                // best-effort sync; fall back to local
+            } finally {
+                progressSync.visibility = View.GONE
+            }
+            loadExercises()
+        }
     }
 
     private fun loadExercises() {
