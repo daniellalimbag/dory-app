@@ -4,6 +4,8 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.POST
+import java.util.concurrent.TimeUnit
+import okhttp3.OkHttpClient
 
 // NOTE: For Android emulator, 10.0.2.2 points to the host machine's localhost.
 private const val DEFAULT_BASE_URL = "http://ccscloud.dlsu.edu.ph:11526/"
@@ -66,8 +68,16 @@ interface MetricsApiService {
 
 object MetricsApiClient {
     // You can later make this configurable if you want different base URLs per build type.
+    private val httpClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)
+        .writeTimeout(120, TimeUnit.SECONDS)
+        .callTimeout(180, TimeUnit.SECONDS)
+        .build()
+
     private val retrofit: Retrofit = Retrofit.Builder()
         .baseUrl(DEFAULT_BASE_URL)
+        .client(httpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
 

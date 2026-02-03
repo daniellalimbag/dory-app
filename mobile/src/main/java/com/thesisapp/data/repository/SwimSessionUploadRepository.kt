@@ -5,6 +5,9 @@ import com.thesisapp.data.dao.MlResultDao
 import com.thesisapp.data.dao.SwimDataDao
 import com.thesisapp.data.non_dao.MlResult
 import com.thesisapp.data.non_dao.SwimData
+import com.thesisapp.utils.MetricsApiClient
+import com.thesisapp.utils.MetricsSample
+import com.thesisapp.utils.MetricsSessionRequest
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
@@ -56,8 +59,100 @@ class SwimSessionUploadRepository @Inject constructor(
                     val payload = chunk.map { it.toRemotePayload() }
                     supabase.from("swim_data").insert(payload)
                 }
+
+                runCatching {
+                    val metrics = computeMetricsFromSamples(session = session, samples = samples)
+                    if (metrics != null) {
+                        val updatedLocal = session.copy(
+                            strokeCount = metrics.strokeCount,
+                            avgStrokeLength = metrics.avgStrokeLength,
+                            strokeIndex = metrics.strokeIndex,
+                            avgLapTime = metrics.avgLapTime,
+                            totalDistance = metrics.totalDistance
+                        )
+
+                        mlResultDao.update(updatedLocal)
+
+                        val metricsPayload = buildJsonObject {
+                            metrics.strokeCount?.let { put("stroke_count", it) }
+                            metrics.avgStrokeLength?.let { put("avg_stroke_length", it) }
+                            metrics.strokeIndex?.let { put("stroke_index", it) }
+                            metrics.avgLapTime?.let { put("avg_lap_time", it) }
+                            metrics.totalDistance?.let { put("total_distance", it) }
+                        }
+
+                        supabase.from("swim_sessions").update(metricsPayload) {
+                            filter { eq("session_id", session.sessionId) }
+                        }
+                    }
+                }.onFailure { e ->
+                    Log.d("DEBUG", "Metrics pipeline call failed", e)
+                    throw IllegalStateException("Metrics pipeline failed: ${e.message}")
+                }
             }
         }
+    }
+
+    private data class ComputedSessionMetrics(
+        val strokeCount: Int?,
+        val avgStrokeLength: Float?,
+        val strokeIndex: Float?,
+        val avgLapTime: Float?,
+        val totalDistance: Int?
+    )
+
+    private suspend fun computeMetricsFromSamples(
+        session: MlResult,
+        samples: List<SwimData>
+    ): ComputedSessionMetrics? {
+        val metricsSamples = samples.mapNotNull { s ->
+            val ax = s.accel_x ?: return@mapNotNull null
+            val ay = s.accel_y ?: return@mapNotNull null
+            val az = s.accel_z ?: return@mapNotNull null
+            val gx = s.gyro_x ?: return@mapNotNull null
+            val gy = s.gyro_y ?: return@mapNotNull null
+            val gz = s.gyro_z ?: return@mapNotNull null
+
+            MetricsSample(
+                timestamp_ms = s.timestamp,
+                accel_x = ax.toDouble(),
+                accel_y = ay.toDouble(),
+                accel_z = az.toDouble(),
+                gyro_x = gx.toDouble(),
+                gyro_y = gy.toDouble(),
+                gyro_z = gz.toDouble(),
+                stroke_type = null
+            )
+        }
+
+        if (metricsSamples.isEmpty()) return null
+
+        val req = MetricsSessionRequest(
+            session_id = session.sessionId,
+            swimmer_id = session.swimmerId,
+            exercise_id = session.exerciseId,
+            pool_length_m = 50.0,
+            samples = metricsSamples
+        )
+
+        Log.d("DEBUG", "Calling metrics API for sessionId=${session.sessionId}, sampleCount=${metricsSamples.size}")
+        val resp = MetricsApiClient.service.computeMetrics(req)
+
+        val avg = resp.session_averages
+        Log.d(
+            "DEBUG",
+            "Metrics API success: lapCount=${avg.lap_count}, strokeCount=${avg.stroke_count}, avgStrokeLength=${avg.avg_stroke_length_m}, avgStrokeIndex=${avg.avg_stroke_index}, avgLapTime=${avg.avg_lap_time_s}"
+        )
+        val strokeCountInt = avg.stroke_count.toInt()
+        val lapCount = avg.lap_count
+
+        return ComputedSessionMetrics(
+            strokeCount = strokeCountInt,
+            avgStrokeLength = avg.avg_stroke_length_m.toFloat(),
+            strokeIndex = avg.avg_stroke_index.toFloat(),
+            avgLapTime = avg.avg_lap_time_s.toFloat(),
+            totalDistance = (50.0 * lapCount).toInt()
+        )
     }
 
     private suspend fun upsertRemoteSession(session: MlResult, resolvedRemoteSwimmerId: Long?) {
