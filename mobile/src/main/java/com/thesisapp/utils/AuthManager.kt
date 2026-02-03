@@ -40,6 +40,13 @@ object AuthManager {
         return AuthUser(email, role)
     }
 
+    fun setCurrentUser(context: Context, email: String, role: UserRole) {
+        prefs(context).edit()
+            .putString(KEY_CURRENT_EMAIL, email)
+            .putString(KEY_CURRENT_ROLE, role.name)
+            .apply()
+    }
+
     fun currentTeamId(context: Context): Int? =
         if (!prefs(context).contains(KEY_CURRENT_TEAM_ID)) null else prefs(context).getInt(KEY_CURRENT_TEAM_ID, -1).takeIf { it > 0 }
 

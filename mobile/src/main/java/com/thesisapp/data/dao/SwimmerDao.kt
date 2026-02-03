@@ -18,6 +18,9 @@ interface SwimmerDao {
     @Query("SELECT * FROM swimmers WHERE id = :id")
     suspend fun getById(id: Int): Swimmer?
 
+    @Query("SELECT * FROM swimmers WHERE userId = :userId")
+    suspend fun getByUserId(userId: String): Swimmer?
+
     @Query("UPDATE swimmers SET userId = :userId WHERE id = :swimmerId")
     suspend fun setUserIdForSwimmer(swimmerId: Int, userId: String)
 

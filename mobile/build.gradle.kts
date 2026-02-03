@@ -2,10 +2,14 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android) version "2.0.21"
     alias(libs.plugins.kotlin.compose) version "2.0.21"
+    alias(libs.plugins.hilt.android)
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("kotlin-parcelize")
+    id("org.jetbrains.kotlin.kapt")
 }
+
+import java.util.Properties
 
 android {
     namespace = "com.thesisapp"
@@ -18,7 +22,30 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        val localProperties = Properties().apply {
+            val localPropertiesFile = rootProject.file("local.properties")
+            if (localPropertiesFile.exists()) {
+                localPropertiesFile.inputStream().use { load(it) }
+            }
+        }
+
+        val supabaseUrl = localProperties.getProperty("SUPABASE_URL")
+            ?.trim()
+            ?.trim('"')
+            ?: ""
+        val supabaseKey = localProperties.getProperty("SUPABASE_KEY")
+            ?.trim()
+            ?.trim('"')
+            ?: ""
+
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_KEY", "\"$supabaseKey\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
@@ -62,6 +89,15 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     wearApp(project(":wear"))
+
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.storage)
+    implementation(libs.ktor.client.android)
+
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.compiler)
 
     val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")
