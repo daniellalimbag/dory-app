@@ -9,7 +9,7 @@ import com.thesisapp.data.non_dao.Coach
 @Dao
 interface CoachDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    fun insertCoach(coach: Coach): Long
+    suspend fun insertCoach(coach: Coach): Long
 
     @Query("SELECT * FROM coaches WHERE userId = :userId")
     suspend fun getByUserId(userId: String): Coach?

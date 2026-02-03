@@ -9,7 +9,7 @@ import com.thesisapp.data.non_dao.User
 @Dao
 interface UserDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    fun insertUser(user: User): Long
+    suspend fun insertUser(user: User): Long
 
     @Query("SELECT * FROM users WHERE id = :id")
     suspend fun getById(id: String): User?

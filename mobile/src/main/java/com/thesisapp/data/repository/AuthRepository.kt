@@ -11,10 +11,13 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,13 +38,13 @@ class AuthRepository @Inject constructor(
 
     @Serializable
     private data class RemoteCoachRow(
-        val userId: String,
+        @SerialName("user_id") val userId: String,
         val name: String
     )
 
     @Serializable
     private data class RemoteSwimmerRow(
-        val userId: String,
+        @SerialName("user_id") val userId: String,
         val name: String,
         val birthday: String,
         val height: Float,
@@ -77,16 +80,16 @@ class AuthRepository @Inject constructor(
         when (role) {
             UserRole.COACH -> {
                 val coachPayload = buildJsonObject {
-                    put("userId", userId)
+                    put("user_id", userId)
                     put("name", name)
-                    put("teamId", JsonNull)
+                    put("team_id", JsonNull)
                 }
                 supabase.from("coaches").insert(coachPayload)
             }
 
             UserRole.SWIMMER -> {
                 val swimmerPayload = buildJsonObject {
-                    put("userId", userId)
+                    put("user_id", userId)
                     put("name", name)
                     put("birthday", "1970-01-01")
                     put("height", 0)
@@ -100,12 +103,14 @@ class AuthRepository @Inject constructor(
             }
         }
 
-        bootstrapper.ensureLocalDataForSupabaseUser(
-            userId = userId,
-            email = email,
-            role = role,
-            name = name
-        )
+        withContext(Dispatchers.IO) {
+            bootstrapper.ensureLocalDataForSupabaseUser(
+                userId = userId,
+                email = email,
+                role = role,
+                name = name
+            )
+        }
 
         AuthManager.logout(context)
         AuthManager.setCurrentUser(context, email = email, role = role)
@@ -140,7 +145,7 @@ class AuthRepository @Inject constructor(
         val resolvedName = when (role) {
             UserRole.COACH -> {
                 val coachJson = supabase.from("coaches").select {
-                    filter { eq("userId", userId) }
+                    filter { eq("user_id", userId) }
                     limit(1)
                 }.data
                 Json.decodeFromString<List<RemoteCoachRow>>(coachJson).firstOrNull()?.name ?: email
@@ -148,19 +153,21 @@ class AuthRepository @Inject constructor(
 
             UserRole.SWIMMER -> {
                 val swimmerJson = supabase.from("swimmers").select {
-                    filter { eq("userId", userId) }
+                    filter { eq("user_id", userId) }
                     limit(1)
                 }.data
                 Json.decodeFromString<List<RemoteSwimmerRow>>(swimmerJson).firstOrNull()?.name ?: email
             }
         }
 
-        bootstrapper.ensureLocalDataForSupabaseUser(
-            userId = userId,
-            email = remoteUser.email,
-            role = role,
-            name = resolvedName
-        )
+        withContext(Dispatchers.IO) {
+            bootstrapper.ensureLocalDataForSupabaseUser(
+                userId = userId,
+                email = remoteUser.email,
+                role = role,
+                name = resolvedName
+            )
+        }
 
         AuthManager.logout(context)
         AuthManager.setCurrentUser(context, email = remoteUser.email, role = role)

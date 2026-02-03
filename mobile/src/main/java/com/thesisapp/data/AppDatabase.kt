@@ -129,6 +129,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "swimmer_db"
                 )
+                    .fallbackToDestructiveMigration()
                     .addMigrations(MIGRATION_22_23)
                     .build().also { INSTANCE = it }
             }

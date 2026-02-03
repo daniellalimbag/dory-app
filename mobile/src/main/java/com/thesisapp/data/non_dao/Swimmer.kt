@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.SerialName
 import kotlinx.parcelize.Parcelize
 
 @Parcelize
@@ -25,7 +26,7 @@ import kotlinx.parcelize.Parcelize
 data class Swimmer(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     // Team membership moved to TeamMembership junction table
-    val userId: String,
+    @SerialName("user_id") val userId: String,
     val name: String,
     val birthday: String, // Store as "YYYY-MM-DD" format
     val height: Float, // in cm

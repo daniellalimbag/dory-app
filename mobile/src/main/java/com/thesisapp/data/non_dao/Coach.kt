@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.SerialName
 
 @Entity(
     tableName = "coaches",
@@ -28,7 +29,7 @@ import androidx.room.PrimaryKey
 )
 data class Coach(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val userId: String,
+    @SerialName("user_id") val userId: String,
     val name: String,
-    val teamId: Int? = null
+    @SerialName("team_id") val teamId: Int? = null
 )

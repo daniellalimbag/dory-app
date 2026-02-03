@@ -10,7 +10,7 @@ import com.thesisapp.data.non_dao.Swimmer
 @Dao
 interface SwimmerDao {
     @Query("SELECT * FROM swimmers")
-    fun getAllSwimmers(): List<Swimmer>
+    suspend fun getAllSwimmers(): List<Swimmer>
 
     // Team-based queries moved to TeamMembershipDao
     // Use teamMembershipDao.getSwimmersForTeam(teamId) instead
@@ -25,14 +25,14 @@ interface SwimmerDao {
     suspend fun setUserIdForSwimmer(swimmerId: Int, userId: String)
 
     @Insert
-    fun insertSwimmer(swimmer: Swimmer): Long
+    suspend fun insertSwimmer(swimmer: Swimmer): Long
 
     @Update
-    fun updateSwimmer(swimmer: Swimmer)
+    suspend fun updateSwimmer(swimmer: Swimmer)
 
     @Delete
-    fun deleteSwimmer(swimmer: Swimmer)
+    suspend fun deleteSwimmer(swimmer: Swimmer)
 
     @Query("DELETE FROM swimmers")
-    fun clearAll()
+    suspend fun clearAll()
 }

@@ -10,6 +10,7 @@ plugins {
 }
 
 import java.util.Properties
+import org.gradle.api.GradleException
 
 android {
     namespace = "com.thesisapp"
@@ -23,20 +24,41 @@ android {
         versionName = "1.0"
 
         val localProperties = Properties().apply {
-            val localPropertiesFile = rootProject.file("local.properties")
-            if (localPropertiesFile.exists()) {
-                localPropertiesFile.inputStream().use { load(it) }
-            }
+            val candidateFiles = listOf(
+                project.file("local.properties"),
+                rootProject.file("local.properties")
+            )
+            val propsFile = candidateFiles.firstOrNull { it.exists() }
+                ?: throw GradleException(
+                    "Missing local.properties. Create one at either mobile/local.properties or <root>/local.properties and add SUPABASE_URL and SUPABASE_KEY."
+                )
+            propsFile.inputStream().use { load(it) }
         }
 
-        val supabaseUrl = localProperties.getProperty("SUPABASE_URL")
-            ?.trim()
-            ?.trim('"')
-            ?: ""
-        val supabaseKey = localProperties.getProperty("SUPABASE_KEY")
-            ?.trim()
-            ?.trim('"')
-            ?: ""
+        fun requireLocalProperty(name: String): String {
+            val value = localProperties.getProperty(name)
+                ?.trim()
+                ?.trim('"')
+                ?.trim()
+                ?: ""
+            if (value.isBlank()) {
+                throw GradleException("Missing or blank $name in local.properties")
+            }
+            return value
+        }
+
+        val supabaseUrl = requireLocalProperty("SUPABASE_URL")
+        val supabaseKey = requireLocalProperty("SUPABASE_KEY")
+
+        val lowerUrl = supabaseUrl.lowercase()
+        if (lowerUrl.contains("localhost") || lowerUrl.contains("127.0.0.1")) {
+            throw GradleException(
+                "SUPABASE_URL appears to point to localhost ($supabaseUrl). Set it to your real Supabase project URL like https://<project-ref>.supabase.co"
+            )
+        }
+        if (!lowerUrl.startsWith("https://")) {
+            throw GradleException("SUPABASE_URL must start with https:// (was: $supabaseUrl)")
+        }
 
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_KEY", "\"$supabaseKey\"")
