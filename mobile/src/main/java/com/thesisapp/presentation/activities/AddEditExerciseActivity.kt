@@ -12,11 +12,29 @@ import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.Exercise
 import com.thesisapp.data.non_dao.ExerciseCategory
 import com.thesisapp.utils.AuthManager
+import dagger.hilt.android.AndroidEntryPoint
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class AddEditExerciseActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var supabase: SupabaseClient
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        explicitNulls = false
+    }
 
     private lateinit var tvTitle: TextView
     private lateinit var etExerciseName: EditText
@@ -30,6 +48,13 @@ class AddEditExerciseActivity : AppCompatActivity() {
     
     private var exerciseId: Int? = null
     private var currentExercise: Exercise? = null
+
+    @Serializable
+    private data class RemoteExerciseIdRow(
+        val id: Long,
+        @SerialName("team_id") val teamId: Long? = null,
+        val name: String? = null
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -159,18 +184,74 @@ class AddEditExerciseActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                android.util.Log.d("DEBUG", "Saving exercise to Supabase (exerciseId=$exerciseId, teamId=$teamId, name=$name)")
+
+                val payload = buildJsonObject {
+                    put("team_id", teamId)
+                    put("name", name)
+                    put("category", category.name)
+                    put("description", description.ifEmpty { null })
+                    put("distance", distance)
+                    put("sets", sets)
+                    put("rest_time", restTime)
+                }
+
                 if (exerciseId != null) {
+                    supabase.from("exercises").update(payload) {
+                        filter { eq("id", exerciseId!!) }
+                    }
+
+                    // Verify row exists and is visible via API
+                    val verifyJson = supabase.from("exercises").select {
+                        filter {
+                            eq("id", exerciseId!!)
+                            eq("team_id", teamId)
+                        }
+                        limit(1)
+                    }.data
+                    val exists = runCatching { json.decodeFromString<List<RemoteExerciseIdRow>>(verifyJson).isNotEmpty() }
+                        .getOrDefault(false)
+                    if (!exists) {
+                        error("Supabase update completed but exercise row not found (id=$exerciseId, teamId=$teamId)")
+                    }
+
                     db.exerciseDao().update(exercise)
                 } else {
-                    db.exerciseDao().insert(exercise)
+                    val insertJson = supabase.from("exercises").insert(payload) { select() }.data
+                    val inserted = runCatching { json.decodeFromString<List<RemoteExerciseIdRow>>(insertJson).firstOrNull() }
+                        .getOrNull()
+
+                    val newId = inserted?.id?.toInt() ?: error("Supabase insert did not return inserted exercise id")
+
+                    // Verify row exists and is visible via API
+                    val verifyJson = supabase.from("exercises").select {
+                        filter {
+                            eq("id", newId)
+                            eq("team_id", teamId)
+                        }
+                        limit(1)
+                    }.data
+                    val exists = runCatching { json.decodeFromString<List<RemoteExerciseIdRow>>(verifyJson).isNotEmpty() }
+                        .getOrDefault(false)
+                    if (!exists) {
+                        error("Supabase insert completed but exercise row not found (id=$newId, teamId=$teamId)")
+                    }
+
+                    db.exerciseDao().insert(exercise.copy(id = newId))
                 }
+
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@AddEditExerciseActivity, "Exercise saved", Toast.LENGTH_SHORT).show()
                     finish()
                 }
             } catch (e: Exception) {
+                android.util.Log.d("DEBUG", "Supabase exercise save failed", e)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@AddEditExerciseActivity, "Error saving exercise", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@AddEditExerciseActivity,
+                        e.message ?: "Error saving exercise",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
         }

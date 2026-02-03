@@ -6,23 +6,31 @@ import android.view.MotionEvent
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.RadioButton
-import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputEditText
 import com.thesisapp.R
+import com.thesisapp.data.repository.AuthRepository
+import dagger.hilt.android.AndroidEntryPoint
 import com.thesisapp.utils.AuthManager
 import com.thesisapp.utils.UserRole
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class RegisterActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var authRepository: AuthRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_register)
 
         val emailInput = findViewById<TextInputEditText>(R.id.inputEmail)
         val passwordInput = findViewById<TextInputEditText>(R.id.inputPassword)
-        val roleGroup = findViewById<RadioGroup>(R.id.roleGroup)
         val radioCoach = findViewById<RadioButton>(R.id.radioCoach)
         val radioSwimmer = findViewById<RadioButton>(R.id.radioSwimmer)
         val btnRegister = findViewById<Button>(R.id.btnRegister)
@@ -44,20 +52,23 @@ class RegisterActivity : AppCompatActivity() {
                 Toast.makeText(this, "Enter email and password", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val existingRole = AuthManager.getUserRole(this, email)
-            if (existingRole != null && existingRole != role) {
-                Toast.makeText(this, "Email already registered as ${existingRole.name.lowercase()}", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            val ok = AuthManager.register(this, email, password, role)
-            if (!ok) {
-                Toast.makeText(this, "User already exists", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            if (AuthManager.login(this, email, password, role)) {
-                onAuthSuccessful(role)
-            } else {
-                Toast.makeText(this, "Registration succeeded, but login failed", Toast.LENGTH_SHORT).show()
+
+            lifecycleScope.launch {
+                try {
+                    authRepository.signUp(
+                        email = email,
+                        password = password,
+                        role = role,
+                        name = email
+                    )
+                    onAuthSuccessful(role)
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        this@RegisterActivity,
+                        e.message ?: "Registration failed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
@@ -94,8 +105,8 @@ class RegisterActivity : AppCompatActivity() {
                     }
                 }
 
-                // Fall back to MainActivity for empty state / not linked yet
-                startActivity(Intent(this, MainActivity::class.java))
+                // Create swimmer profile right after registration (not tied to a team)
+                startActivity(Intent(this, CreateSwimmerProfileActivity::class.java))
                 finish()
             }
         }

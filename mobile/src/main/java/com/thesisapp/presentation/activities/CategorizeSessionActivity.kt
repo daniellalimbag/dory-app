@@ -15,12 +15,19 @@ import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.Exercise
 import com.thesisapp.data.non_dao.ExerciseCategory
+import com.thesisapp.data.repository.SwimSessionUploadRepository
 import com.thesisapp.utils.AuthManager
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class CategorizeSessionActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var swimSessionUploadRepository: SwimSessionUploadRepository
 
     private lateinit var db: AppDatabase
     private lateinit var tvTitle: TextView
@@ -251,6 +258,22 @@ class CategorizeSessionActivity : AppCompatActivity() {
                     seasonPhase = selectedSeasonPhase
                 )
                 db.mlResultDao().update(updated)
+
+                try {
+                    swimSessionUploadRepository.uploadSession(
+                        sessionId = sessionId,
+                        includeSamples = false
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.d("DEBUG", "Supabase uploadSession (categorization) failed", e)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@CategorizeSessionActivity,
+                            e.message ?: "Failed to upload session update to Supabase",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@CategorizeSessionActivity, "Session categorized!", Toast.LENGTH_SHORT).show()

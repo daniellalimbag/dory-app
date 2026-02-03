@@ -3,13 +3,14 @@ package com.thesisapp.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.thesisapp.data.non_dao.Team
 
 @Dao
 interface TeamDao {
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(team: Team): Long
 
     @Update

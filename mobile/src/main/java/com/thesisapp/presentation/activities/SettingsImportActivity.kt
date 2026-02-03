@@ -12,6 +12,7 @@ import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.MlResult
 import com.thesisapp.data.non_dao.SwimData
+import com.thesisapp.data.repository.SwimSessionUploadRepository
 import com.thesisapp.utils.animateClick
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,8 +32,14 @@ import java.util.TimeZone
 import kotlin.collections.iterator
 import kotlin.math.max
 import kotlin.math.min
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class SettingsImportActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var swimSessionUploadRepository: SwimSessionUploadRepository
 
     private lateinit var btnSelectFile: Button
     private lateinit var btnImport: Button
@@ -138,6 +145,22 @@ class SettingsImportActivity : AppCompatActivity() {
                 )
 
                 db.mlResultDao().insert(ml)
+
+                try {
+                    swimSessionUploadRepository.uploadSession(
+                        sessionId = sid,
+                        includeSamples = true
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.d("DEBUG", "Supabase uploadSession (import) failed", e)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@SettingsImportActivity,
+                            e.message ?: "Failed to upload imported session to Supabase",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
             }
 
             withContext(Dispatchers.Main) {

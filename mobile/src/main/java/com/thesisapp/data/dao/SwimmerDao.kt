@@ -3,6 +3,7 @@ package com.thesisapp.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.thesisapp.data.non_dao.Swimmer
@@ -10,7 +11,7 @@ import com.thesisapp.data.non_dao.Swimmer
 @Dao
 interface SwimmerDao {
     @Query("SELECT * FROM swimmers")
-    fun getAllSwimmers(): List<Swimmer>
+    suspend fun getAllSwimmers(): List<Swimmer>
 
     // Team-based queries moved to TeamMembershipDao
     // Use teamMembershipDao.getSwimmersForTeam(teamId) instead
@@ -18,15 +19,21 @@ interface SwimmerDao {
     @Query("SELECT * FROM swimmers WHERE id = :id")
     suspend fun getById(id: Int): Swimmer?
 
-    @Insert
-    fun insertSwimmer(swimmer: Swimmer): Long
+    @Query("SELECT * FROM swimmers WHERE userId = :userId")
+    suspend fun getByUserId(userId: String): Swimmer?
+
+    @Query("UPDATE swimmers SET userId = :userId WHERE id = :swimmerId")
+    suspend fun setUserIdForSwimmer(swimmerId: Int, userId: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSwimmer(swimmer: Swimmer): Long
 
     @Update
-    fun updateSwimmer(swimmer: Swimmer)
+    suspend fun updateSwimmer(swimmer: Swimmer)
 
     @Delete
-    fun deleteSwimmer(swimmer: Swimmer)
+    suspend fun deleteSwimmer(swimmer: Swimmer)
 
     @Query("DELETE FROM swimmers")
-    fun clearAll()
+    suspend fun clearAll()
 }

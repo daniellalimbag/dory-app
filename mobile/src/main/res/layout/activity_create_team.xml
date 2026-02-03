@@ -87,6 +87,14 @@
         android:backgroundTint="@color/primary"
         android:textColor="@color/white"/>
 
+    <ProgressBar
+        android:id="@+id/progressCreateTeam"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:visibility="gone" />
+
     <Button
         android:id="@+id/btnSkip"
         android:layout_width="match_parent"

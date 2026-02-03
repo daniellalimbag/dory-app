@@ -2,10 +2,15 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android) version "2.0.21"
     alias(libs.plugins.kotlin.compose) version "2.0.21"
+    alias(libs.plugins.hilt.android)
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("kotlin-parcelize")
+    id("org.jetbrains.kotlin.kapt")
 }
+
+import java.util.Properties
+import org.gradle.api.GradleException
 
 android {
     namespace = "com.thesisapp"
@@ -18,7 +23,51 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        val localProperties = Properties().apply {
+            val candidateFiles = listOf(
+                project.file("local.properties"),
+                rootProject.file("local.properties")
+            )
+            val propsFile = candidateFiles.firstOrNull { it.exists() }
+                ?: throw GradleException(
+                    "Missing local.properties. Create one at either mobile/local.properties or <root>/local.properties and add SUPABASE_URL and SUPABASE_KEY."
+                )
+            propsFile.inputStream().use { load(it) }
+        }
+
+        fun requireLocalProperty(name: String): String {
+            val value = localProperties.getProperty(name)
+                ?.trim()
+                ?.trim('"')
+                ?.trim()
+                ?: ""
+            if (value.isBlank()) {
+                throw GradleException("Missing or blank $name in local.properties")
+            }
+            return value
+        }
+
+        val supabaseUrl = requireLocalProperty("SUPABASE_URL")
+        val supabaseKey = requireLocalProperty("SUPABASE_KEY")
+
+        val lowerUrl = supabaseUrl.lowercase()
+        if (lowerUrl.contains("localhost") || lowerUrl.contains("127.0.0.1")) {
+            throw GradleException(
+                "SUPABASE_URL appears to point to localhost ($supabaseUrl). Set it to your real Supabase project URL like https://<project-ref>.supabase.co"
+            )
+        }
+        if (!lowerUrl.startsWith("https://")) {
+            throw GradleException("SUPABASE_URL must start with https:// (was: $supabaseUrl)")
+        }
+
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_KEY", "\"$supabaseKey\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     buildTypes {
@@ -62,6 +111,15 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     wearApp(project(":wear"))
+
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.storage)
+    implementation(libs.ktor.client.android)
+
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.compiler)
 
     val room_version = "2.6.1"
     implementation("androidx.room:room-runtime:$room_version")

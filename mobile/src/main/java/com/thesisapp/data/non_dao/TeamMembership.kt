@@ -4,6 +4,8 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /**
  * Junction table linking swimmers to teams.
@@ -32,9 +34,10 @@ import androidx.room.PrimaryKey
         Index(value = ["teamId", "swimmerId"], unique = true)
     ]
 )
+@Serializable
 data class TeamMembership(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val teamId: Int,
-    val swimmerId: Int,
-    val joinedAt: Long = System.currentTimeMillis()
+    @SerialName("team_id") val teamId: Int,
+    @SerialName("swimmer_id") val swimmerId: Int,
+    @SerialName("joined_at") val joinedAt: Long = System.currentTimeMillis()
 )

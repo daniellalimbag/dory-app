@@ -106,25 +106,11 @@ class SwimmersAdapter(
                 db.goalDao().getActiveGoalForSwimmer(swimmer.id, teamId)
             }
 
-            // If no goal exists, create a dummy one for demonstration
             if (goal == null) {
-                val dummyGoal = Goal(
-                    id = 0,
-                    swimmerId = swimmer.id,
-                    teamId = teamId,
-                    eventName = "100m Freestyle",
-                    goalTime = "1:00.00",
-                    startDate = System.currentTimeMillis() - (90L * 24 * 60 * 60 * 1000), // 90 days ago
-                    endDate = System.currentTimeMillis() + (30L * 24 * 60 * 60 * 1000), // 30 days from now
-                    goalType = GoalType.SPRINT,
-                    isActive = true
-                )
-                val goalId = db.goalDao().insert(dummyGoal).toInt()
-                goal = dummyGoal.copy(id = goalId)
-                goalCache[swimmer.id] = goal
-
-                // Generate dummy progress data
-                generateDummyProgressData(db, goalId)
+                withContext(Dispatchers.Main) {
+                    holder.goalProgressContainer.visibility = View.GONE
+                }
+                return@launch
             }
 
             // Get latest progress point
@@ -133,6 +119,7 @@ class SwimmersAdapter(
 
             withContext(Dispatchers.Main) {
                 if (latestProgress != null) {
+
                     // Calculate difference from goal
                     val currentTime = timeStringToSeconds(latestProgress.projectedRaceTime)
                     val goalTime = timeStringToSeconds(goal.goalTime)
@@ -171,39 +158,6 @@ class SwimmersAdapter(
                 }
             }
         }
-    }
-
-    private suspend fun generateDummyProgressData(db: AppDatabase, goalId: Int) {
-        // Generate monthly progress points showing improvement
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.MONTH, -3) // Start 3 months ago
-
-        val progressPoints = listOf(
-            GoalProgress(0, goalId, calendar.timeInMillis, "1:05.50", null),
-            GoalProgress(
-                0,
-                goalId,
-                calendar.apply { add(Calendar.MONTH, 1) }.timeInMillis,
-                "1:03.20",
-                null
-            ),
-            GoalProgress(
-                0,
-                goalId,
-                calendar.apply { add(Calendar.MONTH, 1) }.timeInMillis,
-                "1:01.80",
-                null
-            ),
-            GoalProgress(
-                0,
-                goalId,
-                calendar.apply { add(Calendar.MONTH, 1) }.timeInMillis,
-                "0:59.50",
-                null
-            )
-        )
-
-        progressPoints.forEach { db.goalProgressDao().insert(it) }
     }
 
     private fun timeStringToSeconds(timeString: String): Float {

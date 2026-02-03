@@ -226,45 +226,13 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             
             withContext(Dispatchers.Main) {
                 if (progressPoints.isEmpty()) {
-                    // Show dummy data
-                    setupGoalProgressGraph(generateDummyProgress())
+                    goalProgressChart.clear()
+                    goalProgressChart.invalidate()
                 } else {
                     setupGoalProgressGraph(progressPoints)
                 }
             }
         }
-    }
-
-    private fun generateDummyProgress(): List<GoalProgress> {
-        // Generate monthly dummy progress points showing improvement (4 months of data)
-        val baseTime = Calendar.getInstance().apply {
-            add(Calendar.MONTH, -3) // Start 3 months ago
-        }
-        
-        return listOf(
-            GoalProgress(1, currentGoal?.id ?: 0, baseTime.timeInMillis, "1:05.50", null),
-            GoalProgress(
-                2,
-                currentGoal?.id ?: 0,
-                baseTime.apply { add(Calendar.MONTH, 1) }.timeInMillis,
-                "1:03.20",
-                null
-            ),
-            GoalProgress(
-                3,
-                currentGoal?.id ?: 0,
-                baseTime.apply { add(Calendar.MONTH, 1) }.timeInMillis,
-                "1:01.80",
-                null
-            ),
-            GoalProgress(
-                4,
-                currentGoal?.id ?: 0,
-                baseTime.apply { add(Calendar.MONTH, 1) }.timeInMillis,
-                "0:59.50",
-                null
-            )
-        )
     }
 
     private fun setupGoalProgressGraph(progressPoints: List<GoalProgress>) {

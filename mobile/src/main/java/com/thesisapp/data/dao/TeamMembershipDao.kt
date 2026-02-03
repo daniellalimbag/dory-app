@@ -3,6 +3,7 @@ package com.thesisapp.data.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import com.thesisapp.data.non_dao.Swimmer
@@ -11,11 +12,15 @@ import com.thesisapp.data.non_dao.TeamMembership
 
 @Dao
 interface TeamMembershipDao {
+
     /**
      * Add a swimmer to a team
      */
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(membership: TeamMembership): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(memberships: List<TeamMembership>)
 
     /**
      * Remove a swimmer from a team
@@ -70,6 +75,9 @@ interface TeamMembershipDao {
      */
     @Query("DELETE FROM team_memberships WHERE teamId = :teamId")
     suspend fun removeAllMembershipsForTeam(teamId: Int)
+
+    @Query("DELETE FROM team_memberships WHERE teamId = :teamId AND swimmerId NOT IN (:swimmerIds)")
+    suspend fun removeMembershipsNotInTeam(teamId: Int, swimmerIds: List<Int>)
 
     /**
      * Get count of swimmers in a team

@@ -14,11 +14,22 @@ import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.Exercise
 import com.thesisapp.data.non_dao.ExerciseCategory
+import com.thesisapp.utils.AuthManager
+import dagger.hilt.android.AndroidEntryPoint
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class CreateExerciseActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var supabase: SupabaseClient
 
     private lateinit var db: AppDatabase
     private lateinit var tvTitle: TextView
@@ -115,12 +126,50 @@ class CreateExerciseActivity : AppCompatActivity() {
 
         val category = ExerciseCategory.values()[categoryPosition]
 
+        val teamId = AuthManager.currentTeamId(this)
+
         lifecycleScope.launch(Dispatchers.IO) {
-            if (exerciseId != -1) {
-                // Update existing exercise
-                val existingExercise = db.exerciseDao().getById(exerciseId)
-                existingExercise?.let {
-                    val updatedExercise = it.copy(
+            try {
+                if (teamId == null) {
+                    error("No team selected")
+                }
+
+                val payload = buildJsonObject {
+                    put("team_id", teamId)
+                    put("name", name)
+                    put("category", category.name)
+                    put("description", description.ifEmpty { "Personal exercise" })
+                    put("distance", distance)
+                    put("sets", sets)
+                    put("effort_level", effort)
+                }
+
+                if (exerciseId != -1) {
+                    supabase.from("exercises").update(payload) {
+                        filter { eq("id", exerciseId) }
+                    }
+                    val existingExercise = db.exerciseDao().getById(exerciseId)
+                    if (existingExercise != null) {
+                        db.exerciseDao().update(
+                            existingExercise.copy(
+                                teamId = teamId,
+                                name = name,
+                                category = category,
+                                description = description.ifEmpty { "Personal exercise" },
+                                sets = sets,
+                                distance = distance,
+                                effortLevel = effort
+                            )
+                        )
+                    }
+                } else {
+                    val insertJson = supabase.from("exercises").insert(payload) { select() }.data
+                    val newId = insertJson.substringAfter("\"id\":").substringBefore(',').trim().toLongOrNull()?.toInt()
+                        ?: 0
+
+                    val exercise = Exercise(
+                        id = newId,
+                        teamId = teamId,
                         name = name,
                         category = category,
                         description = description.ifEmpty { "Personal exercise" },
@@ -128,31 +177,27 @@ class CreateExerciseActivity : AppCompatActivity() {
                         distance = distance,
                         effortLevel = effort
                     )
-                    db.exerciseDao().update(updatedExercise)
+                    db.exerciseDao().insert(exercise)
                 }
-            } else {
-                // Create new exercise
-                val exercise = Exercise(
-                    id = 0, // Auto-generate
-                    teamId = -1, // -1 indicates personal exercise
-                    name = name,
-                    category = category,
-                    description = description.ifEmpty { "Personal exercise" },
-                    sets = sets,
-                    distance = distance,
-                    effortLevel = effort
-                )
-                db.exerciseDao().insert(exercise)
-            }
 
-            withContext(Dispatchers.Main) {
-                Toast.makeText(
-                    this@CreateExerciseActivity,
-                    "Exercise created successfully!",
-                    Toast.LENGTH_SHORT
-                ).show()
-                setResult(RESULT_OK)
-                finish()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@CreateExerciseActivity,
+                        "Exercise created successfully!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    setResult(RESULT_OK)
+                    finish()
+                }
+            } catch (e: Exception) {
+                android.util.Log.d("DEBUG", "Supabase exercise save failed", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        this@CreateExerciseActivity,
+                        e.message ?: "Failed to save exercise",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
             }
         }
     }

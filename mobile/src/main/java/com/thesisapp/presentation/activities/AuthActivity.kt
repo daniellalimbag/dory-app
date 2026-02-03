@@ -6,12 +6,22 @@ import android.widget.Button
 import android.widget.Toast
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputEditText
 import com.thesisapp.R
+import com.thesisapp.data.repository.AuthRepository
 import com.thesisapp.utils.AuthManager
 import com.thesisapp.utils.UserRole
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class AuthActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var authRepository: AuthRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_auth)
@@ -32,15 +42,20 @@ class AuthActivity : AppCompatActivity() {
                 Toast.makeText(this, "Enter email and password", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            val role = AuthManager.getUserRole(this, email)
-            if (role == null) {
-                Toast.makeText(this, "User not found", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            if (AuthManager.login(this, email, password, role)) {
-                onAuthSuccessful(role)
-            } else {
-                Toast.makeText(this, "Invalid credentials", Toast.LENGTH_SHORT).show()
+
+            lifecycleScope.launch {
+                try {
+                    authRepository.signIn(email = email, password = password)
+                    val role = AuthManager.currentUser(this@AuthActivity)?.role
+                        ?: error("Login succeeded but local role is missing")
+                    onAuthSuccessful(role)
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        this@AuthActivity,
+                        e.message ?: "Login failed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
@@ -48,12 +63,10 @@ class AuthActivity : AppCompatActivity() {
     private fun onAuthSuccessful(role: UserRole) {
         when (role) {
             UserRole.COACH -> {
-                val user = AuthManager.currentUser(this)!!
-                val teams = AuthManager.getCoachTeams(this, user.email)
-                if (teams.isEmpty()) {
+                val teamId = AuthManager.currentTeamId(this)
+                if (teamId == null) {
                     startActivity(Intent(this, CreateTeamActivity::class.java))
                 } else {
-                    AuthManager.setCurrentTeamId(this, teams.first())
                     startActivity(Intent(this, MainActivity::class.java))
                 }
                 finish()

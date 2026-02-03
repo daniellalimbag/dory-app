@@ -9,21 +9,26 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.thesisapp.R
-import com.thesisapp.data.AppDatabase
-import com.thesisapp.data.non_dao.Team
+import com.thesisapp.data.repository.TeamRepository
 import com.thesisapp.utils.AuthManager
-import com.thesisapp.utils.CodeGenerator
 import com.thesisapp.utils.animateClick
-import kotlinx.coroutines.Dispatchers
+import dagger.hilt.android.AndroidEntryPoint
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class CreateTeamActivity : AppCompatActivity() {
+
+    @Inject lateinit var teamRepository: TeamRepository
+    @Inject lateinit var supabase: SupabaseClient
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,12 +41,16 @@ class CreateTeamActivity : AppCompatActivity() {
         val btnBack = findViewById<ImageButton>(R.id.btnBack)
         val btnSkip = findViewById<Button>(R.id.btnSkip)
         val btnCopyCode = findViewById<ImageButton>(R.id.btnCopyCode)
+        val progress = findViewById<ProgressBar>(R.id.progressCreateTeam)
 
-        var currentCode = CodeGenerator.code(6)
-        txtCode.text = currentCode
+        var currentCode = ""
+        txtCode.text = ""
+        btnGenerate.isEnabled = false
+        btnCopyCode.isEnabled = false
 
         btnCopyCode.setOnClickListener {
             it.animateClick()
+            if (currentCode.isBlank()) return@setOnClickListener
             val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
             val clip = ClipData.newPlainText("Team Code", currentCode)
             clipboard.setPrimaryClip(clip)
@@ -50,8 +59,7 @@ class CreateTeamActivity : AppCompatActivity() {
 
         btnGenerate.setOnClickListener {
             it.animateClick()
-            currentCode = CodeGenerator.code(6)
-            txtCode.text = currentCode
+            Toast.makeText(this, "Code will be generated after team creation", Toast.LENGTH_SHORT).show()
         }
 
         btnBack.setOnClickListener { finish() }
@@ -69,26 +77,55 @@ class CreateTeamActivity : AppCompatActivity() {
                 Toast.makeText(this, "Enter team name", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            lifecycleScope.launch(Dispatchers.IO) {
-                val db = AppDatabase.getInstance(this@CreateTeamActivity)
-                val id = db.teamDao().insert(Team(name = name, joinCode = currentCode)).toInt()
-                withContext(Dispatchers.Main) {
-                    val user = AuthManager.currentUser(this@CreateTeamActivity)
-                    if (user != null) {
-                        AuthManager.addCoachTeam(this@CreateTeamActivity, user.email, id)
-                        AuthManager.addCoachToTeam(this@CreateTeamActivity, id, user.email)
-                        AuthManager.setCurrentTeamId(this@CreateTeamActivity, id)
-                    }
-                    Toast.makeText(this@CreateTeamActivity, "Team created. Code: $currentCode", Toast.LENGTH_LONG).show()
-                    // Start ManageCoachesActivity after team creation
-                    val intent = Intent(this@CreateTeamActivity, ManageCoachesActivity::class.java)
-                    startActivity(intent)
-                    finish()
+
+            progress.visibility = android.view.View.VISIBLE
+            btnCreate.isEnabled = false
+            btnSkip.isEnabled = false
+            btnBack.isEnabled = false
+
+            lifecycleScope.launch {
+                val coachId = supabase.auth.currentUserOrNull()?.id
+                if (coachId.isNullOrBlank()) {
+                    progress.visibility = android.view.View.GONE
+                    btnCreate.isEnabled = true
+                    btnSkip.isEnabled = true
+                    btnBack.isEnabled = true
+                    Toast.makeText(this@CreateTeamActivity, "Not authenticated", Toast.LENGTH_SHORT).show()
+                    return@launch
                 }
+
+                val result = teamRepository.createTeam(name = name, coachId = coachId)
+                progress.visibility = android.view.View.GONE
+                btnCreate.isEnabled = true
+                btnSkip.isEnabled = true
+                btnBack.isEnabled = true
+
+                result
+                    .onSuccess { teamIdStr ->
+                        val teamId = teamIdStr.toIntOrNull()
+                        if (teamId == null) {
+                            Toast.makeText(this@CreateTeamActivity, "Team created but invalid team id", Toast.LENGTH_LONG).show()
+                            return@onSuccess
+                        }
+
+                        val user = AuthManager.currentUser(this@CreateTeamActivity)
+                        if (user != null) {
+                            AuthManager.addCoachTeam(this@CreateTeamActivity, user.email, teamId)
+                            AuthManager.addCoachToTeam(this@CreateTeamActivity, teamId, user.email)
+                            AuthManager.setCurrentTeamId(this@CreateTeamActivity, teamId)
+                        }
+
+                        Toast.makeText(this@CreateTeamActivity, "Team created", Toast.LENGTH_LONG).show()
+                        startActivity(Intent(this@CreateTeamActivity, ManageCoachesActivity::class.java))
+                        finish()
+                    }
+                    .onFailure { e ->
+                        Toast.makeText(this@CreateTeamActivity, "Error creating team: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
             }
         }
     }
-    
+
     // Hide keyboard when touching outside of EditText
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (ev.action == MotionEvent.ACTION_DOWN) {
