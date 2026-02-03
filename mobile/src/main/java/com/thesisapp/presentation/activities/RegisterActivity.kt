@@ -12,8 +12,13 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.textfield.TextInputEditText
 import com.thesisapp.R
+import com.thesisapp.data.AppDatabase
 import com.thesisapp.utils.AuthManager
+import com.thesisapp.utils.LocalUserBootstrapper
 import com.thesisapp.utils.UserRole
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class RegisterActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,6 +60,11 @@ class RegisterActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             if (AuthManager.login(this, email, password, role)) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val db = AppDatabase.getInstance(this@RegisterActivity)
+                    LocalUserBootstrapper.ensureRoomUserForAuth(this@RegisterActivity, db)
+                    LocalUserBootstrapper.ensureRoomCoachForAuth(this@RegisterActivity, db)
+                }
                 onAuthSuccessful(role)
             } else {
                 Toast.makeText(this, "Registration succeeded, but login failed", Toast.LENGTH_SHORT).show()

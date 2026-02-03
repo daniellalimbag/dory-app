@@ -47,6 +47,7 @@ object DummyDataGenerator {
                     
                     swimmer = Swimmer(
                         id = 0,
+                        userId = "dummy-" + UUID.randomUUID().toString(),
                         name = fullName,
                         birthday = generateRandomBirthday(age, age),
                         height = if (isMale) randomFloat(165f, 195f) else randomFloat(155f, 180f),

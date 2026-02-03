@@ -8,10 +8,16 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.textfield.TextInputEditText
 import com.thesisapp.R
+import com.thesisapp.data.AppDatabase
 import com.thesisapp.utils.AuthManager
+import com.thesisapp.utils.LocalUserBootstrapper
 import com.thesisapp.utils.UserRole
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class AuthActivity : AppCompatActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_auth)
@@ -38,6 +44,12 @@ class AuthActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             if (AuthManager.login(this, email, password, role)) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val db = AppDatabase.getInstance(this@AuthActivity)
+                    LocalUserBootstrapper.ensureRoomUserForAuth(this@AuthActivity, db)
+                    LocalUserBootstrapper.ensureRoomCoachForAuth(this@AuthActivity, db)
+                    LocalUserBootstrapper.linkExistingSwimmerToAuthUserIfPossible(this@AuthActivity, db)
+                }
                 onAuthSuccessful(role)
             } else {
                 Toast.makeText(this, "Invalid credentials", Toast.LENGTH_SHORT).show()

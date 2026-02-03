@@ -3,6 +3,8 @@ package com.thesisapp.utils
 import android.content.Context
 import com.thesisapp.data.*
 import com.thesisapp.data.non_dao.ExerciseCategory
+import com.thesisapp.data.non_dao.User
+import com.thesisapp.data.non_dao.UserRole
 import com.thesisapp.data.non_dao.TeamMembership
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -32,6 +34,12 @@ suspend fun AppDatabase.populateDummyData(context: Context, teamId: Int) {
             val swimmers = DummyDataGenerator.generateDummySwimmers(teamId, 5)
             
             swimmers.forEach { swimmer ->
+                // Insert linked user first (required by FK swimmers.userId -> users.id)
+                val userId = swimmer.userId
+                val email = "${userId}@local"
+                swimmerDao().let {
+                    userDao().insertUser(User(id = userId, email = email, role = UserRole.SWIMMER))
+                }
                 // Insert swimmer
                 val swimmerId = swimmerDao().insertSwimmer(swimmer).toInt()
                 

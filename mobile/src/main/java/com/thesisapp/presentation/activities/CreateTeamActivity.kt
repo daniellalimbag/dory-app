@@ -18,6 +18,7 @@ import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.Team
 import com.thesisapp.utils.AuthManager
 import com.thesisapp.utils.CodeGenerator
+import com.thesisapp.utils.LocalUserBootstrapper
 import com.thesisapp.utils.animateClick
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -72,6 +73,9 @@ class CreateTeamActivity : AppCompatActivity() {
             lifecycleScope.launch(Dispatchers.IO) {
                 val db = AppDatabase.getInstance(this@CreateTeamActivity)
                 val id = db.teamDao().insert(Team(name = name, joinCode = currentCode)).toInt()
+
+                LocalUserBootstrapper.ensureRoomUserForAuth(this@CreateTeamActivity, db)
+                LocalUserBootstrapper.ensureRoomCoachForAuth(this@CreateTeamActivity, db, teamId = id)
                 withContext(Dispatchers.Main) {
                     val user = AuthManager.currentUser(this@CreateTeamActivity)
                     if (user != null) {

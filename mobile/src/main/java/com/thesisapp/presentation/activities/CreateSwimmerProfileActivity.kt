@@ -18,6 +18,7 @@ import com.thesisapp.data.non_dao.ExerciseCategory
 import com.thesisapp.data.non_dao.Swimmer
 import com.thesisapp.data.non_dao.TeamMembership
 import com.thesisapp.utils.AuthManager
+import com.thesisapp.utils.LocalUserBootstrapper
 import com.thesisapp.utils.animateClick
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -80,6 +81,10 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
                     // Reuse existing swimmer profile for new team
                     lifecycleScope.launch(Dispatchers.IO) {
                         val db = AppDatabase.getInstance(this@CreateSwimmerProfileActivity)
+
+                        val userId = LocalUserBootstrapper.getOrCreateStableUserIdForEmail(this@CreateSwimmerProfileActivity, user.email)
+                        LocalUserBootstrapper.ensureRoomUserForAuth(this@CreateSwimmerProfileActivity, db)
+                        db.swimmerDao().setUserIdForSwimmer(swimmerId = swimmerId, userId = userId)
                         
                         // Check if already a member
                         val existingMembership = db.teamMembershipDao().getMembership(teamId, swimmerId)
@@ -209,7 +214,14 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
             }
 
             // Create swimmer profile (team-independent)
+            val authUser = AuthManager.currentUser(this)
+            val userId = if (authUser != null) {
+                LocalUserBootstrapper.getOrCreateStableUserIdForEmail(this, authUser.email)
+            } else {
+                null
+            }
             val swimmer = Swimmer(
+                userId = userId ?: "",
                 name = name,
                 birthday = birthday,
                 height = height,
@@ -223,7 +235,13 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
             // Save to database
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    val newId = db.swimmerDao().insertSwimmer(swimmer).toInt()
+                    val resolvedUserId = if (authUser != null) {
+                        LocalUserBootstrapper.ensureRoomUserForAuth(this@CreateSwimmerProfileActivity, db)
+                    } else {
+                        LocalUserBootstrapper.createStandaloneSwimmerUser(db)
+                    }
+
+                    val newId = db.swimmerDao().insertSwimmer(swimmer.copy(userId = resolvedUserId ?: swimmer.userId)).toInt()
                     
                     // Create team membership (junction table entry)
                     db.teamMembershipDao().insert(

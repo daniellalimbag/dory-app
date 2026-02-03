@@ -18,6 +18,9 @@ interface SwimmerDao {
     @Query("SELECT * FROM swimmers WHERE id = :id")
     suspend fun getById(id: Int): Swimmer?
 
+    @Query("UPDATE swimmers SET userId = :userId WHERE id = :swimmerId")
+    suspend fun setUserIdForSwimmer(swimmerId: Int, userId: String)
+
     @Insert
     fun insertSwimmer(swimmer: Swimmer): Long
 

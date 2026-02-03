@@ -13,6 +13,7 @@ import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.Swimmer
 import com.thesisapp.data.non_dao.TeamMembership
 import com.thesisapp.utils.AuthManager
+import com.thesisapp.utils.LocalUserBootstrapper
 import com.thesisapp.utils.animateClick
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -125,6 +126,7 @@ class TrackAddSwimmerActivity : AppCompatActivity() {
 
             // Create swimmer object (team-independent)
             val swimmer = Swimmer(
+                userId = "",
                 name = name,
                 birthday = birthday,
                 height = height,
@@ -136,7 +138,8 @@ class TrackAddSwimmerActivity : AppCompatActivity() {
             // Save to database
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    val newId = db.swimmerDao().insertSwimmer(swimmer).toInt()
+                    val userId = LocalUserBootstrapper.createStandaloneSwimmerUser(db)
+                    val newId = db.swimmerDao().insertSwimmer(swimmer.copy(userId = userId)).toInt()
                     
                     // Create team membership
                     db.teamMembershipDao().insert(
