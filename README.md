@@ -13,6 +13,7 @@ Data-Oriented Reporting for Your swim (DORY) is a multi-module Android project c
 - **UI**: Jetpack Compose (Compose BOM 2024.05.00, Material 3)
 - **Concurrency**: Kotlin Coroutines
 - **Networking**: Retrofit (2.11.0) + Gson converter
+- **Backend**: Supabase (Auth + PostgREST)
 - **Wearable**: Google Play Services Wearable (18.1.0)
 - **Rendering**: Google Filament (1.32.1)
 - **ML**: TensorFlow Lite (2.13.0)
@@ -30,6 +31,31 @@ Data-Oriented Reporting for Your swim (DORY) is a multi-module Android project c
 3. Select the desired run configuration:
    - Phone-only: run the `mobile` app.
    - Phone + Wear: pair a Wear emulator or physical watch and deploy both modules.
+
+## Supabase
+The mobile app syncs key data to Supabase for persistence and cross-device access.
+
+### Sync behavior
+Session and raw sample data are written to Supabase in multiple flows:
+
+- **Watch recording stop**
+  - Upserts a `swim_sessions` row
+  - Bulk inserts `swim_data` samples
+- **Categorize session**
+  - Ensures the session summary is upserted
+  - Ensures raw samples are uploaded
+- **Coach CSV/import flow**
+  - Uploads/creates the session and sample rows for the assigned swimmer
+
+## Metrics pipeline (CCSCloud)
+After a session and its raw samples are uploaded, the app calls an external metrics service to compute derived metrics (e.g., stroke count, stroke length, stroke index, lap time) and then writes those metrics back to both:
+
+- local Room (`MlResult`)
+- Supabase `swim_sessions`
+
+Notes:
+- The call can take time for large sessions; the client is configured with longer timeouts.
+- If the metrics call fails, logs are emitted under the `DEBUG` tag to help diagnose network/server issues.
 
 ### Build from terminal (Windows)
 Use the provided Gradle wrapper from the project root:
