@@ -264,8 +264,9 @@ class CategorizeSessionActivity : AppCompatActivity() {
             // Update the session with categorization
             val session = db.mlResultDao().getBySessionId(sessionId)
             if (session != null) {
+                val resolvedExerciseId = selectedExercise.id.takeIf { it > 0 }
                 val updated = session.copy(
-                    exerciseId = selectedExercise.id,
+                    exerciseId = resolvedExerciseId,
                     exerciseName = selectedExercise.name,
                     distance = selectedExercise.distance,
                     sets = selectedExercise.sets,

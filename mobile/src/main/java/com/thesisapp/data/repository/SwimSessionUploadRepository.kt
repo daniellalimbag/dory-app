@@ -3,6 +3,7 @@ package com.thesisapp.data.repository
 import android.util.Log
 import com.thesisapp.data.dao.MlResultDao
 import com.thesisapp.data.dao.SwimDataDao
+import com.thesisapp.data.dao.SwimmerDao
 import com.thesisapp.data.non_dao.MlResult
 import com.thesisapp.data.non_dao.SwimData
 import com.thesisapp.utils.MetricsApiClient
@@ -23,7 +24,8 @@ import javax.inject.Singleton
 class SwimSessionUploadRepository @Inject constructor(
     private val supabase: SupabaseClient,
     private val mlResultDao: MlResultDao,
-    private val swimDataDao: SwimDataDao
+    private val swimDataDao: SwimDataDao,
+    private val swimmerDao: SwimmerDao
 ) {
 
     private val json = Json {
@@ -156,9 +158,13 @@ class SwimSessionUploadRepository @Inject constructor(
     }
 
     private suspend fun upsertRemoteSession(session: MlResult, resolvedRemoteSwimmerId: Long?) {
+        val effectiveRemoteSwimmerId = resolvedRemoteSwimmerId
+            ?: resolveRemoteSwimmerIdForSessionOrNull(session)
+            ?: error("Could not resolve remote swimmer_id for sessionId=${session.sessionId}. Please re-login as the swimmer and try again.")
+
         val payload = buildJsonObject {
             put("session_id", session.sessionId)
-            put("swimmer_id", resolvedRemoteSwimmerId ?: session.swimmerId)
+            put("swimmer_id", effectiveRemoteSwimmerId)
             session.exerciseId?.let { put("exercise_id", it) }
             put("date", session.date)
             put("time_start", session.timeStart)
@@ -214,6 +220,23 @@ class SwimSessionUploadRepository @Inject constructor(
 
         val swimmerJson = supabase.from("swimmers").select {
             filter { eq("user_id", authUserId) }
+            limit(1)
+        }.data
+
+        return runCatching {
+            json.decodeFromString<List<RemoteSwimmerIdRow>>(swimmerJson).firstOrNull()?.id
+        }.getOrNull()
+    }
+
+    private suspend fun resolveRemoteSwimmerIdForSessionOrNull(session: MlResult): Long? {
+        val localSwimmerUserId = runCatching {
+            swimmerDao.getById(session.swimmerId)?.userId
+        }.getOrNull()
+
+        if (localSwimmerUserId.isNullOrBlank()) return null
+
+        val swimmerJson = supabase.from("swimmers").select {
+            filter { eq("user_id", localSwimmerUserId) }
             limit(1)
         }.data
 
