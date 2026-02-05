@@ -138,8 +138,11 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
                                 )
                             )
 
-                            runCatching {
-                                ensureRemoteMembership(teamId = teamId, swimmerId = effectiveSwimmerId)
+                            val remoteUserId = resolvedAuthUserId
+                            if (!remoteUserId.isNullOrBlank()) {
+                                runCatching {
+                                    ensureRemoteMembership(teamId = teamId, swimmerUserId = remoteUserId)
+                                }
                             }
 
                             AuthManager.linkSwimmerToTeam(this@CreateSwimmerProfileActivity, user.email, teamId, effectiveSwimmerId)
@@ -324,7 +327,7 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
 
                         if (authUser != null) {
                             runCatching {
-                                ensureRemoteMembership(teamId = teamId, swimmerId = newId)
+                                ensureRemoteMembership(teamId = teamId, swimmerUserId = finalUserId)
                             }
                         }
                     }
@@ -401,11 +404,11 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
         return json.decodeFromString<List<RemoteSwimmerRow>>(updatedJson).firstOrNull()?.id
     }
 
-    private suspend fun ensureRemoteMembership(teamId: Int, swimmerId: Int) {
+    private suspend fun ensureRemoteMembership(teamId: Int, swimmerUserId: String) {
         val existingJson = supabase.from("team_memberships").select {
             filter {
                 eq("team_id", teamId)
-                eq("swimmer_id", swimmerId)
+                eq("user_id", swimmerUserId)
             }
             limit(1)
         }.data
@@ -416,7 +419,8 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
         if (!exists) {
             val payload = buildJsonObject {
                 put("team_id", teamId)
-                put("swimmer_id", swimmerId)
+                put("user_id", swimmerUserId)
+                put("role", "swimmer")
             }
             supabase.from("team_memberships").insert(payload)
         }

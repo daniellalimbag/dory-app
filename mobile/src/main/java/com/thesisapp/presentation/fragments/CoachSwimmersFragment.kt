@@ -5,11 +5,13 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.Toast
+
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -104,8 +106,15 @@ class CoachSwimmersFragment : Fragment() {
                 withContext(Dispatchers.IO) {
                     teamSyncRepository.syncTeamMembers(teamId)
                 }
-            } catch (_: Exception) {
-                // best-effort sync; fall back to local
+            } catch (e: Exception) {
+                Log.e("CoachSwimmers", "Failed to sync team members (teamId=$teamId)", e)
+                val msg = e.message?.takeIf { it.isNotBlank() }
+                Toast.makeText(
+                    requireContext(),
+                    msg?.let { "Sync failed — showing cached data\n$it" }
+                        ?: "Sync failed — showing cached data",
+                    Toast.LENGTH_LONG
+                ).show()
             } finally {
                 progressSync.visibility = View.GONE
             }
@@ -124,8 +133,15 @@ class CoachSwimmersFragment : Fragment() {
                 withContext(Dispatchers.Main) {
                     adapter.updateSwimmers(swimmers)
                 }
-            } catch (_: Exception) {
-                // Handle error silently
+            } catch (e: Exception) {
+                Log.e("CoachSwimmers", "Failed to load swimmers from local DB (teamId=$teamId)", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        requireContext(),
+                        "Failed to load swimmers",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }

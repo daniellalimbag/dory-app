@@ -19,13 +19,20 @@ import com.thesisapp.data.non_dao.Session
 import com.thesisapp.data.non_dao.Swimmer
 import com.thesisapp.presentation.activities.HistorySessionActivity
 import com.thesisapp.presentation.adapters.SessionsAdapter
+import com.thesisapp.data.repository.SwimSessionsRepository
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class SwimmerSessionsFragment : Fragment() {
+
+    @Inject
+    lateinit var swimSessionsRepository: SwimSessionsRepository
 
     private var swimmer: Swimmer? = null
     private lateinit var adapter: SessionsAdapter
@@ -70,11 +77,13 @@ class SwimmerSessionsFragment : Fragment() {
             return
         }
 
-        val db = AppDatabase.Companion.getInstance(requireContext())
-
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val results = db.mlResultDao().getResultsForSwimmer(swimmerId)
+                val results = runCatching {
+                    swimSessionsRepository.getSessionsForSwimmer(swimmerId.toLong())
+                }.getOrElse {
+                    AppDatabase.Companion.getInstance(requireContext()).mlResultDao().getResultsForSwimmer(swimmerId)
+                }
 
                 val sessionsFromDb = results.map { ml ->
                     val timeRange = "${ml.timeStart} - ${ml.timeEnd}"

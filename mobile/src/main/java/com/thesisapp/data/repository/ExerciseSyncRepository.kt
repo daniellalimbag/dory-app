@@ -27,7 +27,7 @@ class ExerciseSyncRepository @Inject constructor(
     @Serializable
     private data class RemoteExerciseRow(
         val id: Int,
-        @SerialName("team_id") val teamId: Int,
+        @SerialName("team_id") val teamId: Long,
         val name: String,
         val category: String,
         val description: String? = null,
@@ -52,7 +52,7 @@ class ExerciseSyncRepository @Inject constructor(
 
                 Exercise(
                     id = re.id,
-                    teamId = re.teamId,
+                    teamId = re.teamId.toInt(),
                     name = re.name,
                     category = categoryEnum,
                     description = re.description,

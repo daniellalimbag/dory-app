@@ -37,37 +37,44 @@ class TeamRepository @Inject constructor(
     )
 
     @Serializable
-    private data class RemoteMembershipRow(
-        val id: Int,
-        @SerialName("team_id") val teamId: Int,
-        @SerialName("swimmer_id") val swimmerId: Int
+    private data class RemoteSwimmerRow(
+        val id: Long,
+        @SerialName("user_id") val userId: String
     )
 
     suspend fun joinTeam(teamId: Int, swimmerId: Int) {
         withContext(Dispatchers.IO) {
+            val swimmerJson = supabase.from("swimmers").select {
+                filter { eq("id", swimmerId) }
+                limit(1)
+            }.data
+
+            val remoteSwimmer = runCatching {
+                json.decodeFromString<List<RemoteSwimmerRow>>(swimmerJson).firstOrNull()
+            }.getOrNull()
+
+            val swimmerUserId = remoteSwimmer?.userId
+                ?: error("Could not resolve swimmer user_id for swimmerId=$swimmerId")
+
             val payload = buildJsonObject {
                 put("team_id", teamId)
-                put("swimmer_id", swimmerId)
+                put("user_id", swimmerUserId)
+                put("role", "swimmer")
             }
 
-            // Throws on RLS/network errors.
             supabase.from("team_memberships").insert(payload)
 
-            // Verify it actually exists (helps debug and avoids false-success).
             val verifyJson = supabase.from("team_memberships").select {
                 filter {
                     eq("team_id", teamId)
-                    eq("swimmer_id", swimmerId)
+                    eq("user_id", swimmerUserId)
                 }
                 limit(1)
             }.data
 
-            val exists = runCatching {
-                json.decodeFromString<List<RemoteMembershipRow>>(verifyJson).isNotEmpty()
-            }.getOrDefault(false)
-
+            val exists = verifyJson.contains(swimmerUserId)
             if (!exists) {
-                error("Supabase insert completed but membership row not found (teamId=$teamId, swimmerId=$swimmerId)")
+                error("Supabase insert completed but membership row not found (teamId=$teamId, userId=$swimmerUserId)")
             }
         }
     }
@@ -97,15 +104,13 @@ class TeamRepository @Inject constructor(
                 val remoteTeam = json.decodeFromString<List<RemoteTeamRow>>(teamJson).firstOrNull()
                     ?: error("Team was inserted but could not be fetched (join_code=$joinCode)")
 
-                val updateCoachPayload = buildJsonObject {
+                val membershipPayload = buildJsonObject {
                     put("team_id", remoteTeam.id)
+                    put("user_id", coachId)
+                    put("role", "coach")
                 }
 
-                supabase.from("coaches").update(updateCoachPayload) {
-                    filter {
-                        eq("user_id", coachId)
-                    }
-                }
+                supabase.from("team_memberships").insert(membershipPayload)
 
                 teamDao.insert(
                     Team(

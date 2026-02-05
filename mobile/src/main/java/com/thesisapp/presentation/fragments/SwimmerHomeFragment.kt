@@ -44,6 +44,9 @@ import com.thesisapp.presentation.activities.UncategorizedSessionsActivity
 import com.thesisapp.presentation.adapters.SessionAdapter
 import com.thesisapp.presentation.adapters.SessionListAdapter
 import com.thesisapp.utils.AuthManager
+import com.thesisapp.data.repository.SwimSessionsRepository
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -52,6 +55,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@AndroidEntryPoint
 class SwimmerHomeFragment : Fragment() {
 
     private var swimmer: Swimmer? = null
@@ -89,6 +93,9 @@ class SwimmerHomeFragment : Fragment() {
     private lateinit var tvLapTime: TextView
     private lateinit var performanceChart: LineChart
     private lateinit var heartRateChart: BarChart
+
+    @Inject
+    lateinit var swimSessionsRepository: SwimSessionsRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -176,13 +183,19 @@ class SwimmerHomeFragment : Fragment() {
                 db.goalDao().getActiveGoalForSwimmer(swimmerLocal.id, teamId)
             } else null
 
+            val remoteSessionsResult = runCatching {
+                swimSessionsRepository.getSessionsForSwimmer(swimmerLocal.id.toLong())
+            }
+
+            val allSessions = remoteSessionsResult.getOrNull()
+                ?: db.mlResultDao().getResultsForSwimmer(swimmerLocal.id)
+
             // Load all categorized sessions (not just recent)
-            sessions = db.mlResultDao().getResultsForSwimmer(swimmerLocal.id)
+            sessions = allSessions
                 .filter { it.exerciseId != null }
                 .sortedByDescending { it.date } // Most recent first
 
             // Count uncategorized sessions separately
-            val allSessions = db.mlResultDao().getResultsForSwimmer(swimmerLocal.id)
             val uncategorizedCount = allSessions.count { it.exerciseId == null }
 
             withContext(Dispatchers.Main) {

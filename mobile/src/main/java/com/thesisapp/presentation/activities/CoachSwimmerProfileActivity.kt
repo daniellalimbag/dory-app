@@ -50,7 +50,15 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
 
+import com.thesisapp.data.repository.SwimSessionsRepository
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+
+@AndroidEntryPoint
 class CoachSwimmerProfileActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var swimSessionsRepository: SwimSessionsRepository
 
     private lateinit var db: AppDatabase
     private lateinit var swimmer: Swimmer
@@ -203,8 +211,12 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             // Load goal
             currentGoal = db.goalDao().getActiveGoalForSwimmer(swimmer.id, teamId)
             
-            // Load sessions for this swimmer
-            sessions = db.mlResultDao().getResultsForSwimmer(swimmer.id)
+            // Load sessions for this swimmer (prefer Supabase, fall back to Room)
+            sessions = runCatching {
+                swimSessionsRepository.getSessionsForSwimmer(swimmer.id.toLong())
+            }.getOrElse {
+                db.mlResultDao().getResultsForSwimmer(swimmer.id)
+            }
             
             withContext(Dispatchers.Main) {
                 updateGoalUI()
@@ -372,7 +384,17 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             val exercise = session.exerciseId?.let { db.exerciseDao().getExerciseById(it) }
 
             // Load raw samples for this session
-            val swimData = db.swimDataDao().getSwimDataForSession(session.sessionId)
+            val localSwimData = runCatching {
+                db.swimDataDao().getSwimDataForSession(session.sessionId)
+            }.getOrDefault(emptyList())
+
+            val swimData = if (localSwimData.isNotEmpty()) {
+                localSwimData
+            } else {
+                runCatching {
+                    swimSessionsRepository.getSwimDataForSession(session.sessionId)
+                }.getOrDefault(emptyList())
+            }
 
             // Try calling the external Python metrics API first
             var lapsFromApi: List<MetricsLapOut>? = null

@@ -72,10 +72,11 @@ class AuthRepository @Inject constructor(
     )
 
     @Serializable
-    private data class RemoteMembershipRow(
+    private data class RemoteTeamMembershipRow(
         val id: Long,
         @SerialName("team_id") val teamId: Int,
-        @SerialName("swimmer_id") val swimmerId: Long
+        @SerialName("user_id") val userId: String,
+        val role: String
     )
 
     @Serializable
@@ -113,7 +114,6 @@ class AuthRepository @Inject constructor(
                 val coachPayload = buildJsonObject {
                     put("user_id", userId)
                     put("name", name)
-                    put("team_id", JsonNull)
                 }
                 supabase.from("coaches").insert(coachPayload)
             }
@@ -191,33 +191,45 @@ class AuthRepository @Inject constructor(
             }
         }
 
-        val coachTeamId: Int? = if (role == UserRole.COACH) {
-            val coachJson = supabase.from("coaches").select {
-                filter { eq("user_id", userId) }
-                limit(1)
+        val coachTeamIds: List<Int> = if (role == UserRole.COACH) {
+            val membershipsJson = supabase.from("team_memberships").select {
+                filter {
+                    eq("user_id", userId)
+                    eq("role", "coach")
+                }
             }.data
-            json.decodeFromString<List<RemoteCoachRow>>(coachJson).firstOrNull()?.teamId
+
+            runCatching {
+                json.decodeFromString<List<RemoteTeamMembershipRow>>(membershipsJson)
+            }.getOrElse {
+                Log.d("DEBUG", "Failed to decode team_memberships (coach)", it)
+                emptyList()
+            }.map { it.teamId }.distinct()
         } else {
-            null
+            emptyList()
         }
 
-        if (role == UserRole.COACH && coachTeamId != null) {
-            val teamJson = supabase.from("teams").select {
-                filter { eq("id", coachTeamId) }
-                limit(1)
-            }.data
+        val coachTeamId: Int? = coachTeamIds.firstOrNull()
 
-            val remoteTeam = json.decodeFromString<List<RemoteTeamRow>>(teamJson).firstOrNull()
-            if (remoteTeam != null) {
-                withContext(Dispatchers.IO) {
-                    teamDao.insert(
-                        Team(
-                            id = remoteTeam.id,
-                            name = remoteTeam.name,
-                            joinCode = remoteTeam.joinCode,
-                            logoPath = remoteTeam.logoPath
+        if (role == UserRole.COACH && coachTeamIds.isNotEmpty()) {
+            withContext(Dispatchers.IO) {
+                coachTeamIds.forEach { teamId ->
+                    val teamJson = supabase.from("teams").select {
+                        filter { eq("id", teamId) }
+                        limit(1)
+                    }.data
+
+                    val remoteTeam = json.decodeFromString<List<RemoteTeamRow>>(teamJson).firstOrNull()
+                    if (remoteTeam != null) {
+                        teamDao.insert(
+                            Team(
+                                id = remoteTeam.id,
+                                name = remoteTeam.name,
+                                joinCode = remoteTeam.joinCode,
+                                logoPath = remoteTeam.logoPath
+                            )
                         )
-                    )
+                    }
                 }
             }
         }
@@ -235,10 +247,14 @@ class AuthRepository @Inject constructor(
         AuthManager.logout(context)
         AuthManager.setCurrentUser(context, email = remoteUser.email, role = role)
 
-        if (role == UserRole.COACH && coachTeamId != null) {
-            AuthManager.setCurrentTeamId(context, coachTeamId)
-            AuthManager.addCoachTeam(context, remoteUser.email, coachTeamId)
-            AuthManager.addCoachToTeam(context, coachTeamId, remoteUser.email)
+        if (role == UserRole.COACH && coachTeamIds.isNotEmpty()) {
+            if (coachTeamId != null) {
+                AuthManager.setCurrentTeamId(context, coachTeamId)
+            }
+            coachTeamIds.forEach { teamId ->
+                AuthManager.addCoachTeam(context, remoteUser.email, teamId)
+                AuthManager.addCoachToTeam(context, teamId, remoteUser.email)
+            }
         }
 
         if (role == UserRole.SWIMMER) {
@@ -288,13 +304,16 @@ class AuthRepository @Inject constructor(
                 swimmerDao.insertSwimmer(localRow)
 
                 val membershipsJson = supabase.from("team_memberships").select {
-                    filter { eq("swimmer_id", remoteSwimmer.id) }
+                    filter {
+                        eq("user_id", userId)
+                        eq("role", "swimmer")
+                    }
                 }.data
 
                 val memberships = runCatching {
-                    json.decodeFromString<List<RemoteMembershipRow>>(membershipsJson)
+                    json.decodeFromString<List<RemoteTeamMembershipRow>>(membershipsJson)
                 }.getOrElse {
-                    Log.d("DEBUG", "Failed to decode team_memberships", it)
+                    Log.d("DEBUG", "Failed to decode team_memberships (swimmer)", it)
                     emptyList()
                 }
 

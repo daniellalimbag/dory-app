@@ -6,7 +6,10 @@ import com.thesisapp.data.non_dao.Swimmer
 import com.thesisapp.data.non_dao.TeamMembership
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -30,8 +33,8 @@ class TeamSyncRepository @Inject constructor(
     private data class RemoteMembershipRow(
         val id: Int,
         @SerialName("team_id") val teamId: Int,
-        @SerialName("swimmer_id") val swimmerId: Int,
-        @SerialName("joined_at") val joinedAt: Long? = null
+        @SerialName("user_id") val userId: String,
+        val role: String
     )
 
     @Serializable
@@ -55,26 +58,26 @@ class TeamSyncRepository @Inject constructor(
             }.data
 
             val remoteMemberships = json.decodeFromString<List<RemoteMembershipRow>>(membershipsJson)
+                .filter { it.role.equals("swimmer", ignoreCase = true) }
 
-            val swimmerIds = remoteMemberships.map { it.swimmerId }.distinct()
+            val swimmerUserIds = remoteMemberships.map { it.userId }.distinct()
 
-            val remoteSwimmers: List<RemoteSwimmerRow> = if (swimmerIds.isEmpty()) {
+            val remoteSwimmers: List<RemoteSwimmerRow> = if (swimmerUserIds.isEmpty()) {
                 emptyList()
             } else {
-                val swimmers = mutableListOf<RemoteSwimmerRow>()
-                // Avoid relying on PostgREST join syntax: fetch swimmers in small chunks.
-                // Typical team sizes are small; this remains fine.
-                swimmerIds.chunked(50).forEach { chunk ->
-                    chunk.forEach { id ->
-                        val swimmerJson = supabase.from("swimmers").select {
-                            filter { eq("id", id) }
-                            limit(1)
-                        }.data
-                        val row = json.decodeFromString<List<RemoteSwimmerRow>>(swimmerJson).firstOrNull()
-                        if (row != null) swimmers.add(row)
-                    }
+                coroutineScope {
+                    swimmerUserIds.chunked(50).flatMap { chunk ->
+                        chunk.map { userId ->
+                            async {
+                                val swimmerJson = supabase.from("swimmers").select {
+                                    filter { eq("user_id", userId) }
+                                    limit(1)
+                                }.data
+                                json.decodeFromString<List<RemoteSwimmerRow>>(swimmerJson).firstOrNull()
+                            }
+                        }
+                    }.awaitAll().filterNotNull()
                 }
-                swimmers
             }
 
             // Upsert swimmers (preserve local schema; map category string to ExerciseCategory name)
@@ -114,18 +117,22 @@ class TeamSyncRepository @Inject constructor(
             }
 
             // Upsert memberships
-            val mappedMemberships = remoteMemberships.map { rm ->
+            val swimmerIdByUserId = remoteSwimmers.associate { it.userId to it.id }
+
+            val mappedMemberships = remoteMemberships.mapNotNull { rm ->
+                val swimmerId = swimmerIdByUserId[rm.userId] ?: return@mapNotNull null
                 TeamMembership(
                     id = rm.id,
                     teamId = rm.teamId,
-                    swimmerId = rm.swimmerId,
-                    joinedAt = rm.joinedAt ?: System.currentTimeMillis()
+                    swimmerId = swimmerId,
+                    joinedAt = System.currentTimeMillis()
                 )
             }
             membershipDao.upsertAll(mappedMemberships)
 
             // Optional reconciliation: delete local memberships that no longer exist remotely
             val localCount = membershipDao.getSwimmerCountForTeam(teamId)
+            val swimmerIds = mappedMemberships.map { it.swimmerId }.distinct()
             if (swimmerIds.isNotEmpty() || localCount == 0) {
                 membershipDao.removeMembershipsNotInTeam(teamId, swimmerIds)
             }

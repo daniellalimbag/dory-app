@@ -19,14 +19,21 @@ import com.thesisapp.data.non_dao.MlResult
 import com.thesisapp.data.non_dao.Swimmer
 import com.thesisapp.presentation.activities.HistorySessionActivity
 import com.thesisapp.presentation.adapters.SessionAdapter
+import com.thesisapp.data.repository.SwimSessionsRepository
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class SwimmerStatsFragment : Fragment() {
+
+    @Inject
+    lateinit var swimSessionsRepository: SwimSessionsRepository
 
     private var swimmer: Swimmer? = null
     private lateinit var db: AppDatabase
@@ -89,7 +96,11 @@ class SwimmerStatsFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             // Load all sessions for this swimmer
-            sessions = db.mlResultDao().getResultsForSwimmer(swimmerLocal.id)
+            sessions = runCatching {
+                swimSessionsRepository.getSessionsForSwimmer(swimmerLocal.id.toLong())
+            }.getOrElse {
+                db.mlResultDao().getResultsForSwimmer(swimmerLocal.id)
+            }
 
             withContext(Dispatchers.Main) {
                 if (sessions.isEmpty()) {

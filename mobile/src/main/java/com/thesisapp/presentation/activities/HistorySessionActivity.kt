@@ -28,12 +28,19 @@ import com.thesisapp.utils.MetricsSample
 import com.thesisapp.utils.MetricsSessionAveragesOut
 import com.thesisapp.utils.MetricsSessionRequest
 import com.thesisapp.utils.animateClick
+import com.thesisapp.data.repository.SwimSessionsRepository
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class HistorySessionActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var swimSessionsRepository: SwimSessionsRepository
 
     private lateinit var btnReturn: ImageButton
     private lateinit var txtDate: TextView
@@ -99,8 +106,20 @@ class HistorySessionActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val mlResult = db.mlResultDao().getBySessionId(sessionId)
-                val swimData: List<SwimData> = db.swimDataDao().getSwimDataForSession(sessionId)
+                val mlResultLocal = runCatching { db.mlResultDao().getBySessionId(sessionId) }.getOrNull()
+                val swimDataLocal: List<SwimData> = runCatching { db.swimDataDao().getSwimDataForSession(sessionId) }.getOrDefault(emptyList())
+
+                val mlResult = mlResultLocal ?: runCatching {
+                    swimSessionsRepository.getSessionById(sessionId)
+                }.getOrNull()
+
+                val swimData: List<SwimData> = if (swimDataLocal.isNotEmpty()) {
+                    swimDataLocal
+                } else {
+                    runCatching {
+                        swimSessionsRepository.getSwimDataForSession(sessionId)
+                    }.getOrDefault(emptyList())
+                }
 
                 if (mlResult == null) {
                     withContext(Dispatchers.Main) {
