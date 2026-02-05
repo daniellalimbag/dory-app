@@ -15,6 +15,7 @@ import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.Exercise
 import com.thesisapp.data.non_dao.ExerciseCategory
 import com.thesisapp.utils.AuthManager
+import com.thesisapp.utils.UserRole
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
@@ -38,6 +39,7 @@ class CreateExerciseActivity : AppCompatActivity() {
     private lateinit var etDescription: TextInputEditText
     private lateinit var etDistance: TextInputEditText
     private lateinit var etSets: TextInputEditText
+    private lateinit var etRestTime: TextInputEditText
     private lateinit var seekBarEffort: SeekBar
     private lateinit var tvEffortValue: TextView
     private lateinit var btnCreate: Button
@@ -59,6 +61,7 @@ class CreateExerciseActivity : AppCompatActivity() {
         etDescription = findViewById(R.id.etDescription)
         etDistance = findViewById(R.id.etDistance)
         etSets = findViewById(R.id.etSets)
+        etRestTime = findViewById(R.id.etRestTime)
         seekBarEffort = findViewById(R.id.seekBarEffort)
         tvEffortValue = findViewById(R.id.tvEffortValue)
         btnCreate = findViewById(R.id.btnCreate)
@@ -67,6 +70,11 @@ class CreateExerciseActivity : AppCompatActivity() {
         // Setup category spinner
         val categories = ExerciseCategory.values().map { it.name }
         val adapter = ArrayAdapter(this, R.layout.spinner_item, categories)
+        intent.getStringExtra("CATEGORY")?.let { cat ->
+            val idx = ExerciseCategory.values().indexOfFirst { it.name == cat }
+            if (idx >= 0) spinnerCategory.setSelection(idx)
+        }
+
         adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
         spinnerCategory.adapter = adapter
 
@@ -87,11 +95,15 @@ class CreateExerciseActivity : AppCompatActivity() {
             saveExercise()
         }
 
+        val isCoach = AuthManager.currentUser(this)?.role == UserRole.COACH
+
         // Load exercise data if editing
         if (exerciseId != -1) {
-            tvTitle.text = "Edit Personal Exercise"
+            tvTitle.text = "Edit Exercise"
             btnCreate.text = "Save Changes"
             loadExerciseData()
+        } else {
+            tvTitle.text = if (isCoach) "Add Exercise" else "Create Personal Exercise"
         }
     }
 
@@ -105,6 +117,7 @@ class CreateExerciseActivity : AppCompatActivity() {
                     etDescription.setText(it.description ?: "")
                     etDistance.setText(it.distance.toString())
                     etSets.setText(it.sets.toString())
+                    etRestTime.setText((it.restTime ?: 0).toString())
                     seekBarEffort.progress = it.effortLevel ?: 50
                 }
             }
@@ -117,6 +130,7 @@ class CreateExerciseActivity : AppCompatActivity() {
         val description = etDescription.text.toString().trim()
         val distance = etDistance.text.toString().toIntOrNull() ?: 0
         val sets = etSets.text.toString().toIntOrNull() ?: 1
+        val restTime = etRestTime.text.toString().toIntOrNull() ?: 0
         val effort = seekBarEffort.progress
 
         if (name.isEmpty()) {
@@ -126,64 +140,101 @@ class CreateExerciseActivity : AppCompatActivity() {
 
         val category = ExerciseCategory.values()[categoryPosition]
 
-        val teamId = AuthManager.currentTeamId(this)
+        val role = AuthManager.currentUser(this)?.role
+        val isCoach = role == UserRole.COACH
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                if (teamId == null) {
+                val existing = if (exerciseId != -1) db.exerciseDao().getById(exerciseId) else null
+                val isExistingPersonal = existing?.teamId == -1
+
+                val teamIdForExercise: Int = when {
+                    // Swimmers always create/edit personal exercises.
+                    !isCoach -> -1
+                    // If editing an existing personal exercise, keep it personal.
+                    isExistingPersonal -> -1
+                    // Coaches creating/editing team exercises.
+                    else -> AuthManager.currentTeamId(this@CreateExerciseActivity) ?: -1
+                }
+
+                // Personal exercises are stored locally only (teamId = -1).
+                val isPersonal = teamIdForExercise == -1
+
+                if (!isPersonal && teamIdForExercise <= 0) {
                     error("No team selected")
                 }
 
                 val payload = buildJsonObject {
-                    put("team_id", teamId)
+                    put("team_id", teamIdForExercise)
                     put("name", name)
                     put("category", category.name)
                     put("description", description.ifEmpty { "Personal exercise" })
                     put("distance", distance)
                     put("sets", sets)
+                    put("rest_time", restTime)
                     put("effort_level", effort)
                 }
 
                 if (exerciseId != -1) {
-                    supabase.from("exercises").update(payload) {
-                        filter { eq("id", exerciseId) }
+                    if (!isPersonal) {
+                        supabase.from("exercises").update(payload) {
+                            filter { eq("id", exerciseId) }
+                        }
                     }
+
                     val existingExercise = db.exerciseDao().getById(exerciseId)
                     if (existingExercise != null) {
                         db.exerciseDao().update(
                             existingExercise.copy(
-                                teamId = teamId,
+                                teamId = teamIdForExercise,
                                 name = name,
                                 category = category,
                                 description = description.ifEmpty { "Personal exercise" },
                                 sets = sets,
                                 distance = distance,
+                                restTime = restTime,
                                 effortLevel = effort
                             )
                         )
                     }
                 } else {
-                    val insertJson = supabase.from("exercises").insert(payload) { select() }.data
-                    val newId = insertJson.substringAfter("\"id\":").substringBefore(',').trim().toLongOrNull()?.toInt()
-                        ?: 0
+                    if (!isPersonal) {
+                        val insertJson = supabase.from("exercises").insert(payload) { select() }.data
+                        val newId = insertJson.substringAfter("\"id\":").substringBefore(',').trim().toLongOrNull()?.toInt()
+                            ?: 0
 
-                    val exercise = Exercise(
-                        id = newId,
-                        teamId = teamId,
-                        name = name,
-                        category = category,
-                        description = description.ifEmpty { "Personal exercise" },
-                        sets = sets,
-                        distance = distance,
-                        effortLevel = effort
-                    )
-                    db.exerciseDao().insert(exercise)
+                        val exercise = Exercise(
+                            id = newId,
+                            teamId = teamIdForExercise,
+                            name = name,
+                            category = category,
+                            description = description.ifEmpty { "Personal exercise" },
+                            sets = sets,
+                            distance = distance,
+                            restTime = restTime,
+                            effortLevel = effort
+                        )
+                        db.exerciseDao().insert(exercise)
+                    } else {
+                        val exercise = Exercise(
+                            id = 0,
+                            teamId = -1,
+                            name = name,
+                            category = category,
+                            description = description.ifEmpty { "Personal exercise" },
+                            sets = sets,
+                            distance = distance,
+                            restTime = restTime,
+                            effortLevel = effort
+                        )
+                        db.exerciseDao().insert(exercise)
+                    }
                 }
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@CreateExerciseActivity,
-                        "Exercise created successfully!",
+                        "Exercise saved",
                         Toast.LENGTH_SHORT
                     ).show()
                     setResult(RESULT_OK)

@@ -117,6 +117,25 @@
                 android:textColor="@color/text" />
         </com.google.android.material.textfield.TextInputLayout>
 
+        <!-- Rest Time -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:hint="Rest Time (seconds)"
+            app:hintTextColor="@color/text"
+            app:boxBackgroundColor="@color/white"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etRestTime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:text="0"
+                android:textColor="@color/text" />
+        </com.google.android.material.textfield.TextInputLayout>
+
         <!-- Effort Level -->
         <TextView
             android:layout_width="wrap_content"

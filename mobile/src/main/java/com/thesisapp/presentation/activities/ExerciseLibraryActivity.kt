@@ -89,7 +89,9 @@ class ExerciseLibraryActivity : AppCompatActivity() {
 
         if (isCoach) {
             fabAddExercise.setOnClickListener {
-                showAddExerciseDialog()
+                val intent = Intent(this, CreateExerciseActivity::class.java)
+                intent.putExtra("CATEGORY", currentCategory.name)
+                startActivity(intent)
             }
         } else {
             // Swimmers can create personal exercises
@@ -142,13 +144,13 @@ class ExerciseLibraryActivity : AppCompatActivity() {
     }
 
     private fun showAddExerciseDialog() {
-        val intent = Intent(this, AddEditExerciseActivity::class.java)
+        val intent = Intent(this, CreateExerciseActivity::class.java)
         intent.putExtra("CATEGORY", currentCategory.name)
         startActivity(intent)
     }
 
     private fun showEditExerciseDialog(exercise: Exercise) {
-        val intent = Intent(this, AddEditExerciseActivity::class.java)
+        val intent = Intent(this, CreateExerciseActivity::class.java)
         intent.putExtra("EXERCISE_ID", exercise.id)
         startActivity(intent)
     }

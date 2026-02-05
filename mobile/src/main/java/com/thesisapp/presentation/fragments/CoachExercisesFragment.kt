@@ -17,7 +17,7 @@ import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.repository.ExerciseSyncRepository
 import com.thesisapp.data.non_dao.Exercise
 import com.thesisapp.data.non_dao.ExerciseCategory
-import com.thesisapp.presentation.activities.AddEditExerciseActivity
+import com.thesisapp.presentation.activities.CreateExerciseActivity
 import com.thesisapp.presentation.adapters.ExerciseAdapter
 import com.thesisapp.utils.AuthManager
 import dagger.hilt.android.AndroidEntryPoint
@@ -76,7 +76,7 @@ class CoachExercisesFragment : Fragment() {
         }
 
         fabAddExercise.setOnClickListener {
-            val intent = Intent(requireContext(), AddEditExerciseActivity::class.java)
+            val intent = Intent(requireContext(), CreateExerciseActivity::class.java)
             currentCategory?.let { intent.putExtra("CATEGORY", it.name) }
             startActivity(intent)
         }
@@ -129,7 +129,7 @@ class CoachExercisesFragment : Fragment() {
     }
 
     private fun showEditExerciseDialog(exercise: Exercise) {
-        val intent = Intent(requireContext(), AddEditExerciseActivity::class.java)
+        val intent = Intent(requireContext(), CreateExerciseActivity::class.java)
         intent.putExtra("EXERCISE_ID", exercise.id)
         startActivity(intent)
     }

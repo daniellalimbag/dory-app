@@ -18,6 +18,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.thesisapp.R
+import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.repository.TeamRepository
 import com.thesisapp.utils.AuthManager
 
@@ -35,6 +36,7 @@ class CreateTeamActivity : AppCompatActivity() {
     @Inject lateinit var supabase: SupabaseClient
 
     private var selectedLogoBytes: ByteArray? = null
+    private var createdTeamId: Int? = null
 
     private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri == null) return@registerForActivityResult
@@ -98,6 +100,14 @@ class CreateTeamActivity : AppCompatActivity() {
 
         btnCreate.setOnClickListener {
             it.animateClick()
+
+            val existingTeamId = createdTeamId
+            if (existingTeamId != null) {
+                startActivity(Intent(this@CreateTeamActivity, ManageCoachesActivity::class.java))
+                finish()
+                return@setOnClickListener
+            }
+
             val name = inputName.text.toString().trim()
             if (name.isEmpty()) {
                 Toast.makeText(this, "Enter team name", Toast.LENGTH_SHORT).show()
@@ -154,9 +164,26 @@ class CreateTeamActivity : AppCompatActivity() {
                             AuthManager.setCurrentTeamId(this@CreateTeamActivity, teamId)
                         }
 
-                        Toast.makeText(this@CreateTeamActivity, "Team created", Toast.LENGTH_LONG).show()
-                        startActivity(Intent(this@CreateTeamActivity, ManageCoachesActivity::class.java))
-                        finish()
+                        lifecycleScope.launch {
+                            val db = AppDatabase.getInstance(this@CreateTeamActivity)
+                            val team = db.teamDao().getById(teamId)
+
+                            if (team != null) {
+                                currentCode = team.joinCode
+                                txtCode.text = team.joinCode
+                                btnCopyCode.isEnabled = true
+                                btnGenerate.isEnabled = true
+                            }
+
+                            createdTeamId = teamId
+
+                            inputName.isEnabled = false
+                            btnPickLogo.isEnabled = false
+                            btnBack.isEnabled = true
+                            btnSkip.isEnabled = false
+                            btnCreate.text = "Continue"
+                            Toast.makeText(this@CreateTeamActivity, "Team created", Toast.LENGTH_LONG).show()
+                        }
                     }
                     .onFailure { e ->
                         Toast.makeText(this@CreateTeamActivity, "Error creating team: ${e.message}", Toast.LENGTH_LONG).show()
