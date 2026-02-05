@@ -18,23 +18,34 @@ import com.thesisapp.utils.StrokeMetrics
 class LapChartsPagerAdapter(
     private val context: Context,
     private val lapMetrics: List<StrokeMetrics.LapMetrics>
+    ,
+    private val chartMode: ChartMode
 ) : RecyclerView.Adapter<LapChartsPagerAdapter.Vh>() {
+
+    enum class ChartMode {
+        REGULAR,
+        DELTA_VS_LAP1
+    }
 
     enum class MetricPage(
         val tabTitle: String,
-        val chartTitle: String
+        val regularTitle: String,
+        val deltaTitle: String
     ) {
         STROKES(
             tabTitle = "Strokes",
-            chartTitle = "Strokes (count)"
+            regularTitle = "Strokes (count)",
+            deltaTitle = "Δ Strokes vs Lap 1 (count)"
         ),
         STROKE_RATE(
             tabTitle = "Stroke Rate",
-            chartTitle = "Stroke Rate (spm)"
+            regularTitle = "Stroke Rate (spm)",
+            deltaTitle = "Δ Stroke Rate vs Lap 1 (spm)"
         ),
         VELOCITY(
             tabTitle = "Velocity",
-            chartTitle = "Velocity (m/s)"
+            regularTitle = "Velocity (m/s)",
+            deltaTitle = "Δ Velocity vs Lap 1 (m/s)"
         )
     }
 
@@ -50,14 +61,30 @@ class LapChartsPagerAdapter(
 
     override fun onBindViewHolder(holder: Vh, pageIndex: Int) {
         val page = pages[pageIndex]
-        holder.title.text = page.chartTitle
+        val chartTitle = when (chartMode) {
+            ChartMode.REGULAR -> page.regularTitle
+            ChartMode.DELTA_VS_LAP1 -> page.deltaTitle
+        }
+        holder.title.text = chartTitle
+
+        val baseline = lapMetrics.firstOrNull()
+
+        val baselineValue = when (page) {
+            MetricPage.STROKES -> baseline?.strokeCount?.toFloat() ?: 0f
+            MetricPage.STROKE_RATE -> baseline?.strokeRateSpm?.toFloat() ?: 0f
+            MetricPage.VELOCITY -> baseline?.velocityMetersPerSecond?.toFloat() ?: 0f
+        }
 
         val entries = lapMetrics.mapIndexed { index, m ->
             val x = (index + 1).toFloat()
-            val y = when (page) {
+            val raw = when (page) {
                 MetricPage.STROKES -> m.strokeCount.toFloat()
                 MetricPage.STROKE_RATE -> m.strokeRateSpm.toFloat()
                 MetricPage.VELOCITY -> m.velocityMetersPerSecond.toFloat()
+            }
+            val y = when (chartMode) {
+                ChartMode.REGULAR -> raw
+                ChartMode.DELTA_VS_LAP1 -> raw - baselineValue
             }
             BarEntry(x, y)
         }
@@ -71,11 +98,25 @@ class LapChartsPagerAdapter(
         val axisTextColor = context.getColor(R.color.text)
         val secondaryTextColor = context.getColor(R.color.text_secondary)
 
-        val dataSet = BarDataSet(entries, page.chartTitle).apply {
+        val dataSet = BarDataSet(entries, chartTitle).apply {
             this.color = color
             valueTextSize = 12f
             valueTextColor = axisTextColor
             setDrawValues(true)
+            valueFormatter = if (chartMode == ChartMode.DELTA_VS_LAP1) {
+                object : ValueFormatter() {
+                    override fun getBarLabel(barEntry: BarEntry?): String {
+                        val v = barEntry?.y ?: 0f
+                        return if (kotlin.math.abs(v) < 0.0005f) {
+                            "0"
+                        } else {
+                            String.format("%+.2f", v)
+                        }
+                    }
+                }
+            } else {
+                null
+            }
         }
 
         holder.chart.data = BarData(dataSet).apply {
@@ -106,7 +147,16 @@ class LapChartsPagerAdapter(
 
         holder.chart.axisRight.isEnabled = false
         holder.chart.axisLeft.apply {
-            axisMinimum = 0f
+            val ys = entries.map { it.y }
+            val minY = ys.minOrNull() ?: 0f
+            val maxY = ys.maxOrNull() ?: 0f
+            val pad = ((maxY - minY) * 0.1f).coerceAtLeast(0.1f)
+            if (chartMode == ChartMode.DELTA_VS_LAP1) {
+                axisMinimum = minY - pad
+                axisMaximum = maxY + pad
+            } else {
+                axisMinimum = 0f
+            }
             textSize = 11f
             textColor = secondaryTextColor
             setDrawGridLines(true)

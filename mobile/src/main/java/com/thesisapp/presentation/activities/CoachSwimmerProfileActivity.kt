@@ -19,6 +19,7 @@ import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
@@ -74,10 +75,6 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     private lateinit var performanceChart: LineChart
     private lateinit var velocityChart: LineChart
     private lateinit var heartRateChart: BarChart
-    private lateinit var tvSessionDrilldownTitle: TextView
-    private lateinit var tabLapCharts: TabLayout
-    private lateinit var pagerLapCharts: ViewPager2
-    private var lapChartsMediator: TabLayoutMediator? = null
     private lateinit var tvStrokeCount: TextView
     private lateinit var tvStrokeLength: TextView
     private lateinit var tvDistance: TextView
@@ -87,7 +84,13 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     private lateinit var tvLapBreakdownTitleCoach: TextView
     private lateinit var tableLapBreakdownCoach: TableLayout
     private lateinit var tvLapBreakdownEmptyCoach: TextView
-    
+    private lateinit var tvSessionDrilldownTitle: TextView
+    private lateinit var toggleLapChartMode: MaterialButtonToggleGroup
+    private lateinit var tabLapCharts: TabLayout
+    private lateinit var pagerLapCharts: ViewPager2
+    private var lapChartsMediator: TabLayoutMediator? = null
+    private var lastLapMetrics: List<StrokeMetrics.LapMetrics> = emptyList()
+    private var lapChartMode: LapChartsPagerAdapter.ChartMode = LapChartsPagerAdapter.ChartMode.REGULAR
     private lateinit var exerciseListRecycler: RecyclerView
     private lateinit var sessionAdapter: SessionListAdapter
 
@@ -147,6 +150,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         tableLapBreakdownCoach = findViewById(R.id.tableLapBreakdownCoach)
         tvLapBreakdownEmptyCoach = findViewById(R.id.tvLapBreakdownEmptyCoach)
         tvSessionDrilldownTitle = findViewById(R.id.tvSessionDrilldownTitle)
+        toggleLapChartMode = findViewById(R.id.toggleLapChartMode)
         tabLapCharts = findViewById(R.id.tabLapCharts)
         pagerLapCharts = findViewById(R.id.pagerLapCharts)
         
@@ -176,6 +180,20 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         }
         exerciseListRecycler.layoutManager = LinearLayoutManager(this)
         exerciseListRecycler.adapter = sessionAdapter
+
+        toggleLapChartMode.check(R.id.btnLapChartRegular)
+        toggleLapChartMode.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+
+            lapChartMode = when (checkedId) {
+                R.id.btnLapChartDelta -> LapChartsPagerAdapter.ChartMode.DELTA_VS_LAP1
+                else -> LapChartsPagerAdapter.ChartMode.REGULAR
+            }
+
+            if (lastLapMetrics.size > 1) {
+                setupLapChartsPager(lastLapMetrics)
+            }
+        }
     }
 
     private fun loadData() {
@@ -563,10 +581,12 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
 
                     if (lapMetrics.size > 1) {
                         tvSessionDrilldownTitle.visibility = View.VISIBLE
+                        toggleLapChartMode.visibility = View.VISIBLE
                         tabLapCharts.visibility = View.VISIBLE
                         pagerLapCharts.visibility = View.VISIBLE
                     } else {
                         tvSessionDrilldownTitle.visibility = View.GONE
+                        toggleLapChartMode.visibility = View.GONE
                         tabLapCharts.visibility = View.GONE
                         pagerLapCharts.visibility = View.GONE
                     }
@@ -581,6 +601,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
                     tableLapBreakdownCoach.visibility = View.GONE
                     tvLapBreakdownEmptyCoach.visibility = View.VISIBLE
                     tvSessionDrilldownTitle.visibility = View.GONE
+                    toggleLapChartMode.visibility = View.GONE
                     tabLapCharts.visibility = View.GONE
                     pagerLapCharts.visibility = View.GONE
                 }
@@ -591,6 +612,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
 
                 // Use real lap metrics for the performance charts and drilldown chart; clear if none
                 if (lapMetrics.isNotEmpty()) {
+                    lastLapMetrics = lapMetrics
                     setupPerformanceChart(lapMetrics)
                     setupVelocityChart(lapMetrics)
                     setupLapChartsPager(lapMetrics)
@@ -600,6 +622,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
                     lapChartsMediator?.detach()
                     lapChartsMediator = null
                     pagerLapCharts.adapter = null
+                    lastLapMetrics = emptyList()
                 }
                 setupHeartRateChart(session)
             }
@@ -611,6 +634,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             lapChartsMediator?.detach()
             lapChartsMediator = null
             pagerLapCharts.adapter = null
+            toggleLapChartMode.visibility = View.GONE
             tabLapCharts.visibility = View.GONE
             pagerLapCharts.visibility = View.GONE
             return
@@ -618,7 +642,8 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
 
         val adapter = LapChartsPagerAdapter(
             context = this,
-            lapMetrics = lapMetrics
+            lapMetrics = lapMetrics,
+            chartMode = lapChartMode
         )
         pagerLapCharts.adapter = adapter
 
@@ -628,6 +653,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         }
         lapChartsMediator?.attach()
 
+        toggleLapChartMode.visibility = View.VISIBLE
         tabLapCharts.visibility = View.VISIBLE
         pagerLapCharts.visibility = View.VISIBLE
     }

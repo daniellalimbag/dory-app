@@ -447,93 +447,107 @@
             </com.google.android.material.card.MaterialCardView>
 
             <!-- LAP BREAKDOWN SECTION -->
-            <TextView
-                android:id="@+id/tvLapBreakdownTitleCoach"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Lap Breakdown"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@color/text" />
-
-            <TableLayout
-                android:id="@+id/tableLapBreakdownCoach"
+            <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"
-                android:background="@color/background"
-                android:padding="8dp"
-                android:stretchColumns="0,1,2,3,4,5">
+                android:backgroundTint="@color/background"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="12dp">
 
-                <!-- Header row -->
-                <TableRow>
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Lap"
-                        android:textStyle="bold"
-                        android:textSize="12sp"
-                        android:textColor="@color/text_secondary"
-                        android:gravity="center" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
 
                     <TextView
+                        android:id="@+id/tvLapBreakdownTitleCoach"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Time (s)"
+                        android:text="Lap Breakdown"
+                        android:textSize="16sp"
                         android:textStyle="bold"
-                        android:textSize="12sp"
-                        android:textColor="@color/text_secondary"
-                        android:gravity="center" />
+                        android:textColor="@color/text" />
+
+                    <TableLayout
+                        android:id="@+id/tableLapBreakdownCoach"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:stretchColumns="0,1,2,3,4,5">
+
+                        <!-- Header row -->
+                        <TableRow>
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Lap"
+                                android:textStyle="bold"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary"
+                                android:gravity="center" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Time (s)"
+                                android:textStyle="bold"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary"
+                                android:gravity="center" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Strokes"
+                                android:textStyle="bold"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary"
+                                android:gravity="center" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="SL (m)"
+                                android:textStyle="bold"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary"
+                                android:gravity="center" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="v (m/s)"
+                                android:textStyle="bold"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary"
+                                android:gravity="center" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="SI"
+                                android:textStyle="bold"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_secondary"
+                                android:gravity="center" />
+                        </TableRow>
+
+                    </TableLayout>
 
                     <TextView
+                        android:id="@+id/tvLapBreakdownEmptyCoach"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Strokes"
-                        android:textStyle="bold"
-                        android:textSize="12sp"
-                        android:textColor="@color/text_secondary"
-                        android:gravity="center" />
+                        android:layout_marginTop="8dp"
+                        android:text="No lap metrics available."
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="SL (m)"
-                        android:textStyle="bold"
-                        android:textSize="12sp"
-                        android:textColor="@color/text_secondary"
-                        android:gravity="center" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="v (m/s)"
-                        android:textStyle="bold"
-                        android:textSize="12sp"
-                        android:textColor="@color/text_secondary"
-                        android:gravity="center" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="SI"
-                        android:textStyle="bold"
-                        android:textSize="12sp"
-                        android:textColor="@color/text_secondary"
-                        android:gravity="center" />
-                </TableRow>
-
-            </TableLayout>
-
-            <TextView
-                android:id="@+id/tvLapBreakdownEmptyCoach"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:text="No lap metrics available."
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- LAP COMPARISON CHARTS -->
             <TextView
@@ -545,6 +559,31 @@
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="@color/text" />
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/toggleLapChartMode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="6dp"
+                app:singleSelection="true"
+                app:selectionRequired="true">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnLapChartRegular"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Regular" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnLapChartDelta"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Δ vs Lap 1" />
+
+            </com.google.android.material.button.MaterialButtonToggleGroup>
 
             <com.google.android.material.tabs.TabLayout
                 android:id="@+id/tabLapCharts"
