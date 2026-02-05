@@ -155,6 +155,11 @@ class TeamRepository @Inject constructor(
                 error("Supabase update completed but teams.logo_path was not updated (teamId=$teamId)")
             }
 
+            val local = teamDao.getById(teamId.toInt())
+            if (local != null) {
+                teamDao.update(local.copy(logoPath = objectPath))
+            }
+
             objectPath
         }
     }

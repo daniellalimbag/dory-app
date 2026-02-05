@@ -136,16 +136,14 @@ class CreateTeamActivity : AppCompatActivity() {
 
                         val logoBytes = selectedLogoBytes
                         if (logoBytes != null) {
-                            lifecycleScope.launch {
-                                runCatching {
-                                    teamRepository.uploadTeamLogo(teamId = teamId.toLong(), byteArray = logoBytes)
-                                }.onFailure { e ->
-                                    Toast.makeText(
-                                        this@CreateTeamActivity,
-                                        e.message ?: "Logo upload failed",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
+                            runCatching {
+                                teamRepository.uploadTeamLogo(teamId = teamId.toLong(), byteArray = logoBytes)
+                            }.onFailure { e ->
+                                Toast.makeText(
+                                    this@CreateTeamActivity,
+                                    e.message ?: "Logo upload failed",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         }
 
