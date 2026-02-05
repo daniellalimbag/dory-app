@@ -33,6 +33,8 @@
             android:windowSoftInputMode="adjustPan"/>
         <activity android:name=".presentation.activities.CreateTeamActivity"
             android:windowSoftInputMode="adjustPan"/>
+        <activity android:name=".presentation.activities.EditTeamActivity"
+            android:windowSoftInputMode="adjustPan"/>
         <activity android:name=".presentation.activities.EnrollViaCodeActivity"
             android:windowSoftInputMode="adjustPan"/>
         <activity android:name=".presentation.activities.JoinTeamByCodeActivity"

@@ -29,6 +29,8 @@ import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.Team
 import com.thesisapp.presentation.adapters.CoachPagerAdapter
+import com.thesisapp.presentation.adapters.TeamSwitcherAdapter
+import com.thesisapp.data.repository.TeamRepository
 import com.thesisapp.utils.AuthManager
 import com.thesisapp.utils.UserRole
 import com.thesisapp.utils.animateClick
@@ -36,9 +38,12 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+
+    @Inject lateinit var teamRepository: TeamRepository
 
     private lateinit var db: AppDatabase
     private lateinit var tvTeamSwitcher: TextView
@@ -476,20 +481,29 @@ class MainActivity : AppCompatActivity() {
             val teamIds = if (user.role == UserRole.COACH) AuthManager.getCoachTeams(this@MainActivity, user.email) else AuthManager.getSwimmerTeams(this@MainActivity, user.email)
             val teams: List<Team> = teamIds.mapNotNull { db.teamDao().getById(it) }
             withContext(Dispatchers.Main) {
-                val items = mutableListOf<CharSequence>()
-                val actions = mutableListOf<() -> Unit>()
-
                 val iconTint = MaterialColors.getColor(
                     this@MainActivity,
                     com.google.android.material.R.attr.colorOnSurface,
                     0
                 )
-                
-                // Add existing teams
-                teams.forEach { team ->
-                    items.add(team.name)
-                    actions.add {
-                        AuthManager.setCurrentTeamId(this@MainActivity, team.id)
+
+                if (teams.isEmpty()) {
+                    Toast.makeText(this@MainActivity, "No teams", Toast.LENGTH_SHORT).show()
+                    return@withContext
+                }
+
+                val teamAdapter = TeamSwitcherAdapter(
+                    context = this@MainActivity,
+                    teams = teams,
+                    teamRepository = teamRepository,
+                    scope = lifecycleScope
+                )
+
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Team")
+                    .setAdapter(teamAdapter) { _, which ->
+                        val selected = teams[which]
+                        AuthManager.setCurrentTeamId(this@MainActivity, selected.id)
                         updateTopRow()
                         loadSwimmerCount()
                         val currentUser = AuthManager.currentUser(this@MainActivity)
@@ -499,55 +513,45 @@ class MainActivity : AppCompatActivity() {
                             updateSwimmerEmptyState()
                         }
                     }
-                }
-                
-                // Divider
-                if (teams.isNotEmpty()) {
-                    items.add("─────────────────")
-                    actions.add { /* No-op divider */ }
-                }
-                
-                // Team actions (only for coaches)
-                if (user.role == UserRole.COACH) {
-                    items.add(menuItemWithIcon(R.drawable.invite, "Invite Swimmer", iconTint))
-                    actions.add { showInviteSwimmerDialog() }
-                    
-                    items.add(menuItemWithIcon(R.drawable.swimmer, "Invite Coach", iconTint))
-                    actions.add { showInviteCoachDialog() }
-                    
-                    items.add(menuItemWithIcon(R.drawable.edit, "Edit Team", iconTint))
-                    actions.add { 
-                        // TODO: Navigate to EditTeamActivity when created
-                        Toast.makeText(this@MainActivity, "Edit team coming soon", Toast.LENGTH_SHORT).show()
+                    .setNeutralButton("Actions") { _, _ ->
+                        showTeamActionsDialog(iconTint)
                     }
-                    
-                    items.add("─────────────────")
-                    actions.add { /* No-op divider */ }
-                }
-                
-                // Create/Join team options
-                if (user.role == UserRole.COACH) {
-                    items.add("+ Create Team")
-                    actions.add { startActivity(Intent(this@MainActivity, CreateTeamActivity::class.java)) }
-                    
-                    items.add("+ Join Team via Code")
-                    actions.add { startActivity(Intent(this@MainActivity, JoinTeamByCodeActivity::class.java)) }
-                } else {
-                    items.add("+ Join Team via Code")
-                    actions.add { startActivity(Intent(this@MainActivity, EnrollViaCodeActivity::class.java)) }
-                }
-                
-                if (items.isEmpty()) {
-                    Toast.makeText(this@MainActivity, "No teams", Toast.LENGTH_SHORT).show()
-                    return@withContext
-                }
-                
-                AlertDialog.Builder(this@MainActivity)
-                    .setTitle("Team")
-                    .setItems(items.toTypedArray()) { _, which -> actions[which].invoke() }
                     .show()
             }
         }
+    }
+
+    private fun showTeamActionsDialog(iconTint: Int) {
+        val user = AuthManager.currentUser(this) ?: return
+        val items = mutableListOf<CharSequence>()
+        val actions = mutableListOf<() -> Unit>()
+
+        if (user.role == UserRole.COACH) {
+            items.add(menuItemWithIcon(R.drawable.invite, "Invite Swimmer", iconTint))
+            actions.add { showInviteSwimmerDialog() }
+
+            items.add(menuItemWithIcon(R.drawable.swimmer, "Invite Coach", iconTint))
+            actions.add { showInviteCoachDialog() }
+
+            items.add(menuItemWithIcon(R.drawable.edit, "Edit Team", iconTint))
+            actions.add {
+                startActivity(Intent(this@MainActivity, EditTeamActivity::class.java))
+            }
+
+            items.add("+ Create Team")
+            actions.add { startActivity(Intent(this@MainActivity, CreateTeamActivity::class.java)) }
+
+            items.add("+ Join Team via Code")
+            actions.add { startActivity(Intent(this@MainActivity, JoinTeamByCodeActivity::class.java)) }
+        } else {
+            items.add("+ Join Team via Code")
+            actions.add { startActivity(Intent(this@MainActivity, EnrollViaCodeActivity::class.java)) }
+        }
+
+        AlertDialog.Builder(this@MainActivity)
+            .setTitle("Team actions")
+            .setItems(items.toTypedArray()) { _, which -> actions[which].invoke() }
+            .show()
     }
 
     private fun showAccountMenu() {

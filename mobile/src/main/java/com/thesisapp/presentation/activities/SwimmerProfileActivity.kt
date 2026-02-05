@@ -17,15 +17,22 @@ import com.thesisapp.data.non_dao.Swimmer
 import com.thesisapp.data.non_dao.Team
 import com.thesisapp.data.non_dao.MlResult
 import com.thesisapp.presentation.adapters.SwimmerPagerAdapter
+import com.thesisapp.presentation.adapters.TeamSwitcherAdapter
+import com.thesisapp.data.repository.TeamRepository
 import com.thesisapp.utils.AuthManager
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class SwimmerProfileActivity : AppCompatActivity() {
+
+    @Inject lateinit var teamRepository: TeamRepository
 
     private lateinit var swimmer: Swimmer
     private lateinit var viewPager: ViewPager2
@@ -131,12 +138,24 @@ class SwimmerProfileActivity : AppCompatActivity() {
             val teamIds = AuthManager.getSwimmerTeams(this@SwimmerProfileActivity, user.email)
             val teams: List<Team> = teamIds.mapNotNull { db.teamDao().getById(it) }
             withContext(Dispatchers.Main) {
-                val baseNames = teams.map { it.name }.toMutableList()
-                val actions = mutableListOf<() -> Unit>()
-                teams.forEach { team ->
-                    actions.add {
+                if (teams.isEmpty()) {
+                    Toast.makeText(this@SwimmerProfileActivity, "No teams", Toast.LENGTH_SHORT).show()
+                    return@withContext
+                }
+
+                val teamAdapter = TeamSwitcherAdapter(
+                    context = this@SwimmerProfileActivity,
+                    teams = teams,
+                    teamRepository = teamRepository,
+                    scope = lifecycleScope
+                )
+
+                AlertDialog.Builder(this@SwimmerProfileActivity)
+                    .setTitle("Select Team")
+                    .setAdapter(teamAdapter) { _, which ->
+                        val team = teams[which]
                         AuthManager.setCurrentTeamId(this@SwimmerProfileActivity, team.id)
-                        // Reload the swimmer profile for the new team
+
                         val swimmerId = AuthManager.getLinkedSwimmerId(this@SwimmerProfileActivity, user.email, team.id)
                         if (swimmerId != null) {
                             lifecycleScope.launch(Dispatchers.IO) {
@@ -154,18 +173,9 @@ class SwimmerProfileActivity : AppCompatActivity() {
                             }
                         }
                     }
-                }
-                // Add option to enroll in another team
-                baseNames.add("+ Enroll in Another Team")
-                actions.add { startActivity(Intent(this@SwimmerProfileActivity, EnrollViaCodeActivity::class.java)) }
-
-                if (baseNames.isEmpty()) {
-                    Toast.makeText(this@SwimmerProfileActivity, "No teams", Toast.LENGTH_SHORT).show()
-                    return@withContext
-                }
-                AlertDialog.Builder(this@SwimmerProfileActivity)
-                    .setTitle("Select Team")
-                    .setItems(baseNames.toTypedArray()) { _, which -> actions[which].invoke() }
+                    .setNeutralButton("+ Enroll in Another Team") { _, _ ->
+                        startActivity(Intent(this@SwimmerProfileActivity, EnrollViaCodeActivity::class.java))
+                    }
                     .show()
             }
         }

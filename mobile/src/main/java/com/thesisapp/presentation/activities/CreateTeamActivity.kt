@@ -3,20 +3,24 @@ package com.thesisapp.presentation.activities
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.MotionEvent
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.thesisapp.R
 import com.thesisapp.data.repository.TeamRepository
 import com.thesisapp.utils.AuthManager
+
 import com.thesisapp.utils.animateClick
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.jan.supabase.SupabaseClient
@@ -30,6 +34,22 @@ class CreateTeamActivity : AppCompatActivity() {
     @Inject lateinit var teamRepository: TeamRepository
     @Inject lateinit var supabase: SupabaseClient
 
+    private var selectedLogoBytes: ByteArray? = null
+
+    private val pickImage = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        if (uri == null) return@registerForActivityResult
+        runCatching {
+            contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        }.onSuccess { bytes ->
+            if (bytes != null) {
+                selectedLogoBytes = bytes
+                findViewById<ImageView>(R.id.imgTeamLogo).setImageURI(uri)
+            }
+        }.onFailure {
+            Toast.makeText(this, "Unable to read image", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_create_team)
@@ -41,6 +61,7 @@ class CreateTeamActivity : AppCompatActivity() {
         val btnBack = findViewById<ImageButton>(R.id.btnBack)
         val btnSkip = findViewById<Button>(R.id.btnSkip)
         val btnCopyCode = findViewById<ImageButton>(R.id.btnCopyCode)
+        val btnPickLogo = findViewById<Button>(R.id.btnPickLogo)
         val progress = findViewById<ProgressBar>(R.id.progressCreateTeam)
 
         var currentCode = ""
@@ -63,6 +84,11 @@ class CreateTeamActivity : AppCompatActivity() {
         }
 
         btnBack.setOnClickListener { finish() }
+
+        btnPickLogo.setOnClickListener {
+            it.animateClick()
+            pickImage.launch("image/*")
+        }
 
         btnSkip.setOnClickListener {
             // Skip team creation and go to main activity
@@ -106,6 +132,21 @@ class CreateTeamActivity : AppCompatActivity() {
                         if (teamId == null) {
                             Toast.makeText(this@CreateTeamActivity, "Team created but invalid team id", Toast.LENGTH_LONG).show()
                             return@onSuccess
+                        }
+
+                        val logoBytes = selectedLogoBytes
+                        if (logoBytes != null) {
+                            lifecycleScope.launch {
+                                runCatching {
+                                    teamRepository.uploadTeamLogo(teamId = teamId.toLong(), byteArray = logoBytes)
+                                }.onFailure { e ->
+                                    Toast.makeText(
+                                        this@CreateTeamActivity,
+                                        e.message ?: "Logo upload failed",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
                         }
 
                         val user = AuthManager.currentUser(this@CreateTeamActivity)

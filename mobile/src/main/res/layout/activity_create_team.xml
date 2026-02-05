@@ -31,6 +31,23 @@
         android:layout_marginTop="16dp"
         android:hint="Team name"/>
 
+    <ImageView
+        android:id="@+id/imgTeamLogo"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_marginTop="16dp"
+        android:src="@drawable/ic_logo"
+        android:contentDescription="Team Logo"
+        android:scaleType="centerCrop" />
+
+    <Button
+        android:id="@+id/btnPickLogo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Choose Logo"
+        style="@style/Widget.Material3.Button.TextButton"/>
+
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

@@ -8,6 +8,7 @@ import kotlinx.serialization.SerialName
 data class Team(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String,
-    @SerialName("join_code") val joinCode: String
+    @SerialName("join_code") val joinCode: String,
+    @SerialName("logo_path") val logoPath: String? = null
 )
 

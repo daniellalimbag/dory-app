@@ -32,7 +32,7 @@ import com.thesisapp.data.non_dao.User
 
 @Database(
     entities = [Team::class, User::class, Coach::class, Swimmer::class, TeamMembership::class, Exercise::class, SwimData::class, MlResult::class, TeamInvitation::class, Goal::class, GoalProgress::class],
-    version = 23,
+    version = 24,
     exportSchema = false
 )
 @TypeConverters(RoomConverters::class)
@@ -122,6 +122,13 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // New column for Team.logoPath
+                db.execSQL("ALTER TABLE `teams` ADD COLUMN `logoPath` TEXT")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -130,7 +137,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "swimmer_db"
                 )
                     .fallbackToDestructiveMigration()
-                    .addMigrations(MIGRATION_22_23)
+                    .addMigrations(MIGRATION_22_23, MIGRATION_23_24)
                     .build().also { INSTANCE = it }
             }
         }

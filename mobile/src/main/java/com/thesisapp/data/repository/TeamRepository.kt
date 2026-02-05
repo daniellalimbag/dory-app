@@ -4,6 +4,8 @@ import com.thesisapp.data.dao.TeamDao
 import com.thesisapp.data.non_dao.Team
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.storage.storage
+import io.ktor.http.ContentType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -11,6 +13,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlin.time.Duration.Companion.minutes
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,7 +32,8 @@ class TeamRepository @Inject constructor(
     private data class RemoteTeamRow(
         val id: Int,
         val name: String,
-        @SerialName("join_code") val joinCode: String
+        @SerialName("join_code") val joinCode: String,
+        @SerialName("logo_path") val logoPath: String? = null
     )
 
     @Serializable
@@ -107,12 +111,87 @@ class TeamRepository @Inject constructor(
                     Team(
                         id = remoteTeam.id,
                         name = remoteTeam.name,
-                        joinCode = remoteTeam.joinCode
+                        joinCode = remoteTeam.joinCode,
+                        logoPath = remoteTeam.logoPath
                     )
                 )
 
                 remoteTeam.id.toString()
             }
+        }
+    }
+
+    suspend fun uploadTeamLogo(teamId: Long, byteArray: ByteArray): String {
+        return withContext(Dispatchers.IO) {
+            val objectPath = "logos/$teamId/logo.png"
+
+            supabase.storage.from("team-logos").upload(
+                path = objectPath,
+                data = byteArray
+            ) {
+                upsert = true
+                contentType = ContentType.Image.PNG
+            }
+
+            val updatePayload = buildJsonObject {
+                put("logo_path", objectPath)
+            }
+
+            supabase.from("teams").update(updatePayload) {
+                filter {
+                    eq("id", teamId)
+                }
+            }
+
+            val verifyJson = supabase.from("teams").select {
+                filter {
+                    eq("id", teamId)
+                }
+                limit(1)
+            }.data
+
+            val updated = verifyJson.contains(objectPath)
+            if (!updated) {
+                error("Supabase update completed but teams.logo_path was not updated (teamId=$teamId)")
+            }
+
+            objectPath
+        }
+    }
+
+    suspend fun updateTeamName(teamId: Long, newName: String) {
+        withContext(Dispatchers.IO) {
+            val updatePayload = buildJsonObject {
+                put("name", newName)
+            }
+
+            supabase.from("teams").update(updatePayload) {
+                filter {
+                    eq("id", teamId)
+                }
+            }
+
+            val verifyJson = supabase.from("teams").select {
+                filter { eq("id", teamId) }
+                limit(1)
+            }.data
+
+            if (!verifyJson.contains(newName)) {
+                error("Supabase update completed but teams.name was not updated (teamId=$teamId)")
+            }
+
+            val local = teamDao.getById(teamId.toInt())
+            if (local != null) {
+                teamDao.update(local.copy(name = newName))
+            }
+        }
+    }
+
+    suspend fun getTeamLogoSignedUrl(logoPath: String): String {
+        return withContext(Dispatchers.IO) {
+            supabase.storage
+                .from("team-logos")
+                .createSignedUrl(path = logoPath, expiresIn = 10.minutes)
         }
     }
 

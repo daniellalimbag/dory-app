@@ -82,7 +82,8 @@ class AuthRepository @Inject constructor(
     private data class RemoteTeamRow(
         val id: Int,
         val name: String,
-        @SerialName("join_code") val joinCode: String
+        @SerialName("join_code") val joinCode: String,
+        @SerialName("logo_path") val logoPath: String? = null
     )
 
     suspend fun signUp(
@@ -209,7 +210,14 @@ class AuthRepository @Inject constructor(
             val remoteTeam = json.decodeFromString<List<RemoteTeamRow>>(teamJson).firstOrNull()
             if (remoteTeam != null) {
                 withContext(Dispatchers.IO) {
-                    teamDao.insert(Team(id = remoteTeam.id, name = remoteTeam.name, joinCode = remoteTeam.joinCode))
+                    teamDao.insert(
+                        Team(
+                            id = remoteTeam.id,
+                            name = remoteTeam.name,
+                            joinCode = remoteTeam.joinCode,
+                            logoPath = remoteTeam.logoPath
+                        )
+                    )
                 }
             }
         }
@@ -302,7 +310,14 @@ class AuthRepository @Inject constructor(
                         }.data
                         val remoteTeam = json.decodeFromString<List<RemoteTeamRow>>(teamJson).firstOrNull()
                         if (remoteTeam != null) {
-                            teamDao.insert(Team(id = remoteTeam.id, name = remoteTeam.name, joinCode = remoteTeam.joinCode))
+                            teamDao.insert(
+                                Team(
+                                    id = remoteTeam.id,
+                                    name = remoteTeam.name,
+                                    joinCode = remoteTeam.joinCode,
+                                    logoPath = remoteTeam.logoPath
+                                )
+                            )
                         }
 
                         val existingMembership = teamMembershipDao.getMembership(teamId = teamId, swimmerId = swimmerId)
