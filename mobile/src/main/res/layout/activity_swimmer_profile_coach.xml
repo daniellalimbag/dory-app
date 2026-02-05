@@ -535,22 +535,28 @@
                 android:textSize="13sp"
                 android:textColor="@color/text_secondary" />
 
-            <!-- SESSION DRILLDOWN CHART -->
+            <!-- LAP COMPARISON CHARTS -->
             <TextView
                 android:id="@+id/tvSessionDrilldownTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Session Drilldown"
+                android:text="Lap Comparisons"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="@color/text" />
 
-            <com.github.mikephil.charting.charts.BarChart
-                android:id="@+id/sessionDrilldownChart"
+            <com.google.android.material.tabs.TabLayout
+                android:id="@+id/tabLapCharts"
                 android:layout_width="match_parent"
-                android:layout_height="200dp"
-                android:layout_marginTop="4dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:layout_marginBottom="6dp" />
+
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/pagerLapCharts"
+                android:layout_width="match_parent"
+                android:layout_height="260dp"
                 android:layout_marginBottom="16dp" />
 
             <!-- EXERCISE LIST SECTION -->

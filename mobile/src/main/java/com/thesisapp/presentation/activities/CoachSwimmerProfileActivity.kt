@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.widget.ViewPager2
 import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
@@ -19,8 +20,11 @@ import com.github.mikephil.charting.data.*
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
 import com.google.android.material.card.MaterialCardView
+import com.google.android.material.tabs.TabLayout
+import com.google.android.material.tabs.TabLayoutMediator
 import com.thesisapp.R
 import com.thesisapp.data.*
+import com.thesisapp.presentation.adapters.LapChartsPagerAdapter
 import com.thesisapp.presentation.adapters.SessionListAdapter
 import com.thesisapp.presentation.fragments.SetGoalDialogFragment
 import com.thesisapp.utils.StrokeMetrics
@@ -70,8 +74,10 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     private lateinit var performanceChart: LineChart
     private lateinit var velocityChart: LineChart
     private lateinit var heartRateChart: BarChart
-    private lateinit var sessionDrilldownChart: BarChart
     private lateinit var tvSessionDrilldownTitle: TextView
+    private lateinit var tabLapCharts: TabLayout
+    private lateinit var pagerLapCharts: ViewPager2
+    private var lapChartsMediator: TabLayoutMediator? = null
     private lateinit var tvStrokeCount: TextView
     private lateinit var tvStrokeLength: TextView
     private lateinit var tvDistance: TextView
@@ -141,7 +147,8 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         tableLapBreakdownCoach = findViewById(R.id.tableLapBreakdownCoach)
         tvLapBreakdownEmptyCoach = findViewById(R.id.tvLapBreakdownEmptyCoach)
         tvSessionDrilldownTitle = findViewById(R.id.tvSessionDrilldownTitle)
-        sessionDrilldownChart = findViewById(R.id.sessionDrilldownChart)
+        tabLapCharts = findViewById(R.id.tabLapCharts)
+        pagerLapCharts = findViewById(R.id.pagerLapCharts)
         
         exerciseListRecycler = findViewById(R.id.exerciseListRecycler)
         
@@ -553,8 +560,16 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
                     tvLapBreakdownTitleCoach.visibility = View.VISIBLE
                     tableLapBreakdownCoach.visibility = View.VISIBLE
                     tvLapBreakdownEmptyCoach.visibility = View.GONE
-                    tvSessionDrilldownTitle.visibility = View.VISIBLE
-                    sessionDrilldownChart.visibility = View.VISIBLE
+
+                    if (lapMetrics.size > 1) {
+                        tvSessionDrilldownTitle.visibility = View.VISIBLE
+                        tabLapCharts.visibility = View.VISIBLE
+                        pagerLapCharts.visibility = View.VISIBLE
+                    } else {
+                        tvSessionDrilldownTitle.visibility = View.GONE
+                        tabLapCharts.visibility = View.GONE
+                        pagerLapCharts.visibility = View.GONE
+                    }
                 } else {
                     tvStrokeCount.text = "--"
                     tvStrokeLength.text = "--"
@@ -566,7 +581,8 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
                     tableLapBreakdownCoach.visibility = View.GONE
                     tvLapBreakdownEmptyCoach.visibility = View.VISIBLE
                     tvSessionDrilldownTitle.visibility = View.GONE
-                    sessionDrilldownChart.visibility = View.GONE
+                    tabLapCharts.visibility = View.GONE
+                    pagerLapCharts.visibility = View.GONE
                 }
 
                 // Display duration
@@ -577,101 +593,45 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
                 if (lapMetrics.isNotEmpty()) {
                     setupPerformanceChart(lapMetrics)
                     setupVelocityChart(lapMetrics)
-                    setupSessionDrilldownChart(lapMetrics)
+                    setupLapChartsPager(lapMetrics)
                 } else {
                     performanceChart.clear()
                     velocityChart.clear()
-                    sessionDrilldownChart.clear()
+                    lapChartsMediator?.detach()
+                    lapChartsMediator = null
+                    pagerLapCharts.adapter = null
                 }
                 setupHeartRateChart(session)
             }
         }
     }
 
-    private fun setupSessionDrilldownChart(lapMetrics: List<StrokeMetrics.LapMetrics>) {
-        if (lapMetrics.isEmpty()) {
-            sessionDrilldownChart.clear()
+    private fun setupLapChartsPager(lapMetrics: List<StrokeMetrics.LapMetrics>) {
+        if (lapMetrics.size <= 1) {
+            lapChartsMediator?.detach()
+            lapChartsMediator = null
+            pagerLapCharts.adapter = null
+            tabLapCharts.visibility = View.GONE
+            pagerLapCharts.visibility = View.GONE
             return
         }
 
-        val axisTextColor = getColor(R.color.text)
-        val secondaryTextColor = getColor(R.color.text_secondary)
+        val adapter = LapChartsPagerAdapter(
+            context = this,
+            lapMetrics = lapMetrics
+        )
+        pagerLapCharts.adapter = adapter
 
-        val strokeEntries = mutableListOf<BarEntry>()
-        val strokeRateEntries = mutableListOf<BarEntry>()
-        val velocityEntries = mutableListOf<BarEntry>()
-
-        lapMetrics.forEachIndexed { index, m ->
-            val x = index.toFloat()
-            strokeEntries.add(BarEntry(x, m.strokeCount.toFloat()))
-            strokeRateEntries.add(BarEntry(x, m.strokeRateSpm.toFloat()))
-            velocityEntries.add(BarEntry(x, m.velocityMetersPerSecond.toFloat()))
+        lapChartsMediator?.detach()
+        lapChartsMediator = TabLayoutMediator(tabLapCharts, pagerLapCharts) { tab, position ->
+            tab.text = adapter.getTabTitle(position)
         }
+        lapChartsMediator?.attach()
 
-        val strokeSet = BarDataSet(strokeEntries, "Strokes").apply {
-            color = getColor(R.color.primary)
-            valueTextSize = 10f
-            setDrawValues(false)
-        }
-
-        val rateSet = BarDataSet(strokeRateEntries, "Stroke Rate (spm)").apply {
-            color = getColor(R.color.accent)
-            valueTextSize = 10f
-            setDrawValues(false)
-        }
-
-        val velocitySet = BarDataSet(velocityEntries, "Velocity (m/s)").apply {
-            color = getColor(R.color.error)
-            valueTextSize = 10f
-            setDrawValues(false)
-        }
-
-        val data = BarData(strokeSet, rateSet, velocitySet)
-
-        // Configure grouped bars
-        val groupSpace = 0.2f
-        val barSpace = 0.02f
-        val barWidth = (1f - groupSpace) / 3f - barSpace
-        data.barWidth = barWidth.coerceAtMost(0.3f)
-
-        sessionDrilldownChart.data = data
-        sessionDrilldownChart.description.isEnabled = false
-        sessionDrilldownChart.setTouchEnabled(true)
-        sessionDrilldownChart.setScaleEnabled(false)
-        sessionDrilldownChart.legend.apply {
-            isEnabled = true
-            textSize = 11f
-            textColor = axisTextColor
-        }
-
-        val xAxis = sessionDrilldownChart.xAxis
-        xAxis.position = XAxis.XAxisPosition.BOTTOM
-        xAxis.setDrawGridLines(false)
-        xAxis.granularity = 1f
-        xAxis.textSize = 10f
-        xAxis.textColor = secondaryTextColor
-        xAxis.axisMinimum = 0f
-        xAxis.axisMaximum = lapMetrics.size.toFloat()
-        xAxis.valueFormatter = object : ValueFormatter() {
-            override fun getFormattedValue(value: Float): String {
-                val idx = value.toInt()
-                return if (idx in 0 until lapMetrics.size) "Lap ${idx + 1}" else ""
-            }
-        }
-
-        sessionDrilldownChart.axisLeft.apply {
-            axisMinimum = 0f
-            setDrawGridLines(true)
-            textSize = 10f
-            textColor = secondaryTextColor
-        }
-        sessionDrilldownChart.axisRight.isEnabled = false
-        sessionDrilldownChart.setNoDataTextColor(axisTextColor)
-        sessionDrilldownChart.groupBars(0f, groupSpace, barSpace)
-        sessionDrilldownChart.animateY(800)
-        sessionDrilldownChart.invalidate()
+        tabLapCharts.visibility = View.VISIBLE
+        pagerLapCharts.visibility = View.VISIBLE
     }
-    
+
     private fun formatTime(seconds: Float): String {
         val minutes = (seconds / 60).toInt()
         val secs = seconds % 60
@@ -681,7 +641,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             String.format("%.2fs", secs)
         }
     }
-    
+
     private fun calculateDuration(timeStart: String, timeEnd: String): String {
         return try {
             val parts1 = timeStart.split(":")
@@ -698,7 +658,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             "--"
         }
     }
-    
+
     private fun setupPerformanceChart(lapMetrics: List<StrokeMetrics.LapMetrics>) {
         val axisTextColor = getColor(R.color.text)
         val secondaryTextColor = getColor(R.color.text_secondary)
