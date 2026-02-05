@@ -44,6 +44,9 @@ class CategorizeSessionActivity : AppCompatActivity() {
     private var contexts = mutableListOf<Pair<String, Int?>>() // (name, teamId or null for personal)
     private var exercises = mutableListOf<Exercise>()
 
+    private var desiredContextTeamId: Int? = null
+    private var desiredExerciseId: Int? = null
+
     private val energyZones = listOf("Select Zone", "REC", "EN1", "EN2", "EN3", "SP1", "SP2", "SP3")
     private val seasonPhases = listOf("Select Phase", "Preparation", "Loading", "Taper", "Competition", "Recovery")
 
@@ -109,8 +112,14 @@ class CategorizeSessionActivity : AppCompatActivity() {
     private fun prefillData() {
         lifecycleScope.launch(Dispatchers.IO) {
             val session = db.mlResultDao().getBySessionId(sessionId)
+
+            desiredExerciseId = session.exerciseId
+            desiredContextTeamId = session.exerciseId?.let { exId ->
+                db.exerciseDao().getById(exId)?.teamId
+            }
+
             withContext(Dispatchers.Main) {
-                session?.let {
+                session.let {
                     it.heartRateBefore?.let { hr -> inputHrBefore.setText(hr.toString()) }
                     it.heartRateAfter?.let { hr -> inputHrAfter.setText(hr.toString()) }
                     
@@ -155,11 +164,14 @@ class CategorizeSessionActivity : AppCompatActivity() {
                 )
                 adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
                 spinnerContext.adapter = adapter
-                
-                // Load exercises for first context
-                if (contexts.isNotEmpty()) {
-                    loadExercisesForContext(0)
-                }
+
+                // Prefer the context where the existing exercise belongs (personal vs team)
+                val desiredIdx = contexts.indexOfFirst { it.second == desiredContextTeamId }
+                    .takeIf { it >= 0 }
+                    ?: 0
+
+                spinnerContext.setSelection(desiredIdx)
+                loadExercisesForContext(desiredIdx)
             }
         }
     }
@@ -210,6 +222,13 @@ class CategorizeSessionActivity : AppCompatActivity() {
                 )
                 adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
                 spinnerExercise.adapter = adapter
+
+                desiredExerciseId?.let { exId ->
+                    val idx = exercises.indexOfFirst { it.id == exId }
+                    if (idx >= 0) {
+                        spinnerExercise.setSelection(idx)
+                    }
+                }
             }
         }
     }

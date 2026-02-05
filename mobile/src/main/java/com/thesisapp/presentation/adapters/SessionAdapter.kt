@@ -53,8 +53,13 @@ class SessionAdapter(
             val isUncategorized = session.exerciseName == null || session.exerciseName == "Uncategorized"
             tvExerciseName.text = if (isUncategorized) "⚠️ Uncategorized" else session.exerciseName
 
-            // Show categorize button if uncategorized
-            btnCategorize?.visibility = if (isUncategorized) View.VISIBLE else View.GONE
+            // Allow categorization/editing for all sessions
+            btnCategorize?.visibility = View.VISIBLE
+            btnCategorize?.text = if (isUncategorized) {
+                "📋 Categorize This Session"
+            } else {
+                "✏️ Edit Session Details"
+            }
             btnCategorize?.setOnClickListener {
                 val intent = Intent(itemView.context, CategorizeSessionActivity::class.java)
                 intent.putExtra("sessionId", session.sessionId)
@@ -68,14 +73,9 @@ class SessionAdapter(
             // Duration
             tvDuration.text = calculateDuration(session.timeStart, session.timeEnd)
 
-            // Only allow clicking to view details if categorized
-            if (isUncategorized) {
-                itemView.setOnClickListener(null)
-                itemView.isClickable = false
-            } else {
-                itemView.setOnClickListener { onClick(session) }
-                itemView.isClickable = true
-            }
+            // Always allow opening session details
+            itemView.setOnClickListener { onClick(session) }
+            itemView.isClickable = true
         }
 
         private fun calculateDuration(startTime: String, endTime: String): String {

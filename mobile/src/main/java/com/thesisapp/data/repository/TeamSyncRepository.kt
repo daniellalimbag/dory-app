@@ -2,8 +2,11 @@ package com.thesisapp.data.repository
 
 import com.thesisapp.data.dao.SwimmerDao
 import com.thesisapp.data.dao.TeamMembershipDao
+import com.thesisapp.data.dao.UserDao
 import com.thesisapp.data.non_dao.Swimmer
 import com.thesisapp.data.non_dao.TeamMembership
+import com.thesisapp.data.non_dao.User
+import com.thesisapp.data.non_dao.UserRole
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.async
@@ -21,7 +24,8 @@ import javax.inject.Singleton
 class TeamSyncRepository @Inject constructor(
     private val supabase: SupabaseClient,
     private val swimmerDao: SwimmerDao,
-    private val membershipDao: TeamMembershipDao
+    private val membershipDao: TeamMembershipDao,
+    private val userDao: UserDao
 ) {
 
     private val json = Json {
@@ -78,6 +82,16 @@ class TeamSyncRepository @Inject constructor(
                         }
                     }.awaitAll().filterNotNull()
                 }
+            }
+
+            remoteSwimmers.forEach { rs ->
+                userDao.insertUser(
+                    User(
+                        id = rs.userId,
+                        email = "remote-${rs.userId}@supabase",
+                        role = UserRole.SWIMMER
+                    )
+                )
             }
 
             // Upsert swimmers (preserve local schema; map category string to ExerciseCategory name)
