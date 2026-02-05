@@ -26,7 +26,10 @@ import com.thesisapp.utils.animateClick
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -66,6 +69,11 @@ class CreateTeamActivity : AppCompatActivity() {
         val btnPickLogo = findViewById<Button>(R.id.btnPickLogo)
         val progress = findViewById<ProgressBar>(R.id.progressCreateTeam)
 
+        val role = AuthManager.currentUser(this)?.role
+        if (role == com.thesisapp.utils.UserRole.COACH) {
+            btnSkip.visibility = android.view.View.GONE
+        }
+
         var currentCode = ""
         txtCode.text = ""
         btnGenerate.isEnabled = false
@@ -82,7 +90,27 @@ class CreateTeamActivity : AppCompatActivity() {
 
         btnGenerate.setOnClickListener {
             it.animateClick()
-            Toast.makeText(this, "Code will be generated after team creation", Toast.LENGTH_SHORT).show()
+            val teamId = createdTeamId
+            if (teamId == null) {
+                Toast.makeText(this, "Create team first", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            btnGenerate.isEnabled = false
+            lifecycleScope.launch {
+                runCatching {
+                    teamRepository.regenerateTeamJoinCode(teamId = teamId.toLong())
+                }.onSuccess { newCode ->
+                    currentCode = newCode
+                    txtCode.text = newCode
+                    btnCopyCode.isEnabled = true
+                    Toast.makeText(this@CreateTeamActivity, "Join code reset", Toast.LENGTH_SHORT).show()
+                }.onFailure { e ->
+                    Toast.makeText(this@CreateTeamActivity, e.message ?: "Failed to regenerate code", Toast.LENGTH_LONG).show()
+                }
+
+                btnGenerate.isEnabled = true
+            }
         }
 
         btnBack.setOnClickListener { finish() }
@@ -164,10 +192,18 @@ class CreateTeamActivity : AppCompatActivity() {
                             AuthManager.setCurrentTeamId(this@CreateTeamActivity, teamId)
                         }
 
-                        lifecycleScope.launch {
-                            val db = AppDatabase.getInstance(this@CreateTeamActivity)
-                            val team = db.teamDao().getById(teamId)
+                        val db = AppDatabase.getInstance(this@CreateTeamActivity)
+                        val team = withContext(Dispatchers.IO) {
+                            var loaded = db.teamDao().getById(teamId)
+                            repeat(10) {
+                                if (loaded != null) return@withContext loaded
+                                delay(50)
+                                loaded = db.teamDao().getById(teamId)
+                            }
+                            loaded
+                        }
 
+                        withContext(Dispatchers.Main) {
                             if (team != null) {
                                 currentCode = team.joinCode
                                 txtCode.text = team.joinCode

@@ -192,6 +192,36 @@ class TeamRepository @Inject constructor(
         }
     }
 
+    suspend fun regenerateTeamJoinCode(teamId: Long): String {
+        return withContext(Dispatchers.IO) {
+            val newJoinCode = generateUniqueJoinCode(length = 6)
+
+            val updatePayload = buildJsonObject {
+                put("join_code", newJoinCode)
+            }
+
+            supabase.from("teams").update(updatePayload) {
+                filter { eq("id", teamId) }
+            }
+
+            val verifyJson = supabase.from("teams").select {
+                filter { eq("id", teamId) }
+                limit(1)
+            }.data
+
+            if (!verifyJson.contains(newJoinCode)) {
+                error("Supabase update completed but teams.join_code was not updated (teamId=$teamId)")
+            }
+
+            val local = teamDao.getById(teamId.toInt())
+            if (local != null) {
+                teamDao.update(local.copy(joinCode = newJoinCode))
+            }
+
+            newJoinCode
+        }
+    }
+
     suspend fun getTeamLogoSignedUrl(logoPath: String): String {
         return withContext(Dispatchers.IO) {
             supabase.storage

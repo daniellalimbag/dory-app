@@ -44,12 +44,7 @@ class SwimmerProfileFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         swimmer?.let { swimmer ->
-            view.findViewById<ImageView>(R.id.profileImage).setImageResource(
-                if (swimmer.sex.equals("Male", ignoreCase = true))
-                    R.drawable.ic_profile_male
-                else
-                    R.drawable.ic_profile_female
-            )
+            view.findViewById<ImageView>(R.id.profileImage).setImageResource(R.drawable.profile)
 
             view.findViewById<TextView>(R.id.swimmerName).text = swimmer.name
 
