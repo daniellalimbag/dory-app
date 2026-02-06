@@ -7,8 +7,10 @@ import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.switchmaterial.SwitchMaterial
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
+import com.thesisapp.utils.ThemeManager
 import com.thesisapp.utils.animateClick
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +25,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var btnExport: LinearLayout
     private lateinit var btnClearAllData: LinearLayout
     private lateinit var btnClearAll: LinearLayout
+    private lateinit var rowDarkMode: LinearLayout
+    private lateinit var switchDarkMode: SwitchMaterial
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +38,17 @@ class SettingsActivity : AppCompatActivity() {
         btnExport = findViewById(R.id.btnExport)
         btnClearAllData = findViewById(R.id.btnClearAllData)
         btnClearAll = findViewById(R.id.btnClearAll)
+        rowDarkMode = findViewById(R.id.rowDarkMode)
+        switchDarkMode = findViewById(R.id.switchDarkMode)
+
+        switchDarkMode.isChecked = ThemeManager.isDarkModeEnabled(this)
+        rowDarkMode.setOnClickListener {
+            it.animateClick()
+            switchDarkMode.isChecked = !switchDarkMode.isChecked
+        }
+        switchDarkMode.setOnCheckedChangeListener { _, isChecked ->
+            ThemeManager.setDarkModeEnabled(this, isChecked)
+        }
 
         btnProfile.setOnClickListener {
             it.animateClick()
