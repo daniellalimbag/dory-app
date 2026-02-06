@@ -192,21 +192,33 @@ class SwimSessionUploadRepository @Inject constructor(
             put("notes", session.notes)
         }
 
-        val existingJson = supabase.from("swim_sessions").select {
-            filter { eq("session_id", session.sessionId) }
-            limit(1)
-        }.data
-
-        val exists = runCatching {
-            existingJson.trim().startsWith("[") && existingJson != "[]"
-        }.getOrDefault(false)
-
-        if (exists) {
-            supabase.from("swim_sessions").update(payload) {
+        try {
+            val existingJson = supabase.from("swim_sessions").select {
                 filter { eq("session_id", session.sessionId) }
+                limit(1)
+            }.data
+
+            val exists = runCatching {
+                existingJson.trim().startsWith("[") && existingJson != "[]"
+            }.getOrDefault(false)
+
+            if (exists) {
+                supabase.from("swim_sessions").update(payload) {
+                    filter { eq("session_id", session.sessionId) }
+                }
+            } else {
+                supabase.from("swim_sessions").insert(payload)
             }
-        } else {
-            supabase.from("swim_sessions").insert(payload)
+        } catch (e: Exception) {
+            // If insert fails due to duplicate key, try update instead
+            if (e.message?.contains("duplicate key") == true || e.message?.contains("unique constraint") == true) {
+                Log.d("DEBUG", "Duplicate session_id detected, updating instead")
+                supabase.from("swim_sessions").update(payload) {
+                    filter { eq("session_id", session.sessionId) }
+                }
+            } else {
+                throw e
+            }
         }
     }
 

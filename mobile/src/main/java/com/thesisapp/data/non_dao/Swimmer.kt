@@ -34,5 +34,6 @@ data class Swimmer(
     val sex: String, // "Male" or "Female"
     val wingspan: Float, // in cm
     val category: ExerciseCategory = ExerciseCategory.SPRINT, // SPRINT or DISTANCE
-    val specialty: String? = null // e.g., "Butterfly", "Individual Medley"
+    val specialty: String? = null, // e.g., "Butterfly", "Individual Medley"
+    @SerialName("primary_stroke") val primaryStroke: String? = "FREESTYLE" // S1 - primary stroke
 ) : Parcelable

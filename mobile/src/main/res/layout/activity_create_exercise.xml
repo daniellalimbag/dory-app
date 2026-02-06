@@ -165,6 +165,46 @@
             android:layout_gravity="center"
             android:layout_marginBottom="24dp" />
 
+        <!-- Stroke Type -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Stroke Type"
+            android:textSize="14sp"
+            android:textColor="@color/text"
+            android:layout_marginBottom="8dp" />
+
+        <Spinner
+            android:id="@+id/spinnerStrokeType"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@drawable/spinner_background"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:layout_marginBottom="16dp" />
+
+        <!-- Target Time (Auto-calculated) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Target Time (per rep)"
+            android:textSize="14sp"
+            android:textColor="@color/text"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/tvTargetTime"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@drawable/spinner_background"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:gravity="center_vertical"
+            android:text="Auto-calculated from PB"
+            android:textSize="16sp"
+            android:textColor="@color/text_secondary"
+            android:layout_marginBottom="24dp" />
+
         <!-- Buttons -->
         <LinearLayout
             android:layout_width="match_parent"

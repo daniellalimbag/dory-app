@@ -44,12 +44,16 @@ class CreateExerciseActivity : AppCompatActivity() {
     private lateinit var etRestTime: TextInputEditText
     private lateinit var seekBarEffort: SeekBar
     private lateinit var tvEffortValue: TextView
+    private lateinit var spinnerStrokeType: Spinner
+    private lateinit var tvTargetTime: TextView
     private lateinit var btnCreate: Button
     private lateinit var btnCancel: Button
 
     private var exerciseId: Int = -1
+    private var currentSwimmerId: Int? = null
 
     private val effortZones = listOf("REC", "EN1", "EN2", "EN3", "SP1", "SP2", "SP3")
+    private val strokeTypes = listOf("S1 (Primary)", "FREESTYLE", "BACKSTROKE", "BREASTSTROKE", "BUTTERFLY", "IM")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,6 +72,8 @@ class CreateExerciseActivity : AppCompatActivity() {
         etRestTime = findViewById(R.id.etRestTime)
         seekBarEffort = findViewById(R.id.seekBarEffort)
         tvEffortValue = findViewById(R.id.tvEffortValue)
+        spinnerStrokeType = findViewById(R.id.spinnerStrokeType)
+        tvTargetTime = findViewById(R.id.tvTargetTime)
         btnCreate = findViewById(R.id.btnCreate)
         btnCancel = findViewById(R.id.btnCancel)
 
@@ -94,16 +100,51 @@ class CreateExerciseActivity : AppCompatActivity() {
             if (idx >= 0) spinnerCategory.setSelection(idx)
         }
 
+        // Setup stroke type spinner
+        val strokeAdapter = object : ArrayAdapter<String>(this, R.layout.spinner_item, strokeTypes) {
+            override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+                val view = super.getView(position, convertView, parent)
+                (view as? TextView)?.setTextColor(getColor(R.color.text))
+                return view
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+                val view = super.getDropDownView(position, convertView, parent)
+                (view as? TextView)?.setTextColor(getColor(R.color.text))
+                return view
+            }
+        }
+        strokeAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
+        spinnerStrokeType.adapter = strokeAdapter
+
+        spinnerStrokeType.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                (view as? TextView)?.setTextColor(getColor(R.color.text))
+                calculateTargetTime()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
         // Setup effort seekbar
         seekBarEffort.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 tvEffortValue.text = effortZones.getOrNull(progress) ?: effortZones.first()
+                calculateTargetTime()
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
 
         tvEffortValue.text = effortZones.getOrNull(seekBarEffort.progress) ?: effortZones.first()
+
+        // Add text change listeners for distance to recalculate target time
+        etDistance.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                calculateTargetTime()
+            }
+        })
 
         btnCancel.setOnClickListener {
             finish()
@@ -151,6 +192,20 @@ class CreateExerciseActivity : AppCompatActivity() {
         val sets = etSets.text.toString().toIntOrNull() ?: 1
         val restTime = etRestTime.text.toString().toIntOrNull() ?: 0
         val effort = effortZoneIndexToPercent(seekBarEffort.progress)
+        val strokeType = strokeTypes.getOrNull(spinnerStrokeType.selectedItemPosition)
+        val targetTimeText = tvTargetTime.text.toString()
+        val targetTime = if (targetTimeText.contains(":")) {
+            try {
+                val parts = targetTimeText.split(":")
+                val minutes = parts[0].toFloat()
+                val seconds = parts[1].toFloat()
+                minutes * 60 + seconds
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
 
         if (name.isEmpty()) {
             Toast.makeText(this, "Please enter an exercise name", Toast.LENGTH_SHORT).show()
@@ -212,7 +267,9 @@ class CreateExerciseActivity : AppCompatActivity() {
                                 sets = sets,
                                 distance = distance,
                                 restTime = restTime,
-                                effortLevel = effort
+                                effortLevel = effort,
+                                strokeType = strokeType,
+                                targetTime = targetTime
                             )
                         )
                     }
@@ -232,7 +289,9 @@ class CreateExerciseActivity : AppCompatActivity() {
                                 sets = sets,
                                 distance = distance,
                                 restTime = restTime,
-                                effortLevel = effort
+                                effortLevel = effort,
+                                strokeType = strokeType,
+                                targetTime = targetTime
                             )
                             db.exerciseDao().insert(exercise)
                         } catch (e: Exception) {
@@ -247,7 +306,9 @@ class CreateExerciseActivity : AppCompatActivity() {
                                 sets = sets,
                                 distance = distance,
                                 restTime = restTime,
-                                effortLevel = effort
+                                effortLevel = effort,
+                                strokeType = strokeType,
+                                targetTime = targetTime
                             )
                             db.exerciseDao().insert(exercise)
                         }
@@ -262,7 +323,9 @@ class CreateExerciseActivity : AppCompatActivity() {
                             sets = sets,
                             distance = distance,
                             restTime = restTime,
-                            effortLevel = effort
+                            effortLevel = effort,
+                            strokeType = strokeType,
+                            targetTime = targetTime
                         )
                         db.exerciseDao().insert(exercise)
                     }
@@ -312,6 +375,75 @@ class CreateExerciseActivity : AppCompatActivity() {
             4 -> 80
             5 -> 90
             else -> 100
+        }
+    }
+
+    private fun calculateTargetTime() {
+        val distance = etDistance.text.toString().toIntOrNull() ?: return
+        val strokePosition = spinnerStrokeType.selectedItemPosition
+        val effortPercent = effortZoneIndexToPercent(seekBarEffort.progress)
+
+        if (distance <= 0 || strokePosition < 0) {
+            tvTargetTime.text = "Auto-calculated from PB"
+            tvTargetTime.setTextColor(getColor(R.color.text_secondary))
+            return
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // Get current swimmer ID (from intent or default)
+                val swimmerId = currentSwimmerId ?: intent.getIntExtra("SWIMMER_ID", -1).takeIf { it > 0 }
+                
+                if (swimmerId == null || swimmerId <= 0) {
+                    withContext(Dispatchers.Main) {
+                        tvTargetTime.text = "No swimmer selected"
+                        tvTargetTime.setTextColor(getColor(R.color.text_secondary))
+                    }
+                    return@launch
+                }
+
+                // Get swimmer's primary stroke if S1 is selected
+                val selectedStroke = strokeTypes[strokePosition]
+                val actualStroke = if (selectedStroke == "S1 (Primary)") {
+                    val swimmer = db.swimmerDao().getById(swimmerId)
+                    swimmer?.primaryStroke ?: "FREESTYLE"
+                } else {
+                    selectedStroke
+                }
+
+                // Convert stroke string to StrokeType enum
+                val strokeType = try {
+                    com.thesisapp.data.non_dao.StrokeType.valueOf(actualStroke)
+                } catch (e: Exception) {
+                    com.thesisapp.data.non_dao.StrokeType.FREESTYLE
+                }
+
+                // Get PB for this distance and stroke
+                val pb = db.personalBestDao().getBySwimmerDistanceStroke(swimmerId, distance, strokeType)
+
+                withContext(Dispatchers.Main) {
+                    if (pb != null) {
+                        // Calculate target time: PB + (PB × effort%)
+                        // Lower effort = slower time (more recovery)
+                        val effortMultiplier = (100 - effortPercent) / 100f
+                        val targetTime = pb.bestTime * (1 + effortMultiplier)
+                        
+                        val minutes = (targetTime / 60).toInt()
+                        val seconds = targetTime % 60
+                        tvTargetTime.text = String.format("%d:%05.2f", minutes, seconds)
+                        tvTargetTime.setTextColor(getColor(R.color.primary))
+                    } else {
+                        tvTargetTime.text = "No PB for ${distance}m $actualStroke"
+                        tvTargetTime.setTextColor(getColor(R.color.text_secondary))
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("CreateExercise", "Error calculating target time", e)
+                withContext(Dispatchers.Main) {
+                    tvTargetTime.text = "Error calculating"
+                    tvTargetTime.setTextColor(getColor(R.color.error))
+                }
+            }
         }
     }
 }

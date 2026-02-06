@@ -25,5 +25,7 @@ data class Exercise(
     val sets: Int? = null,
     @SerialName("rest_time") val restTime: Int? = null, // in seconds
     @SerialName("effort_level") val effortLevel: Int? = null, // prescribed effort as percentage (0-100)
+    @SerialName("stroke_type") val strokeType: String? = null, // FREESTYLE, BACKSTROKE, BREASTSTROKE, BUTTERFLY, IM, or S1 (primary stroke)
+    @SerialName("target_time") val targetTime: Float? = null, // target time per rep in seconds (auto-calculated from PB + effort)
     @SerialName("created_at") val createdAt: Long = System.currentTimeMillis()
 ) : Parcelable

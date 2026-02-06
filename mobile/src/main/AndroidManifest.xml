@@ -76,6 +76,7 @@
         <activity android:name=".presentation.activities.CreateExerciseActivity"
             android:windowSoftInputMode="adjustPan"/>
         <activity android:name=".presentation.activities.UncategorizedSessionsActivity" />
+        <activity android:name=".presentation.activities.PersonalBestsActivity" />
     </application>
 
 

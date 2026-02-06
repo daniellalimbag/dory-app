@@ -12,6 +12,7 @@ import com.thesisapp.data.dao.CoachDao
 import com.thesisapp.data.dao.GoalDao
 import com.thesisapp.data.dao.GoalProgressDao
 import com.thesisapp.data.dao.MlResultDao
+import com.thesisapp.data.dao.PersonalBestDao
 import com.thesisapp.data.dao.SwimDataDao
 import com.thesisapp.data.dao.SwimmerDao
 import com.thesisapp.data.dao.TeamDao
@@ -23,6 +24,7 @@ import com.thesisapp.data.non_dao.Exercise
 import com.thesisapp.data.non_dao.Goal
 import com.thesisapp.data.non_dao.GoalProgress
 import com.thesisapp.data.non_dao.MlResult
+import com.thesisapp.data.non_dao.PersonalBest
 import com.thesisapp.data.non_dao.SwimData
 import com.thesisapp.data.non_dao.Swimmer
 import com.thesisapp.data.non_dao.Team
@@ -31,8 +33,8 @@ import com.thesisapp.data.non_dao.TeamMembership
 import com.thesisapp.data.non_dao.User
 
 @Database(
-    entities = [Team::class, User::class, Coach::class, Swimmer::class, TeamMembership::class, Exercise::class, SwimData::class, MlResult::class, TeamInvitation::class, Goal::class, GoalProgress::class],
-    version = 24,
+    entities = [Team::class, User::class, Coach::class, Swimmer::class, TeamMembership::class, Exercise::class, SwimData::class, MlResult::class, TeamInvitation::class, Goal::class, GoalProgress::class, PersonalBest::class],
+    version = 25,
     exportSchema = false
 )
 @TypeConverters(RoomConverters::class)
@@ -48,6 +50,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun goalProgressDao(): GoalProgressDao
     abstract fun userDao(): UserDao
     abstract fun coachDao(): CoachDao
+    abstract fun personalBestDao(): PersonalBestDao
 
     companion object {
         @Volatile
@@ -129,6 +132,31 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add primaryStroke column to swimmers table
+                db.execSQL("ALTER TABLE `swimmers` ADD COLUMN `primaryStroke` TEXT DEFAULT 'FREESTYLE'")
+                
+                // Add strokeType and targetTime columns to exercises table
+                db.execSQL("ALTER TABLE `exercises` ADD COLUMN `strokeType` TEXT")
+                db.execSQL("ALTER TABLE `exercises` ADD COLUMN `targetTime` REAL")
+                
+                // Create personal_bests table
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `personal_bests` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`swimmerId` INTEGER NOT NULL, " +
+                        "`distance` INTEGER NOT NULL, " +
+                        "`strokeType` TEXT NOT NULL, " +
+                        "`bestTime` REAL NOT NULL, " +
+                        "`updatedAt` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`swimmerId`) REFERENCES `swimmers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE" +
+                    ")"
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_personal_bests_swimmerId_distance_strokeType` ON `personal_bests` (`swimmerId`, `distance`, `strokeType`)")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -137,7 +165,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "swimmer_db"
                 )
                     .fallbackToDestructiveMigration()
-                    .addMigrations(MIGRATION_22_23, MIGRATION_23_24)
+                    .addMigrations(MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25)
                     .build().also { INSTANCE = it }
             }
         }

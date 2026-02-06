@@ -7,6 +7,7 @@ import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
@@ -21,6 +22,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var btnReturn: ImageButton
     private lateinit var btnProfile: LinearLayout
+    private lateinit var btnPersonalBests: LinearLayout
     private lateinit var btnImport: LinearLayout
     private lateinit var btnExport: LinearLayout
     private lateinit var btnClearAllData: LinearLayout
@@ -34,6 +36,7 @@ class SettingsActivity : AppCompatActivity() {
 
         btnReturn = findViewById(R.id.btnReturn)
         btnProfile = findViewById(R.id.btnProfile)
+        btnPersonalBests = findViewById(R.id.btnPersonalBests)
         btnImport = findViewById(R.id.btnImport)
         btnExport = findViewById(R.id.btnExport)
         btnClearAllData = findViewById(R.id.btnClearAllData)
@@ -54,6 +57,33 @@ class SettingsActivity : AppCompatActivity() {
             it.animateClick()
             val intent = Intent(this, SettingsProfileActivity::class.java)
             startActivity(intent)
+        }
+
+        btnPersonalBests.setOnClickListener {
+            it.animateClick()
+            // Get current swimmer ID
+            lifecycleScope.launch(Dispatchers.IO) {
+                val db = AppDatabase.getInstance(this@SettingsActivity)
+                val user = com.thesisapp.utils.AuthManager.currentUser(this@SettingsActivity)
+                val teamId = com.thesisapp.utils.AuthManager.currentTeamId(this@SettingsActivity)
+                val swimmerId = when (user?.role) {
+                    com.thesisapp.utils.UserRole.SWIMMER -> {
+                        com.thesisapp.utils.AuthManager.getLinkedSwimmerId(this@SettingsActivity, user.email, teamId)
+                    }
+                    com.thesisapp.utils.UserRole.COACH -> db.swimmerDao().getAllSwimmers().firstOrNull()?.id
+                    else -> null
+                }
+                
+                withContext(Dispatchers.Main) {
+                    if (swimmerId != null) {
+                        val intent = Intent(this@SettingsActivity, PersonalBestsActivity::class.java)
+                        intent.putExtra("SWIMMER_ID", swimmerId)
+                        startActivity(intent)
+                    } else {
+                        Toast.makeText(this@SettingsActivity, "No swimmer profile found", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
         }
 
         btnImport.setOnClickListener {
