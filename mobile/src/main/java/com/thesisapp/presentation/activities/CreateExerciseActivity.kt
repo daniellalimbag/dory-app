@@ -7,6 +7,8 @@ import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import android.view.View
+import android.widget.AdapterView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.textfield.TextInputEditText
@@ -47,6 +49,8 @@ class CreateExerciseActivity : AppCompatActivity() {
 
     private var exerciseId: Int = -1
 
+    private val effortZones = listOf("REC", "EN1", "EN2", "EN3", "SP1", "SP2", "SP3")
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_create_exercise)
@@ -67,25 +71,39 @@ class CreateExerciseActivity : AppCompatActivity() {
         btnCreate = findViewById(R.id.btnCreate)
         btnCancel = findViewById(R.id.btnCancel)
 
-        // Setup category spinner
+        // Setup category spinner with custom adapter that forces text color
         val categories = ExerciseCategory.values().map { it.name }
-        val adapter = ArrayAdapter(this, R.layout.spinner_item, categories)
+        val adapter = object : ArrayAdapter<String>(this, R.layout.spinner_item, categories) {
+            override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+                val view = super.getView(position, convertView, parent)
+                (view as? TextView)?.setTextColor(getColor(R.color.text))
+                return view
+            }
+
+            override fun getDropDownView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+                val view = super.getDropDownView(position, convertView, parent)
+                (view as? TextView)?.setTextColor(getColor(R.color.text))
+                return view
+            }
+        }
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
+        spinnerCategory.adapter = adapter
+
         intent.getStringExtra("CATEGORY")?.let { cat ->
             val idx = ExerciseCategory.values().indexOfFirst { it.name == cat }
             if (idx >= 0) spinnerCategory.setSelection(idx)
         }
 
-        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
-        spinnerCategory.adapter = adapter
-
         // Setup effort seekbar
         seekBarEffort.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvEffortValue.text = "$progress%"
+                tvEffortValue.text = effortZones.getOrNull(progress) ?: effortZones.first()
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
+
+        tvEffortValue.text = effortZones.getOrNull(seekBarEffort.progress) ?: effortZones.first()
 
         btnCancel.setOnClickListener {
             finish()
@@ -118,7 +136,8 @@ class CreateExerciseActivity : AppCompatActivity() {
                     etDistance.setText(it.distance.toString())
                     etSets.setText(it.sets.toString())
                     etRestTime.setText((it.restTime ?: 0).toString())
-                    seekBarEffort.progress = it.effortLevel ?: 50
+                    seekBarEffort.progress = percentToEffortZoneIndex(it.effortLevel)
+                    tvEffortValue.text = effortZones.getOrNull(seekBarEffort.progress) ?: effortZones.first()
                 }
             }
         }
@@ -131,7 +150,7 @@ class CreateExerciseActivity : AppCompatActivity() {
         val distance = etDistance.text.toString().toIntOrNull() ?: 0
         val sets = etSets.text.toString().toIntOrNull() ?: 1
         val restTime = etRestTime.text.toString().toIntOrNull() ?: 0
-        val effort = seekBarEffort.progress
+        val effort = effortZoneIndexToPercent(seekBarEffort.progress)
 
         if (name.isEmpty()) {
             Toast.makeText(this, "Please enter an exercise name", Toast.LENGTH_SHORT).show()
@@ -148,21 +167,21 @@ class CreateExerciseActivity : AppCompatActivity() {
                 val existing = if (exerciseId != -1) db.exerciseDao().getById(exerciseId) else null
                 val isExistingPersonal = existing?.teamId == -1
 
+                val currentTeamId = AuthManager.currentTeamId(this@CreateExerciseActivity)
+                
                 val teamIdForExercise: Int = when {
                     // Swimmers always create/edit personal exercises.
                     !isCoach -> -1
                     // If editing an existing personal exercise, keep it personal.
                     isExistingPersonal -> -1
+                    // Coaches with no team selected create personal exercises.
+                    currentTeamId == null -> -1
                     // Coaches creating/editing team exercises.
-                    else -> AuthManager.currentTeamId(this@CreateExerciseActivity) ?: -1
+                    else -> currentTeamId
                 }
 
                 // Personal exercises are stored locally only (teamId = -1).
                 val isPersonal = teamIdForExercise == -1
-
-                if (!isPersonal && teamIdForExercise <= 0) {
-                    error("No team selected")
-                }
 
                 val payload = buildJsonObject {
                     put("team_id", teamIdForExercise)
@@ -199,23 +218,41 @@ class CreateExerciseActivity : AppCompatActivity() {
                     }
                 } else {
                     if (!isPersonal) {
-                        val insertJson = supabase.from("exercises").insert(payload) { select() }.data
-                        val newId = insertJson.substringAfter("\"id\":").substringBefore(',').trim().toLongOrNull()?.toInt()
-                            ?: 0
+                        try {
+                            val insertJson = supabase.from("exercises").insert(payload) { select() }.data
+                            val newId = insertJson.substringAfter("\"id\":").substringBefore(',').trim().toLongOrNull()?.toInt()
+                                ?: 0
 
-                        val exercise = Exercise(
-                            id = newId,
-                            teamId = teamIdForExercise,
-                            name = name,
-                            category = category,
-                            description = description.ifEmpty { "Personal exercise" },
-                            sets = sets,
-                            distance = distance,
-                            restTime = restTime,
-                            effortLevel = effort
-                        )
-                        db.exerciseDao().insert(exercise)
+                            val exercise = Exercise(
+                                id = newId,
+                                teamId = teamIdForExercise,
+                                name = name,
+                                category = category,
+                                description = description.ifEmpty { "Team exercise" },
+                                sets = sets,
+                                distance = distance,
+                                restTime = restTime,
+                                effortLevel = effort
+                            )
+                            db.exerciseDao().insert(exercise)
+                        } catch (e: Exception) {
+                            android.util.Log.e("CreateExercise", "Supabase insert failed, saving locally only", e)
+                            // Fallback: save as personal exercise if Supabase fails
+                            val exercise = Exercise(
+                                id = 0,
+                                teamId = -1,
+                                name = name,
+                                category = category,
+                                description = description.ifEmpty { "Personal exercise" },
+                                sets = sets,
+                                distance = distance,
+                                restTime = restTime,
+                                effortLevel = effort
+                            )
+                            db.exerciseDao().insert(exercise)
+                        }
                     } else {
+                        // Personal exercise - local only
                         val exercise = Exercise(
                             id = 0,
                             teamId = -1,
@@ -250,6 +287,31 @@ class CreateExerciseActivity : AppCompatActivity() {
                     ).show()
                 }
             }
+        }
+    }
+
+    private fun percentToEffortZoneIndex(percent: Int?): Int {
+        val p = percent ?: 0
+        return when {
+            p <= 10 -> 0 // REC
+            p <= 30 -> 1 // EN1
+            p <= 50 -> 2 // EN2
+            p <= 70 -> 3 // EN3
+            p <= 80 -> 4 // SP1
+            p <= 90 -> 5 // SP2
+            else -> 6 // SP3
+        }
+    }
+
+    private fun effortZoneIndexToPercent(index: Int): Int {
+        return when (index.coerceIn(0, effortZones.lastIndex)) {
+            0 -> 10
+            1 -> 30
+            2 -> 50
+            3 -> 70
+            4 -> 80
+            5 -> 90
+            else -> 100
         }
     }
 }
