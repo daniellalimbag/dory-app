@@ -29,8 +29,19 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".presentation.activities.AuthActivity"
-            android:windowSoftInputMode="adjustPan"/>
+        <activity
+            android:name=".presentation.activities.AuthActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustPan">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="dory"
+                    android:host="reset-password" />
+            </intent-filter>
+        </activity>
         <activity android:name=".presentation.activities.CreateTeamActivity"
             android:windowSoftInputMode="adjustPan"/>
         <activity android:name=".presentation.activities.EditTeamActivity"
