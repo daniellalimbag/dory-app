@@ -1,6 +1,7 @@
 package com.thesisapp.presentation.activities
 
 import android.os.Bundle
+import androidx.appcompat.app.AlertDialog
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.SeekBar
@@ -45,6 +46,7 @@ class CreateExerciseActivity : AppCompatActivity() {
     private lateinit var seekBarEffort: SeekBar
     private lateinit var tvEffortValue: TextView
     private lateinit var spinnerStrokeType: Spinner
+    private lateinit var tvSelectedSwimmer: TextView
     private lateinit var tvTargetTime: TextView
     private lateinit var btnCreate: Button
     private lateinit var btnCancel: Button
@@ -73,6 +75,7 @@ class CreateExerciseActivity : AppCompatActivity() {
         seekBarEffort = findViewById(R.id.seekBarEffort)
         tvEffortValue = findViewById(R.id.tvEffortValue)
         spinnerStrokeType = findViewById(R.id.spinnerStrokeType)
+        tvSelectedSwimmer = findViewById(R.id.tvSelectedSwimmer)
         tvTargetTime = findViewById(R.id.tvTargetTime)
         btnCreate = findViewById(R.id.btnCreate)
         btnCancel = findViewById(R.id.btnCancel)
@@ -156,6 +159,37 @@ class CreateExerciseActivity : AppCompatActivity() {
 
         val isCoach = AuthManager.currentUser(this)?.role == UserRole.COACH
 
+        tvTargetTime.setOnClickListener {
+            if (isCoach && currentSwimmerId == null) {
+                openSwimmerPicker()
+            }
+        }
+
+        if (!isCoach) {
+            tvSelectedSwimmer.visibility = View.GONE
+        } else {
+            tvSelectedSwimmer.text = "No swimmer selected"
+            tvSelectedSwimmer.setTextColor(getColor(R.color.text_secondary))
+
+            tvSelectedSwimmer.setOnClickListener {
+                openSwimmerPicker()
+            }
+
+            // Preselect swimmer if passed in
+            val preselected = intent.getIntExtra("SWIMMER_ID", -1).takeIf { it > 0 }
+            if (preselected != null) {
+                currentSwimmerId = preselected
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val swimmer = db.swimmerDao().getById(preselected)
+                    withContext(Dispatchers.Main) {
+                        tvSelectedSwimmer.text = swimmer?.name ?: "Swimmer #$preselected"
+                        tvSelectedSwimmer.setTextColor(getColor(R.color.text))
+                        calculateTargetTime()
+                    }
+                }
+            }
+        }
+
         // Load exercise data if editing
         if (exerciseId != -1) {
             tvTitle.text = "Edit Exercise"
@@ -163,6 +197,44 @@ class CreateExerciseActivity : AppCompatActivity() {
             loadExerciseData()
         } else {
             tvTitle.text = if (isCoach) "Add Exercise" else "Create Personal Exercise"
+        }
+    }
+
+    private fun openSwimmerPicker() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val teamId = AuthManager.currentTeamId(this@CreateExerciseActivity)
+            if (teamId == null) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@CreateExerciseActivity, "No team selected", Toast.LENGTH_SHORT).show()
+                }
+                return@launch
+            }
+
+            val swimmers = db.teamMembershipDao().getSwimmersForTeam(teamId)
+            if (swimmers.isEmpty()) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@CreateExerciseActivity, "No swimmers in this team", Toast.LENGTH_SHORT).show()
+                }
+                return@launch
+            }
+
+            val names = swimmers.map { it.name }.toTypedArray()
+            val currentIndex = currentSwimmerId?.let { id -> swimmers.indexOfFirst { it.id == id } } ?: -1
+
+            withContext(Dispatchers.Main) {
+                AlertDialog.Builder(this@CreateExerciseActivity)
+                    .setTitle("Select swimmer")
+                    .setSingleChoiceItems(names, currentIndex) { dialog, which ->
+                        val selected = swimmers[which]
+                        currentSwimmerId = selected.id
+                        tvSelectedSwimmer.text = selected.name
+                        tvSelectedSwimmer.setTextColor(getColor(R.color.text))
+                        calculateTargetTime()
+                        dialog.dismiss()
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
         }
     }
 
