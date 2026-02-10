@@ -18,6 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 class SetGoalDialogFragment : DialogFragment() {
 
@@ -47,6 +48,7 @@ class SetGoalDialogFragment : DialogFragment() {
                     putLong("start_date", it.startDate)
                     putLong("end_date", it.endDate)
                     putString("goal_type", it.goalType.name)
+                    putString("client_id", it.clientId)
                 }
             }
             fragment.arguments = args
@@ -66,6 +68,7 @@ class SetGoalDialogFragment : DialogFragment() {
             if (it.containsKey("goal_id")) {
                 existingGoal = Goal(
                     id = it.getInt("goal_id"),
+                    clientId = it.getString("client_id", ""),
                     swimmerId = swimmerId,
                     teamId = teamId,
                     eventName = it.getString("event_name", ""),
@@ -170,6 +173,7 @@ class SetGoalDialogFragment : DialogFragment() {
 
             val goal = Goal(
                 id = existingGoal?.id ?: 0,
+                clientId = existingGoal?.clientId?.takeIf { it.isNotBlank() } ?: UUID.randomUUID().toString(),
                 swimmerId = swimmerId,
                 teamId = teamId,
                 eventName = eventName,

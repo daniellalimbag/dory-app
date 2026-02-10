@@ -42,6 +42,7 @@ import com.thesisapp.data.non_dao.GoalProgress
 import com.thesisapp.data.non_dao.MlResult
 import com.thesisapp.data.non_dao.Swimmer
 import com.thesisapp.data.non_dao.StrokeType
+import com.thesisapp.data.repository.GoalSyncRepository
 import com.thesisapp.utils.AuthManager
 import com.thesisapp.utils.MetricsLapOut
 import com.thesisapp.utils.MetricsSessionAveragesOut
@@ -50,6 +51,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.UUID
 
 import com.thesisapp.data.repository.SwimSessionsRepository
 import dagger.hilt.android.AndroidEntryPoint
@@ -60,6 +62,9 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
 
     @Inject
     lateinit var swimSessionsRepository: SwimSessionsRepository
+
+    @Inject
+    lateinit var goalSyncRepository: GoalSyncRepository
 
     private lateinit var db: AppDatabase
     private lateinit var swimmer: Swimmer
@@ -208,6 +213,9 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     private fun loadData() {
         lifecycleScope.launch(Dispatchers.IO) {
             val teamId = AuthManager.currentTeamId(this@CoachSwimmerProfileActivity) ?: return@launch
+
+            // Pull latest goals/progress from Supabase (best-effort)
+            runCatching { goalSyncRepository.pullGoalsAndProgress(swimmer.id, teamId) }
             
             // Load goal
             currentGoal = db.goalDao().getActiveGoalForSwimmer(swimmer.id, teamId)
@@ -938,6 +946,15 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
 
             currentGoal?.let { resolvedGoal ->
                 seedInitialGoalProgressFromPb(resolvedGoal)
+
+                // Push goal + progress to Supabase (best-effort)
+                runCatching {
+                    goalSyncRepository.pushGoal(resolvedGoal)
+                    val points = db.goalProgressDao().getProgressForGoal(resolvedGoal.id)
+                    points.forEach { p ->
+                        goalSyncRepository.pushGoalProgress(p)
+                    }
+                }
             }
             
             withContext(Dispatchers.Main) {
@@ -961,6 +978,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         val pbTime = secondsToTimeString(pb.bestTime)
         db.goalProgressDao().insert(
             GoalProgress(
+                clientId = UUID.randomUUID().toString(),
                 goalId = goal.id,
                 date = goal.startDate,
                 projectedRaceTime = pbTime,
@@ -1016,8 +1034,11 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
                 db.goalProgressDao().deleteAllProgressForGoal(goal.id)
                 // Delete goal
                 db.goalDao().delete(goal)
+
+                // Delete in Supabase (best-effort)
+                runCatching { goalSyncRepository.deleteGoalByClientId(goal.clientId) }
+
                 currentGoal = null
-                
                 withContext(Dispatchers.Main) {
                     updateGoalUI()
                     Toast.makeText(this@CoachSwimmerProfileActivity, "Goal deleted", Toast.LENGTH_SHORT).show()

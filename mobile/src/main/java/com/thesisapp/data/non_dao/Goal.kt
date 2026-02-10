@@ -11,6 +11,7 @@ enum class GoalType {
 @Entity(tableName = "goals")
 data class Goal(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val clientId: String = "",
     val swimmerId: Int,
     val teamId: Int,
     val eventName: String,       // e.g., "100m Freestyle"

@@ -17,16 +17,22 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
+import com.thesisapp.data.repository.PersonalBestSyncRepository
 import com.thesisapp.data.non_dao.PersonalBest
 import com.thesisapp.data.non_dao.StrokeType
 import com.thesisapp.utils.animateClick
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class PersonalBestsActivity : AppCompatActivity() {
+
+    @Inject lateinit var personalBestSyncRepository: PersonalBestSyncRepository
 
     private lateinit var db: AppDatabase
     private lateinit var rvPersonalBests: RecyclerView
@@ -70,7 +76,13 @@ class PersonalBestsActivity : AppCompatActivity() {
             showAddPBDialog()
         }
 
-        loadPersonalBests()
+        // Sync from Supabase on open (best-effort; falls back to local cache)
+        lifecycleScope.launch(Dispatchers.IO) {
+            runCatching { personalBestSyncRepository.pullPersonalBests(swimmerId) }
+            withContext(Dispatchers.Main) {
+                loadPersonalBests()
+            }
+        }
     }
 
     private fun loadPersonalBests() {
@@ -137,6 +149,9 @@ class PersonalBestsActivity : AppCompatActivity() {
                 )
                 db.personalBestDao().insert(pb)
 
+                // Push to Supabase (best-effort)
+                runCatching { personalBestSyncRepository.pushPersonalBest(pb) }
+
                 withContext(Dispatchers.Main) {
                     dialog.dismiss()
                     loadPersonalBests()
@@ -160,6 +175,10 @@ class PersonalBestsActivity : AppCompatActivity() {
             .setPositiveButton("Delete") { _, _ ->
                 lifecycleScope.launch(Dispatchers.IO) {
                     db.personalBestDao().delete(pb)
+
+                    // Delete in Supabase (best-effort)
+                    runCatching { personalBestSyncRepository.deletePersonalBest(pb) }
+
                     withContext(Dispatchers.Main) {
                         loadPersonalBests()
                     }

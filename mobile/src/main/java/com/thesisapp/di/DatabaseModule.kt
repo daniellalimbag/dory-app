@@ -4,7 +4,10 @@ import android.content.Context
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.dao.CoachDao
 import com.thesisapp.data.dao.ExerciseDao
+import com.thesisapp.data.dao.GoalDao
+import com.thesisapp.data.dao.GoalProgressDao
 import com.thesisapp.data.dao.MlResultDao
+import com.thesisapp.data.dao.PersonalBestDao
 import com.thesisapp.data.dao.SwimDataDao
 import com.thesisapp.data.dao.SwimmerDao
 import com.thesisapp.data.dao.TeamDao
@@ -52,4 +55,13 @@ object DatabaseModule {
 
     @Provides
     fun provideTeamMembershipDao(db: AppDatabase): TeamMembershipDao = db.teamMembershipDao()
+
+    @Provides
+    fun provideGoalDao(db: AppDatabase): GoalDao = db.goalDao()
+
+    @Provides
+    fun provideGoalProgressDao(db: AppDatabase): GoalProgressDao = db.goalProgressDao()
+
+    @Provides
+    fun providePersonalBestDao(db: AppDatabase): PersonalBestDao = db.personalBestDao()
 }

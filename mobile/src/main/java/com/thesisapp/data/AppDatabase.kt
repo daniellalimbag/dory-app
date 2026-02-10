@@ -34,7 +34,7 @@ import com.thesisapp.data.non_dao.User
 
 @Database(
     entities = [Team::class, User::class, Coach::class, Swimmer::class, TeamMembership::class, Exercise::class, SwimData::class, MlResult::class, TeamInvitation::class, Goal::class, GoalProgress::class, PersonalBest::class],
-    version = 25,
+    version = 27,
     exportSchema = false
 )
 @TypeConverters(RoomConverters::class)
@@ -154,6 +154,72 @@ abstract class AppDatabase : RoomDatabase() {
                     ")"
                 )
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_personal_bests_swimmerId_distance_strokeType` ON `personal_bests` (`swimmerId`, `distance`, `strokeType`)")
+            }
+        }
+
+        private val MIGRATION_25_26 = object : Migration(25, 26) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add clientId columns for Supabase sync (client_id UUID)
+                // Must be NOT NULL to match Kotlin non-null fields in Room entities
+                db.execSQL("ALTER TABLE `goals` ADD COLUMN `clientId` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `goal_progress` ADD COLUMN `clientId` TEXT NOT NULL DEFAULT ''")
+
+                // Backfill unique-ish IDs for existing rows (UUID-like string)
+                db.execSQL(
+                    "UPDATE `goals` SET `clientId` = " +
+                        "lower(hex(randomblob(4))) || '-' || " +
+                        "lower(hex(randomblob(2))) || '-' || " +
+                        "lower(hex(randomblob(2))) || '-' || " +
+                        "lower(hex(randomblob(2))) || '-' || " +
+                        "lower(hex(randomblob(6))) " +
+                        "WHERE `clientId` IS NULL OR `clientId` = ''"
+                )
+                db.execSQL(
+                    "UPDATE `goal_progress` SET `clientId` = " +
+                        "lower(hex(randomblob(4))) || '-' || " +
+                        "lower(hex(randomblob(2))) || '-' || " +
+                        "lower(hex(randomblob(2))) || '-' || " +
+                        "lower(hex(randomblob(2))) || '-' || " +
+                        "lower(hex(randomblob(6))) " +
+                        "WHERE `clientId` IS NULL OR `clientId` = ''"
+                )
+
+                // Add indices to support fast lookups
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_goals_clientId` ON `goals` (`clientId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_goal_progress_clientId` ON `goal_progress` (`clientId`)")
+            }
+        }
+
+        private val MIGRATION_25_27 = object : Migration(25, 27) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Add clientId columns for Supabase sync (client_id UUID)
+                // Directly to v27 with correct NOT NULL constraint
+                db.execSQL("ALTER TABLE `goals` ADD COLUMN `clientId` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `goal_progress` ADD COLUMN `clientId` TEXT NOT NULL DEFAULT ''")
+
+                // Backfill unique-ish IDs for existing rows (UUID-like string)
+                db.execSQL(
+                    "UPDATE `goals` SET `clientId` = " +
+                        "lower(hex(randomblob(4))) || '-' || " +
+                        "lower(hex(randomblob(2))) || '-' || " +
+                        "lower(hex(randomblob(2))) || '-' || " +
+                        "lower(hex(randomblob(2))) || '-' || " +
+                        "lower(hex(randomblob(6))) " +
+                        "WHERE `clientId` = ''"
+                )
+                db.execSQL(
+                    "UPDATE `goal_progress` SET `clientId` = " +
+                        "lower(hex(randomblob(4))) || '-' || " +
+                        "lower(hex(randomblob(2))) || '-' || " +
+                        "lower(hex(randomblob(2))) || '-' || " +
+                        "lower(hex(randomblob(2))) || '-' || " +
+                        "lower(hex(randomblob(6))) " +
+                        "WHERE `clientId` = ''"
+                )
+
+                // Add indices to support fast lookups
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_goals_clientId` ON `goals` (`clientId`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_goal_progress_clientId` ON `goal_progress` (`clientId`)")
             }
         }
 
