@@ -89,8 +89,10 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
                 Toast.makeText(this, "✓ Already enrolled in this team!", Toast.LENGTH_SHORT).show()
                 AuthManager.setCurrentTeamId(this, teamId)
 
-                val intent = Intent(this, MainActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                val intent = Intent(this, SwimmerProfileActivity::class.java).apply {
+                    putExtra(SwimmerProfileActivity.EXTRA_SWIMMER_ID, existingSwimmerId)
+                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
                 startActivity(intent)
                 finish()
                 return
@@ -157,8 +159,10 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
                                 Toast.LENGTH_LONG
                             ).show()
 
-                            val intent = Intent(this@CreateSwimmerProfileActivity, MainActivity::class.java)
-                            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                            val intent = Intent(this@CreateSwimmerProfileActivity, SwimmerProfileActivity::class.java).apply {
+                                putExtra(SwimmerProfileActivity.EXTRA_SWIMMER_ID, effectiveSwimmerId)
+                                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                            }
                             startActivity(intent)
                             finish()
                         }
@@ -345,10 +349,11 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
                             "✓ Profile created! Welcome to the team!",
                             Toast.LENGTH_LONG
                         ).show()
-                        
-                        // Navigate to main activity
-                        val intent = Intent(this@CreateSwimmerProfileActivity, MainActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+
+                        val intent = Intent(this@CreateSwimmerProfileActivity, SwimmerProfileActivity::class.java).apply {
+                            putExtra(SwimmerProfileActivity.EXTRA_SWIMMER_ID, newId)
+                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        }
                         startActivity(intent)
                         finish()
                     }

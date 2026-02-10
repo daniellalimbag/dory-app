@@ -59,6 +59,10 @@ class SplashActivity : AppCompatActivity() {
                     finish()
                     return@postDelayed
                 }
+
+                startActivity(Intent(this, EnrollViaCodeActivity::class.java))
+                finish()
+                return@postDelayed
             }
 
             startActivity(Intent(this, MainActivity::class.java))

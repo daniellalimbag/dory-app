@@ -90,8 +90,8 @@ class AuthActivity : AppCompatActivity() {
                     }
                 }
 
-                // Fall back to MainActivity for empty state / not linked yet
-                startActivity(Intent(this, MainActivity::class.java))
+                // Not linked yet -> enroll via team code
+                startActivity(Intent(this, EnrollViaCodeActivity::class.java))
                 finish()
             }
         }

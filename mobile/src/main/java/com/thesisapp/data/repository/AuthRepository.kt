@@ -130,7 +130,23 @@ class AuthRepository @Inject constructor(
                     put("category", "SPRINT")
                     put("specialty", JsonNull)
                 }
-                supabase.from("swimmers").insert(swimmerPayload)
+
+                val existingJson = supabase.from("swimmers").select {
+                    filter { eq("user_id", userId) }
+                    limit(1)
+                }.data
+
+                val existing = runCatching {
+                    json.decodeFromString<List<RemoteSwimmerRow>>(existingJson).firstOrNull()
+                }.getOrNull()
+
+                if (existing == null) {
+                    supabase.from("swimmers").insert(swimmerPayload)
+                } else {
+                    supabase.from("swimmers").update(swimmerPayload) {
+                        filter { eq("id", existing.id) }
+                    }
+                }
             }
         }
 

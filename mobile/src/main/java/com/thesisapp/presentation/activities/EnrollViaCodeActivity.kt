@@ -115,7 +115,12 @@ class EnrollViaCodeActivity : AppCompatActivity() {
 
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(this@EnrollViaCodeActivity, "✓ Joined team successfully!", Toast.LENGTH_LONG).show()
-                                    startActivity(Intent(this@EnrollViaCodeActivity, MainActivity::class.java))
+                                    startActivity(
+                                        Intent(this@EnrollViaCodeActivity, SwimmerProfileActivity::class.java).apply {
+                                            putExtra(SwimmerProfileActivity.EXTRA_SWIMMER_ID, swimmerId)
+                                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                        }
+                                    )
                                     finish()
                                 }
                             }
