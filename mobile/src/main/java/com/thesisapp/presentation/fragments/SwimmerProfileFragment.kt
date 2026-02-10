@@ -1,5 +1,6 @@
 package com.thesisapp.presentation.fragments
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -11,6 +12,7 @@ import androidx.fragment.app.Fragment
 import com.google.android.material.button.MaterialButton
 import com.thesisapp.R
 import com.thesisapp.data.non_dao.Swimmer
+import com.thesisapp.presentation.activities.PersonalBestsActivity
 import com.thesisapp.utils.AuthManager
 import java.time.LocalDate
 import java.time.Period
@@ -74,6 +76,15 @@ class SwimmerProfileFragment : Fragment() {
         view.findViewById<MaterialButton>(R.id.btnLogout).setOnClickListener {
             AuthManager.logout(requireContext())
             requireActivity().finish()
+        }
+
+        view.findViewById<MaterialButton>(R.id.btnPersonalBests).setOnClickListener {
+            val swimmerId = swimmer?.id ?: return@setOnClickListener
+            startActivity(
+                Intent(requireContext(), PersonalBestsActivity::class.java).apply {
+                    putExtra("SWIMMER_ID", swimmerId)
+                }
+            )
         }
     }
 

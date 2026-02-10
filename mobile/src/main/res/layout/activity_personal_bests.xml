@@ -4,6 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
+    android:fitsSystemWindows="true"
     android:orientation="vertical">
 
     <!-- Header -->
@@ -13,7 +14,8 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:padding="16dp"
-        android:background="@color/primary">
+        android:background="@color/primary"
+        android:fitsSystemWindows="true">
 
         <ImageButton
             android:id="@+id/btnBack"

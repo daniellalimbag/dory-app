@@ -41,6 +41,7 @@ import com.thesisapp.data.non_dao.Goal
 import com.thesisapp.data.non_dao.GoalProgress
 import com.thesisapp.data.non_dao.MlResult
 import com.thesisapp.data.non_dao.Swimmer
+import com.thesisapp.data.non_dao.StrokeType
 import com.thesisapp.utils.AuthManager
 import com.thesisapp.utils.MetricsLapOut
 import com.thesisapp.utils.MetricsSessionAveragesOut
@@ -934,12 +935,67 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             // Reload goal
             val teamId = AuthManager.currentTeamId(this@CoachSwimmerProfileActivity) ?: return@launch
             currentGoal = db.goalDao().getActiveGoalForSwimmer(swimmer.id, teamId)
+
+            currentGoal?.let { resolvedGoal ->
+                seedInitialGoalProgressFromPb(resolvedGoal)
+            }
             
             withContext(Dispatchers.Main) {
                 updateGoalUI()
                 Toast.makeText(this@CoachSwimmerProfileActivity, "Goal saved", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private suspend fun seedInitialGoalProgressFromPb(goal: Goal) {
+        val existing = db.goalProgressDao().getProgressForGoal(goal.id)
+        if (existing.isNotEmpty()) return
+
+        val parsed = parseEventName(goal.eventName) ?: return
+        val pb = db.personalBestDao().getBySwimmerDistanceStroke(
+            swimmerId = goal.swimmerId,
+            distance = parsed.first,
+            strokeType = parsed.second
+        ) ?: return
+
+        val pbTime = secondsToTimeString(pb.bestTime)
+        db.goalProgressDao().insert(
+            GoalProgress(
+                goalId = goal.id,
+                date = goal.startDate,
+                projectedRaceTime = pbTime,
+                sessionId = null
+            )
+        )
+    }
+
+    private fun parseEventName(eventName: String): Pair<Int, StrokeType>? {
+        // Expected format examples:
+        // - "50m Fly"
+        // - "100m Breast"
+        // - "100m Freestyle"
+        // - "200m IM"
+        val lower = eventName.trim().lowercase(Locale.getDefault())
+
+        val distance = Regex("(\\d{2,4})\\s*m").find(lower)?.groupValues?.getOrNull(1)?.toIntOrNull()
+            ?: return null
+
+        val stroke = when {
+            lower.contains("free") -> StrokeType.FREESTYLE
+            lower.contains("back") -> StrokeType.BACKSTROKE
+            lower.contains("breast") -> StrokeType.BREASTSTROKE
+            lower.contains("fly") || lower.contains("butter") -> StrokeType.BUTTERFLY
+            lower.contains("im") -> StrokeType.IM
+            else -> return null
+        }
+
+        return distance to stroke
+    }
+
+    private fun secondsToTimeString(secondsTotal: Float): String {
+        val minutes = (secondsTotal / 60f).toInt()
+        val seconds = secondsTotal % 60f
+        return String.format(Locale.getDefault(), "%d:%05.2f", minutes, seconds)
     }
 
     private fun showDeleteGoalConfirmation() {

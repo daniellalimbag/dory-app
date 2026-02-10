@@ -423,10 +423,10 @@ class CreateExerciseActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     if (pb != null) {
-                        // Calculate target time: PB + (PB × effort%)
-                        // Lower effort = slower time (more recovery)
-                        val effortMultiplier = (100 - effortPercent) / 100f
-                        val targetTime = pb.bestTime * (1 + effortMultiplier)
+                        // Spec: target is computed from PB, not the other way around.
+                        // Example: 90% effort => PB + (PB * 0.10) => PB * 1.10
+                        val addFraction = (1f - (effortPercent / 100f)).coerceAtLeast(0f)
+                        val targetTime = pb.bestTime * (1f + addFraction)
                         
                         val minutes = (targetTime / 60).toInt()
                         val seconds = targetTime % 60
