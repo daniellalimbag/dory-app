@@ -18,7 +18,7 @@ interface MlResultDao {
     fun getSessionSummaries(): List<MlResult>
 
     @Query("SELECT * FROM ml_results WHERE sessionId = :sessionId")
-    fun getBySessionId(sessionId: Int): MlResult
+    fun getBySessionId(sessionId: Int): MlResult?
 
     @Query("SELECT * FROM ml_results WHERE swimmerId = :swimmerId ORDER BY date DESC, timeStart DESC")
     suspend fun getResultsForSwimmer(swimmerId: Int): List<MlResult>

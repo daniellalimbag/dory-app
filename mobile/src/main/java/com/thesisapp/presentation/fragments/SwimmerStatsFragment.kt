@@ -96,7 +96,17 @@ class SwimmerStatsFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             // Load all sessions for this swimmer
             sessions = runCatching {
-                swimSessionsRepository.getSessionsForSwimmer(swimmerLocal.id.toLong())
+                val remoteSessions = swimSessionsRepository.getSessionsForSwimmer(swimmerLocal.id.toLong())
+                // Sync remote sessions to local database
+                remoteSessions.forEach { session ->
+                    val existing = db.mlResultDao().getBySessionId(session.sessionId)
+                    if (existing == null) {
+                        db.mlResultDao().insert(session)
+                    } else {
+                        db.mlResultDao().update(session)
+                    }
+                }
+                remoteSessions
             }.getOrElse {
                 db.mlResultDao().getResultsForSwimmer(swimmerLocal.id)
             }
@@ -123,11 +133,11 @@ class SwimmerStatsFragment : Fragment() {
     }
 
     private fun openSessionDetails(session: MlResult) {
-        Toast.makeText(
-            requireContext(),
-            "Session details are not available in this version",
-            Toast.LENGTH_SHORT
-        ).show()
+        // Use the coach swimmer profile activity to display session details
+        val intent = Intent(requireContext(), com.thesisapp.presentation.activities.CoachSwimmerProfileActivity::class.java)
+        intent.putExtra("swimmerId", session.swimmerId)
+        intent.putExtra("sessionId", session.sessionId)
+        startActivity(intent)
     }
 
     private fun createDummySession() {

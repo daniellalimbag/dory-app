@@ -78,10 +78,21 @@ class SwimmerSessionsFragment : Fragment() {
 
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
+                val db = AppDatabase.Companion.getInstance(requireContext())
                 val results = runCatching {
-                    swimSessionsRepository.getSessionsForSwimmer(swimmerId.toLong())
+                    val remoteSessions = swimSessionsRepository.getSessionsForSwimmer(swimmerId.toLong())
+                    // Sync remote sessions to local database
+                    remoteSessions.forEach { session ->
+                        val existing = db.mlResultDao().getBySessionId(session.sessionId)
+                        if (existing == null) {
+                            db.mlResultDao().insert(session)
+                        } else {
+                            db.mlResultDao().update(session)
+                        }
+                    }
+                    remoteSessions
                 }.getOrElse {
-                    AppDatabase.Companion.getInstance(requireContext()).mlResultDao().getResultsForSwimmer(swimmerId)
+                    db.mlResultDao().getResultsForSwimmer(swimmerId)
                 }
 
                 val sessionsFromDb = results.map { ml ->
@@ -112,11 +123,11 @@ class SwimmerSessionsFragment : Fragment() {
                         recyclerView.layoutManager = LinearLayoutManager(requireContext())
 
                         adapter = SessionsAdapter(filteredSessions) { session ->
-                            Toast.makeText(
-                                requireContext(),
-                                "Session details are not available in this version",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            // Use the coach swimmer profile activity to display session details
+                            val intent = Intent(requireContext(), com.thesisapp.presentation.activities.CoachSwimmerProfileActivity::class.java)
+                            intent.putExtra("swimmerId", session.swimmerId)
+                            intent.putExtra("sessionId", session.id)
+                            startActivity(intent)
                         }
                         recyclerView.adapter = adapter
                     }

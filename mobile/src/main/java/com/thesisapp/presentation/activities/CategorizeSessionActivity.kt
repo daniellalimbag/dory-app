@@ -29,6 +29,9 @@ class CategorizeSessionActivity : AppCompatActivity() {
     @Inject
     lateinit var swimSessionUploadRepository: SwimSessionUploadRepository
 
+    @Inject
+    lateinit var swimSessionsRepository: com.thesisapp.data.repository.SwimSessionsRepository
+
     private lateinit var db: AppDatabase
     private lateinit var tvTitle: TextView
     private lateinit var spinnerContext: Spinner
@@ -111,7 +114,39 @@ class CategorizeSessionActivity : AppCompatActivity() {
 
     private fun prefillData() {
         lifecycleScope.launch(Dispatchers.IO) {
-            val session = db.mlResultDao().getBySessionId(sessionId)
+            android.util.Log.d("CategorizeSession", "Looking for sessionId: $sessionId")
+            
+            // First try to get from Supabase
+            val session = runCatching {
+                val swimmerId = intent.getIntExtra("SWIMMER_ID", -1)
+                android.util.Log.d("CategorizeSession", "Fetching from Supabase for swimmer: $swimmerId")
+                val sessions = swimSessionsRepository.getSessionsForSwimmer(swimmerId.toLong())
+                android.util.Log.d("CategorizeSession", "Found ${sessions.size} sessions from Supabase: ${sessions.map { it.sessionId }}")
+                val found = sessions.find { it.sessionId == sessionId }
+                android.util.Log.d("CategorizeSession", "Matched session: $found")
+                
+                // Save to local database for future use
+                if (found != null) {
+                    val existing = db.mlResultDao().getBySessionId(sessionId)
+                    if (existing == null) {
+                        db.mlResultDao().insert(found)
+                    } else {
+                        db.mlResultDao().update(found)
+                    }
+                }
+                found
+            }.getOrElse { error ->
+                android.util.Log.e("CategorizeSession", "Supabase fetch failed, trying local DB", error)
+                db.mlResultDao().getBySessionId(sessionId)
+            }
+
+            if (session == null) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@CategorizeSessionActivity, "Session not found (ID: $sessionId)", Toast.LENGTH_LONG).show()
+                    finish()
+                }
+                return@launch
+            }
 
             desiredExerciseId = session.exerciseId
             desiredContextTeamId = session.exerciseId?.let { exId ->
@@ -119,21 +154,19 @@ class CategorizeSessionActivity : AppCompatActivity() {
             }
 
             withContext(Dispatchers.Main) {
-                session.let {
-                    it.heartRateBefore?.let { hr -> inputHrBefore.setText(hr.toString()) }
-                    it.heartRateAfter?.let { hr -> inputHrAfter.setText(hr.toString()) }
-                    
-                    // Pre-select Energy Zone
-                    it.energyZone?.let { zone ->
-                        val index = energyZones.indexOf(zone)
-                        if (index >= 0) spinnerEnergyZone.setSelection(index)
-                    }
-                    
-                    // Pre-select Season Phase
-                    it.seasonPhase?.let { phase ->
-                        val index = seasonPhases.indexOf(phase)
-                        if (index >= 0) spinnerSeasonPhase.setSelection(index)
-                    }
+                session.heartRateBefore?.let { hr -> inputHrBefore.setText(hr.toString()) }
+                session.heartRateAfter?.let { hr -> inputHrAfter.setText(hr.toString()) }
+                
+                // Pre-select Energy Zone
+                session.energyZone?.let { zone ->
+                    val index = energyZones.indexOf(zone)
+                    if (index >= 0) spinnerEnergyZone.setSelection(index)
+                }
+                
+                // Pre-select Season Phase
+                session.seasonPhase?.let { phase ->
+                    val index = seasonPhases.indexOf(phase)
+                    if (index >= 0) spinnerSeasonPhase.setSelection(index)
                 }
             }
         }
