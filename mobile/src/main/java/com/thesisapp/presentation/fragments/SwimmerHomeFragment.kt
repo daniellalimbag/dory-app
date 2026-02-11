@@ -38,7 +38,6 @@ import com.thesisapp.data.non_dao.Goal
 import com.thesisapp.data.non_dao.GoalProgress
 import com.thesisapp.data.non_dao.MlResult
 import com.thesisapp.data.non_dao.Swimmer
-import com.thesisapp.presentation.activities.ConnectActivity
 import com.thesisapp.presentation.activities.TrackSwimmerActivity
 import com.thesisapp.presentation.activities.UncategorizedSessionsActivity
 import com.thesisapp.presentation.adapters.SessionAdapter
@@ -157,7 +156,12 @@ class SwimmerHomeFragment : Fragment() {
             if (isSmartwatchConnected) {
                 startRecording()
             } else {
-                startActivity(Intent(requireContext(), ConnectActivity::class.java))
+                Toast.makeText(
+                    requireContext(),
+                    "Watch not connected. Please open the watch app and connect, then try again.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                updateWatchStatus()
             }
         }
 

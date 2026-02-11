@@ -92,7 +92,7 @@ class SettingsImportActivity : AppCompatActivity() {
             val db = AppDatabase.getInstance(applicationContext)
 
             // We need unique internal sessionIds that won't collide with existing MlResult rows.
-            // Also, SwimData.sessionId must match MlResult.sessionId so HistorySessionActivity can load data.
+            // Also, SwimData.sessionId must match MlResult.sessionId so session-related views can load data.
             val existingMaxId = db.mlResultDao().getMaxSessionId() ?: 0
 
             // Group by original (external) sessionId from the imported file.

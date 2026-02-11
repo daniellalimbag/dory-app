@@ -17,7 +17,6 @@ import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.MlResult
 import com.thesisapp.data.non_dao.Swimmer
-import com.thesisapp.presentation.activities.HistorySessionActivity
 import com.thesisapp.presentation.adapters.SessionAdapter
 import com.thesisapp.data.repository.SwimSessionsRepository
 import dagger.hilt.android.AndroidEntryPoint
@@ -124,9 +123,11 @@ class SwimmerStatsFragment : Fragment() {
     }
 
     private fun openSessionDetails(session: MlResult) {
-        val intent = Intent(requireContext(), HistorySessionActivity::class.java)
-        intent.putExtra("sessionId", session.sessionId)
-        startActivity(intent)
+        Toast.makeText(
+            requireContext(),
+            "Session details are not available in this version",
+            Toast.LENGTH_SHORT
+        ).show()
     }
 
     private fun createDummySession() {

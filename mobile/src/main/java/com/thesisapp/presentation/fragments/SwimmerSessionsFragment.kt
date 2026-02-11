@@ -17,7 +17,6 @@ import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.Session
 import com.thesisapp.data.non_dao.Swimmer
-import com.thesisapp.presentation.activities.HistorySessionActivity
 import com.thesisapp.presentation.adapters.SessionsAdapter
 import com.thesisapp.data.repository.SwimSessionsRepository
 import dagger.hilt.android.AndroidEntryPoint
@@ -113,10 +112,11 @@ class SwimmerSessionsFragment : Fragment() {
                         recyclerView.layoutManager = LinearLayoutManager(requireContext())
 
                         adapter = SessionsAdapter(filteredSessions) { session ->
-                            val intent =
-                                Intent(requireContext(), HistorySessionActivity::class.java)
-                            intent.putExtra("sessionId", session.id)
-                            startActivity(intent)
+                            Toast.makeText(
+                                requireContext(),
+                                "Session details are not available in this version",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                         recyclerView.adapter = adapter
                     }

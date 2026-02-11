@@ -55,22 +55,17 @@
 
         <activity android:name=".presentation.activities.MainActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.activities.TrackNoSwimmerActivity" />
         <activity android:name=".presentation.activities.TrackAddSwimmerActivity"
             android:windowSoftInputMode="adjustPan"/>
-        <activity android:name=".presentation.activities.TrackSwimmerSuccessActivity" />
         <activity android:name=".presentation.activities.TrackSwimmerActivity"
             android:windowSoftInputMode="adjustPan"/>
         <activity android:name=".presentation.activities.HistoryListActivity" />
-        <activity android:name=".presentation.activities.HistorySessionActivity" />
         <activity android:name=".presentation.activities.SettingsActivity" />
         <activity android:name=".presentation.activities.SettingsProfileActivity"
             android:windowSoftInputMode="adjustPan"/>
         <activity android:name=".presentation.activities.SettingsExportActivity" />
         <activity android:name=".presentation.activities.SettingsImportActivity" />
         <activity android:name=".presentation.activities.ImportAssignActivity" />
-
-        <activity android:name=".presentation.activities.ConnectActivity" />
         <activity android:name=".presentation.activities.SwimmersActivity" />
         <activity android:name=".presentation.activities.SwimmerProfileActivity" />
         <activity android:name=".presentation.activities.CoachSwimmerProfileActivity"
