@@ -392,18 +392,19 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             val exercise = session.exerciseId?.let { db.exerciseDao().getExerciseById(it) }
 
-            // Load raw samples for this session
-            val localSwimData = runCatching {
-                db.swimDataDao().getSwimDataForSession(session.sessionId)
-            }.getOrDefault(emptyList())
-
-            val swimData = if (localSwimData.isNotEmpty()) {
-                localSwimData
-            } else {
+            // Load raw samples for this session - always fetch from Supabase to get complete data
+            val swimData = runCatching {
+                swimSessionsRepository.getSwimDataForSession(session.sessionId)
+            }.getOrElse { error ->
+                Log.e("MetricsDebug", "Failed to load from Supabase, falling back to local", error)
                 runCatching {
-                    swimSessionsRepository.getSwimDataForSession(session.sessionId)
+                    db.swimDataDao().getSwimDataForSession(session.sessionId)
                 }.getOrDefault(emptyList())
             }
+            
+            Log.d("MetricsDebug", "Session ${session.sessionId}: swimData.size=${swimData.size}, " +
+                "duration=${if (swimData.isNotEmpty()) (swimData.last().timestamp - swimData.first().timestamp) / 1000.0 else 0.0}s, " +
+                "exercise=${session.exerciseName}, sets=${session.sets}, distance=${session.distance}")
 
             // Try calling the external Python metrics API first
             var lapsFromApi: List<MetricsLapOut>? = null
@@ -428,8 +429,11 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
                         session_id = session.sessionId,
                         swimmer_id = session.swimmerId,
                         exercise_id = session.exerciseId,
+                        pool_length_m = 50.0, // Always 50m pool length for lap detection
                         samples = samples
                     )
+                    
+                    Log.d("MetricsDebug", "Calling CCSCloud API with ${samples.size} samples, pool_length=50.0m")
 
                     val response = MetricsApiClient.service.computeMetrics(request)
                     lapsFromApi = response.laps
@@ -437,11 +441,14 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
 
                     Log.d(
                         "MetricsDebug",
-                        "API laps stroke_count=" + response.laps.map { it.stroke_count } +
-                            ", avgStrokeCount=" + response.session_averages.stroke_count
+                        "API Response: lap_count=${response.session_averages.lap_count}, " +
+                            "laps.size=${response.laps.size}, " +
+                            "lap_numbers=${response.laps.map { it.lap_number }}, " +
+                            "lap_times=${response.laps.map { it.lap_time_s }}, " +
+                            "stroke_counts=${response.laps.map { it.stroke_count }}"
                     )
                 } catch (apiError: Exception) {
-                    // Ignore API errors and fall back to on-device pipeline below
+                    Log.e("MetricsDebug", "API call failed, falling back to local computation", apiError)
                 }
             }
 
@@ -460,6 +467,8 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
                 // Map API laps into a light-weight LapMetrics-like view just for charts/text
                 val laps = lapsFromApi.orEmpty()
                 val apiAvgs = sessionAvgsFromApi!!
+
+                Log.d("MetricsDebug", "Using API metrics: ${laps.size} laps")
 
                 // We keep StrokeMetrics.SessionAverages type for convenience when formatting
                 sessionAvgs = StrokeMetrics.SessionAverages(
@@ -486,6 +495,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
                 totalStrokeCount = laps.sumOf { it.stroke_count }
                 totalDistanceMeters = (50.0 * laps.size).toInt()
             } else {
+                Log.d("MetricsDebug", "Using local StrokeMetrics fallback")
                 // Fallback: on-device StrokeMetrics pipeline
                 val rawLapMetrics = if (swimData.isNotEmpty()) {
                     StrokeMetrics.computeLapMetrics(swimData)

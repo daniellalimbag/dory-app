@@ -94,6 +94,7 @@ class SwimSessionsRepository @Inject constructor(
         return withContext(Dispatchers.IO) {
             val dataJson = supabase.from("swim_data").select {
                 filter { eq("session_id", sessionId) }
+                limit(100000) // Remove default 1000 row limit
             }.data
 
             val rows = json.decodeFromString<List<RemoteSwimDataRow>>(dataJson)
