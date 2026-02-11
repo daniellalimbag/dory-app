@@ -452,18 +452,42 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
             val exercise = session.exerciseId?.let { db.exerciseDao().getExerciseById(it) }
 
             // Load raw samples for this session - always fetch from Supabase to get complete data
-            val swimData = runCatching {
-                swimSessionsRepository.getSwimDataForSession(session.sessionId)
+            Log.d("MetricsDebug", "=== LOADING SWIM DATA FOR SESSION ${session.sessionId} ===")
+            
+            // First try Supabase
+            var swimData = runCatching {
+                Log.d("MetricsDebug", "Attempting to load from Supabase...")
+                val data = swimSessionsRepository.getSwimDataForSession(session.sessionId)
+                Log.d("MetricsDebug", "✓ Loaded ${data.size} swim data points from Supabase")
+                if (data.isNotEmpty()) {
+                    Log.d("MetricsDebug", "First timestamp: ${data.first().timestamp}, Last timestamp: ${data.last().timestamp}")
+                }
+                data
             }.getOrElse { error ->
-                Log.e("MetricsDebug", "Failed to load from Supabase, falling back to local", error)
-                runCatching {
-                    db.swimDataDao().getSwimDataForSession(session.sessionId)
+                Log.e("MetricsDebug", "✗ Failed to load from Supabase: ${error.message}", error)
+                emptyList()
+            }
+            
+            // If Supabase returned empty, try local DB
+            if (swimData.isEmpty()) {
+                Log.d("MetricsDebug", "Supabase returned empty, trying local DB...")
+                swimData = runCatching {
+                    val localData = db.swimDataDao().getSwimDataForSession(session.sessionId)
+                    Log.d("MetricsDebug", "✓ Loaded ${localData.size} swim data points from local DB")
+                    if (localData.isNotEmpty()) {
+                        Log.d("MetricsDebug", "First timestamp: ${localData.first().timestamp}, Last timestamp: ${localData.last().timestamp}")
+                    }
+                    localData
                 }.getOrDefault(emptyList())
             }
             
             Log.d("MetricsDebug", "Session ${session.sessionId}: swimData.size=${swimData.size}, " +
                 "duration=${if (swimData.isNotEmpty()) (swimData.last().timestamp - swimData.first().timestamp) / 1000.0 else 0.0}s, " +
                 "exercise=${session.exerciseName}, sets=${session.sets}, distance=${session.distance}")
+            
+            if (swimData.isEmpty()) {
+                Log.e("MetricsDebug", "NO SWIM DATA FOUND for session ${session.sessionId}! Cannot calculate lap metrics.")
+            }
 
             // Try calling the external Python metrics API first
             var lapsFromApi: List<MetricsLapOut>? = null
@@ -493,6 +517,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
                     )
                     
                     Log.d("MetricsDebug", "Calling CCSCloud API with ${samples.size} samples, pool_length=50.0m")
+                    Log.d("MetricsDebug", "API Request: session_id=${request.session_id}, swimmer_id=${request.swimmer_id}, exercise_id=${request.exercise_id}")
 
                     val response = MetricsApiClient.service.computeMetrics(request)
                     lapsFromApi = response.laps
@@ -500,12 +525,16 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
 
                     Log.d(
                         "MetricsDebug",
-                        "API Response: lap_count=${response.session_averages.lap_count}, " +
+                        "API Response SUCCESS: lap_count=${response.session_averages.lap_count}, " +
                             "laps.size=${response.laps.size}, " +
                             "lap_numbers=${response.laps.map { it.lap_number }}, " +
                             "lap_times=${response.laps.map { it.lap_time_s }}, " +
                             "stroke_counts=${response.laps.map { it.stroke_count }}"
                     )
+                    
+                    if (response.laps.isEmpty()) {
+                        Log.w("MetricsDebug", "API returned 0 laps! This might indicate an issue with lap detection.")
+                    }
                 } catch (apiError: Exception) {
                     Log.e("MetricsDebug", "API call failed, falling back to local computation", apiError)
                 }

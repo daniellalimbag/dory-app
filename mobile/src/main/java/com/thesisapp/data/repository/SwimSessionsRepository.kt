@@ -92,13 +92,31 @@ class SwimSessionsRepository @Inject constructor(
 
     suspend fun getSwimDataForSession(sessionId: Int): List<SwimData> {
         return withContext(Dispatchers.IO) {
-            val dataJson = supabase.from("swim_data").select {
-                filter { eq("session_id", sessionId) }
-                limit(100000) // Remove default 1000 row limit
-            }.data
+            val allRows = mutableListOf<RemoteSwimDataRow>()
+            var offset = 0L
+            val batchSize = 1000L
+            
+            // Fetch all data in batches to bypass the 1000 row limit
+            while (true) {
+                val dataJson = supabase.from("swim_data").select {
+                    filter { eq("session_id", sessionId) }
+                    range(offset until (offset + batchSize))
+                }.data
 
-            val rows = json.decodeFromString<List<RemoteSwimDataRow>>(dataJson)
-            rows.map { r ->
+                val rows = json.decodeFromString<List<RemoteSwimDataRow>>(dataJson)
+                if (rows.isEmpty()) break
+                
+                allRows.addAll(rows)
+                
+                // If we got fewer rows than the batch size, we've reached the end
+                if (rows.size < batchSize.toInt()) break
+                
+                offset += batchSize
+            }
+            
+            android.util.Log.d("SwimSessionsRepo", "Fetched ${allRows.size} total swim_data rows for session $sessionId")
+            
+            allRows.map { r ->
                 SwimData(
                     sessionId = r.sessionId,
                     timestamp = r.timestamp,
