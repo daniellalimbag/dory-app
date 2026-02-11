@@ -105,6 +105,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
     private var lapChartsMediator: TabLayoutMediator? = null
     private var lastLapMetrics: List<StrokeMetrics.LapMetrics> = emptyList()
     private var lapChartMode: LapChartsPagerAdapter.ChartMode = LapChartsPagerAdapter.ChartMode.REGULAR
+    private lateinit var tvRecentSessionsTitle: TextView
     private lateinit var exerciseListRecycler: RecyclerView
     private lateinit var sessionAdapter: SessionListAdapter
 
@@ -118,15 +119,41 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
 
         db = AppDatabase.getInstance(this)
 
-        // Get swimmer from intent
-        swimmer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // Get swimmer from intent - either as object or by ID
+        val swimmerFromIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(EXTRA_SWIMMER, Swimmer::class.java)
         } else {
             @Suppress("DEPRECATION")
             intent.getParcelableExtra(EXTRA_SWIMMER)
-        } ?: run {
-            finish()
-            return
+        }
+        
+        if (swimmerFromIntent != null) {
+            swimmer = swimmerFromIntent
+        } else {
+            // Try to get swimmer by ID if not passed as object
+            val swimmerId = intent.getIntExtra("swimmerId", -1)
+            if (swimmerId != -1) {
+                // Load swimmer from database in coroutine
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val loadedSwimmer = db.swimmerDao().getById(swimmerId)
+                    withContext(Dispatchers.Main) {
+                        if (loadedSwimmer != null) {
+                            swimmer = loadedSwimmer
+                            initializeViews()
+                            setupListeners()
+                            loadData()
+                        } else {
+                            Toast.makeText(this@CoachSwimmerProfileActivity, "Swimmer not found", Toast.LENGTH_SHORT).show()
+                            finish()
+                        }
+                    }
+                }
+                return // Exit onCreate, will continue in coroutine
+            } else {
+                Toast.makeText(this, "Swimmer not found", Toast.LENGTH_SHORT).show()
+                finish()
+                return
+            }
         }
 
         initializeViews()
@@ -168,6 +195,7 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
         tabLapCharts = findViewById(R.id.tabLapCharts)
         pagerLapCharts = findViewById(R.id.pagerLapCharts)
         
+        tvRecentSessionsTitle = findViewById(R.id.tvRecentSessionsTitle)
         exerciseListRecycler = findViewById(R.id.exerciseListRecycler)
         
         tvSwimmerName.text = swimmer.name
@@ -212,28 +240,59 @@ class CoachSwimmerProfileActivity : AppCompatActivity() {
 
     private fun loadData() {
         lifecycleScope.launch(Dispatchers.IO) {
-            val teamId = AuthManager.currentTeamId(this@CoachSwimmerProfileActivity) ?: return@launch
+            val teamId = AuthManager.currentTeamId(this@CoachSwimmerProfileActivity)
+            
+            // Check if a specific session was requested (from swimmer view)
+            val requestedSessionId = intent.getIntExtra("sessionId", -1)
+            val isSessionDetailView = requestedSessionId != -1
 
-            // Pull latest goals/progress from Supabase (best-effort)
-            runCatching { goalSyncRepository.pullGoalsAndProgress(swimmer.id, teamId) }
-            
-            // Load goal
-            currentGoal = db.goalDao().getActiveGoalForSwimmer(swimmer.id, teamId)
-            
-            // Load sessions for this swimmer (prefer Supabase, fall back to Room)
-            sessions = runCatching {
-                swimSessionsRepository.getSessionsForSwimmer(swimmer.id.toLong())
-            }.getOrElse {
-                db.mlResultDao().getResultsForSwimmer(swimmer.id)
-            }
-            
-            withContext(Dispatchers.Main) {
-                updateGoalUI()
-                sessionAdapter.updateSessions(sessions)
+            if (isSessionDetailView) {
+                // Hide goal card and sessions list for session detail view
+                withContext(Dispatchers.Main) {
+                    goalCard.visibility = View.GONE
+                    tvRecentSessionsTitle.visibility = View.GONE
+                    exerciseListRecycler.visibility = View.GONE
+                }
                 
-                // Display metrics for latest session by default
-                if (sessions.isNotEmpty()) {
-                    displayMetricsForSession(sessions[0])
+                // Load only the requested session
+                val session = runCatching {
+                    swimSessionsRepository.getSessionsForSwimmer(swimmer.id.toLong())
+                        .find { it.sessionId == requestedSessionId }
+                }.getOrNull() ?: db.mlResultDao().getBySessionId(requestedSessionId)
+                
+                withContext(Dispatchers.Main) {
+                    if (session != null) {
+                        displayMetricsForSession(session)
+                    } else {
+                        Toast.makeText(this@CoachSwimmerProfileActivity, "Session not found", Toast.LENGTH_SHORT).show()
+                        finish()
+                    }
+                }
+            } else {
+                // Full coach view with goal and sessions list
+                if (teamId != null) {
+                    // Pull latest goals/progress from Supabase (best-effort)
+                    runCatching { goalSyncRepository.pullGoalsAndProgress(swimmer.id, teamId) }
+                    
+                    // Load goal
+                    currentGoal = db.goalDao().getActiveGoalForSwimmer(swimmer.id, teamId)
+                }
+                
+                // Load sessions for this swimmer (prefer Supabase, fall back to Room)
+                sessions = runCatching {
+                    swimSessionsRepository.getSessionsForSwimmer(swimmer.id.toLong())
+                }.getOrElse {
+                    db.mlResultDao().getResultsForSwimmer(swimmer.id)
+                }
+                
+                withContext(Dispatchers.Main) {
+                    updateGoalUI()
+                    sessionAdapter.updateSessions(sessions)
+                    
+                    // Display metrics for latest session by default
+                    if (sessions.isNotEmpty()) {
+                        displayMetricsForSession(sessions[0])
+                    }
                 }
             }
         }

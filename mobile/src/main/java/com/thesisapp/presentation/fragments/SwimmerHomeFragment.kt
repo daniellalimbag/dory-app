@@ -224,20 +224,18 @@ class SwimmerHomeFragment : Fragment() {
                 // Update sessions list (vertical scrolling list)
                 if (sessions.isEmpty()) {
                     sessionsRecycler.visibility = View.GONE
-                    metricsCard.visibility = View.GONE
                 } else {
                     sessionsRecycler.visibility = View.VISIBLE
-                    metricsCard.visibility = View.VISIBLE
 
                     // Use SessionAdapter for vertical list with click to view details
                     val adapter = SessionAdapter(sessions) { session ->
-                        displayMetricsForSession(session)
+                        openSessionDetails(session)
                     }
                     sessionsRecycler.adapter = adapter
-
-                    // Display latest session by default
-                    displayMetricsForSession(sessions[0])
                 }
+                
+                // Always hide metrics card - details shown in separate activity
+                metricsCard.visibility = View.GONE
             }
         }
     }
@@ -551,6 +549,15 @@ class SwimmerHomeFragment : Fragment() {
         val swimmerLocal = swimmer ?: return
         val intent = Intent(requireContext(), UncategorizedSessionsActivity::class.java)
         intent.putExtra("SWIMMER_ID", swimmerLocal.id)
+        startActivity(intent)
+    }
+
+    private fun openSessionDetails(session: MlResult) {
+        android.util.Log.d("SwimmerHome", "Opening session details for sessionId: ${session.sessionId}, swimmerId: ${session.swimmerId}")
+        // Use the coach swimmer profile activity to display session details
+        val intent = Intent(requireContext(), com.thesisapp.presentation.activities.CoachSwimmerProfileActivity::class.java)
+        intent.putExtra("swimmerId", session.swimmerId)
+        intent.putExtra("sessionId", session.sessionId)
         startActivity(intent)
     }
 

@@ -60,11 +60,14 @@ class SessionAdapter(
             } else {
                 "✏️ Edit Session Details"
             }
-            btnCategorize?.setOnClickListener {
-                val intent = Intent(itemView.context, CategorizeSessionActivity::class.java)
-                intent.putExtra("sessionId", session.sessionId)
-                intent.putExtra("SWIMMER_ID", session.swimmerId)
-                itemView.context.startActivity(intent)
+            btnCategorize?.setOnClickListener { event ->
+                // Stop propagation to prevent card click
+                event?.let { 
+                    val intent = Intent(itemView.context, CategorizeSessionActivity::class.java)
+                    intent.putExtra("sessionId", session.sessionId)
+                    intent.putExtra("SWIMMER_ID", session.swimmerId)
+                    itemView.context.startActivity(intent)
+                }
             }
 
             // Distance
@@ -73,9 +76,22 @@ class SessionAdapter(
             // Duration
             tvDuration.text = calculateDuration(session.timeStart, session.timeEnd)
 
-            // Always allow opening session details
-            itemView.setOnClickListener { onClick(session) }
-            itemView.isClickable = true
+            // Set click listeners on the text views to open details
+            val detailClickListener = View.OnClickListener {
+                android.util.Log.d("SessionAdapter", "Detail view clicked for session ${session.sessionId}")
+                onClick(session)
+            }
+            
+            tvSessionDate.setOnClickListener(detailClickListener)
+            tvExerciseName.setOnClickListener(detailClickListener)
+            tvDistance.setOnClickListener(detailClickListener)
+            tvDuration.setOnClickListener(detailClickListener)
+            
+            // Also set on the card itself
+            itemView.setOnClickListener { 
+                android.util.Log.d("SessionAdapter", "Card clicked for session ${session.sessionId}")
+                onClick(session) 
+            }
         }
 
         private fun calculateDuration(startTime: String, endTime: String): String {

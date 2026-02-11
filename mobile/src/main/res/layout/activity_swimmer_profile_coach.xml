@@ -600,6 +600,7 @@
 
             <!-- EXERCISE LIST SECTION -->
             <TextView
+                android:id="@+id/tvRecentSessionsTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Recent Sessions"

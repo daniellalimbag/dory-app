@@ -164,38 +164,22 @@
 
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Recent Sessions Section -->        <!-- Recent Sessions with Pending Categorization Badge -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="12dp">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:text="All Sessions"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:textColor="@color/text" />
-
-            <!-- Pending Categorization Badge - Clickable Button Style -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/pendingBadge"
-                style="@style/Widget.Material3.Button.TonalButton"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:text="0 pending"
-                android:textSize="12sp"
-                android:textColor="@color/error"
-                app:icon="@drawable/ic_back"
-                app:iconTint="@color/error"
-                app:iconSize="12dp"
-                app:backgroundTint="#FFEBEE"
-                android:visibility="gone" />
-        </LinearLayout>
+        <!-- Recent Sessions Section -->
+        <!-- Pending Categorization Badge - Clickable Button Style -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/pendingBadge"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:text="0 pending"
+            android:textSize="12sp"
+            android:textColor="@color/error"
+            app:icon="@drawable/ic_back"
+            app:iconTint="@color/error"
+            app:iconSize="12dp"
+            app:backgroundTint="#FFEBEE"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone" />
 
         <!-- Session Metrics Card (graph on top) -->
         <com.google.android.material.card.MaterialCardView
