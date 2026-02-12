@@ -82,7 +82,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     )
 
     private var lastSendTime = 0L
-    private val sendIntervalMs = 300L // send at most every 300 ms
+    private val sendIntervalMs = 50L // send at most every 50 ms (20 Hz)
 
     var id = 0
 
@@ -108,8 +108,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         receiver = WearReceiver(
             context = this,
             onStartRecording = { startRecording() },
-            onStopRecording = { stopRecording() },
-            onSessionIdReceived = { newId -> id = newId }
+            onStopRecording = { stopRecording() }
         )
         receiver.register()
 
@@ -146,11 +145,11 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     }
 
     private fun registerSensors() {
-        accelerometer?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST, 100000) }
-        gyroscope?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST, 100000) }
-        heartRate?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST, 100000) }
-        ppg?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST, 100000) }
-        ecg?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST, 100000) }
+        accelerometer?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST, 0) }
+        gyroscope?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST, 0) }
+        heartRate?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST, 0) }
+        ppg?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST, 0) }
+        ecg?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_FASTEST, 0) }
     }
 
     override fun onSensorChanged(event: SensorEvent?) {
