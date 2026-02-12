@@ -17,6 +17,9 @@ class PhoneSender(private val context: Context) {
     companion object {
         private const val TAG = "PhoneSender"
         private const val COMMAND_PATH = "/sentCommands"
+        private const val ID_PATH = "/sentIds"
+        private const val SYNC_PATH = "/requestSync"
+        private const val TIMEOUT_MS = 5000L // Increased to 5 seconds for reliability
     }
 
     fun sendCommand(
@@ -54,7 +57,6 @@ class PhoneSender(private val context: Context) {
                     return@addOnSuccessListener
                 }
 
-                // Send the message to all nodes
                 for (node in nodes) {
                     messageClient.sendMessage(
                         node.id,
@@ -64,9 +66,8 @@ class PhoneSender(private val context: Context) {
                         .addOnSuccessListener {
                             Log.d(TAG, "Command '$message' sent to ${node.displayName}")
 
-                            // Start timeout ONLY AFTER sending message
                             timeoutJob = mainScope.launch {
-                                delay(2000L)
+                                delay(TIMEOUT_MS)
                                 if (!ackReceived) {
                                     Log.w(TAG, "ACK timeout")
                                     messageClient.removeListener(ackListener)
@@ -123,7 +124,6 @@ class PhoneSender(private val context: Context) {
                     return@addOnSuccessListener
                 }
 
-                // Send the message to all nodes
                 for (node in nodes) {
                     messageClient.sendMessage(
                         node.id,
@@ -133,9 +133,8 @@ class PhoneSender(private val context: Context) {
                         .addOnSuccessListener {
                             Log.d(TAG, "Session ID $id sent to ${node.displayName}")
 
-                            // Start timeout ONLY AFTER sending message
                             timeoutJob = mainScope.launch {
-                                delay(2000L)
+                                delay(TIMEOUT_MS)
                                 if (!ackReceived) {
                                     Log.w(TAG, "ID ACK timeout")
                                     messageClient.removeListener(ackListener)
@@ -154,6 +153,43 @@ class PhoneSender(private val context: Context) {
             .addOnFailureListener {
                 Log.e(TAG, "Failed to get connected nodes", it)
                 messageClient.removeListener(ackListener)
+                onFailure()
+            }
+    }
+
+    fun requestSync(
+        sessionId: Int,
+        onSuccess: () -> Unit,
+        onFailure: () -> Unit
+    ) {
+        val messageClient = Wearable.getMessageClient(context)
+        val nodeClient = Wearable.getNodeClient(context)
+
+        nodeClient.connectedNodes
+            .addOnSuccessListener { nodes ->
+                if (nodes.isEmpty()) {
+                    onFailure()
+                    return@addOnSuccessListener
+                }
+
+                for (node in nodes) {
+                    messageClient.sendMessage(
+                        node.id,
+                        SYNC_PATH,
+                        ByteBuffer.allocate(4).putInt(sessionId).array()
+                    )
+                        .addOnSuccessListener {
+                            Log.d(TAG, "Sync request for session $sessionId sent to ${node.displayName}")
+                            onSuccess()
+                        }
+                        .addOnFailureListener {
+                            Log.e(TAG, "Failed to send sync request", it)
+                            onFailure()
+                        }
+                }
+            }
+            .addOnFailureListener {
+                Log.e(TAG, "Failed to get connected nodes", it)
                 onFailure()
             }
     }
