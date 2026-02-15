@@ -155,10 +155,8 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     override fun onSensorChanged(event: SensorEvent?) {
         if (event == null) return
         if (!isRecording) return
-        val now = System.currentTimeMillis()
-        if (now - lastSendTime < sendIntervalMs) return // too soon, skip sending
-        lastSendTime = now
 
+        // Always update sensor values immediately when they arrive
         when (event.sensor.type) {
             Sensor.TYPE_LINEAR_ACCELERATION -> accelValues = event.values.clone()
             Sensor.TYPE_GYROSCOPE -> gyroValues = event.values.clone()
@@ -169,6 +167,11 @@ class MainActivity : ComponentActivity(), SensorEventListener {
             "PPG Sensor" -> ppgValue = event.values[0]
             "ECG Sensor" -> ecgValue = event.values[0]
         }
+
+        // Only send/save data at throttled rate
+        val now = System.currentTimeMillis()
+        if (now - lastSendTime < sendIntervalMs) return
+        lastSendTime = now
 
         val currentData = SensorData(
             sessionId = id,
