@@ -311,10 +311,15 @@ class CreateExerciseActivity : AppCompatActivity() {
                 val isPersonal = teamIdForExercise == -1
 
                 val payload = buildJsonObject {
-                    put("team_id", teamIdForExercise)
+                    // Use NULL for personal exercises in Supabase (team_id = -1 locally)
+                    if (isPersonal) {
+                        put("team_id", null as Int?)
+                    } else {
+                        put("team_id", teamIdForExercise)
+                    }
                     put("name", name)
                     put("category", category.name)
-                    put("description", description.ifEmpty { "Personal exercise" })
+                    put("description", description.ifEmpty { if (isPersonal) "Personal exercise" else "Team exercise" })
                     put("distance", distance)
                     put("sets", sets)
                     put("rest_time", restTime)
@@ -385,21 +390,46 @@ class CreateExerciseActivity : AppCompatActivity() {
                             db.exerciseDao().insert(exercise)
                         }
                     } else {
-                        // Personal exercise - local only
-                        val exercise = Exercise(
-                            id = 0,
-                            teamId = -1,
-                            name = name,
-                            category = category,
-                            description = description.ifEmpty { "Personal exercise" },
-                            sets = sets,
-                            distance = distance,
-                            restTime = restTime,
-                            effortLevel = effort,
-                            strokeType = strokeType,
-                            targetTime = targetTime
-                        )
-                        db.exerciseDao().insert(exercise)
+                        // Personal exercise - upload to Supabase so it can be referenced in sessions
+                        try {
+                            val insertJson = supabase.from("exercises").insert(payload) { select() }.data
+                            val newId = insertJson.substringAfter("\"id\":").substringBefore(',').trim().toLongOrNull()?.toInt()
+                                ?: 0
+
+                            val exercise = Exercise(
+                                id = newId,
+                                teamId = -1,
+                                name = name,
+                                category = category,
+                                description = description.ifEmpty { "Personal exercise" },
+                                sets = sets,
+                                distance = distance,
+                                restTime = restTime,
+                                effortLevel = effort,
+                                strokeType = strokeType,
+                                targetTime = targetTime
+                            )
+                            db.exerciseDao().insert(exercise)
+                            android.util.Log.d("CreateExercise", "Personal exercise created in Supabase with ID: $newId")
+                        } catch (e: Exception) {
+                            android.util.Log.e("CreateExercise", "Supabase insert failed for personal exercise, saving locally only", e)
+                            // Fallback: save locally with auto-generated ID
+                            val exercise = Exercise(
+                                id = 0,
+                                teamId = -1,
+                                name = name,
+                                category = category,
+                                description = description.ifEmpty { "Personal exercise" },
+                                sets = sets,
+                                distance = distance,
+                                restTime = restTime,
+                                effortLevel = effort,
+                                strokeType = strokeType,
+                                targetTime = targetTime
+                            )
+                            val generatedId = db.exerciseDao().insert(exercise).toInt()
+                            android.util.Log.d("CreateExercise", "Personal exercise created locally with ID: $generatedId")
+                        }
                     }
                 }
 
