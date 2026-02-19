@@ -117,6 +117,27 @@ def add_gyro_combined(df: pd.DataFrame) -> None:
         df["gyro_x"] ** 2 + df["gyro_y"] ** 2 + df["gyro_z"] ** 2
     )
 
+def detect_lap_turns(segment_df: pd.DataFrame, threshold: float, debounce_seconds: int = 35) -> List[pd.Timestamp]:
+    """Identifies falling edges in gyro data to mark lap turns, with debouncing."""
+    lap_turn_times = []
+    last_detected_lap_turn_time = None # Initialize for debouncing
+
+    # Ensure the dataframe is sorted by datetime if not already
+    segment_df_sorted = segment_df.sort_values(by='datetime').reset_index(drop=True)
+
+    for i in range(1, len(segment_df_sorted)):
+        current_gyro = segment_df_sorted.loc[i, 'gyro_combined_filtered']
+        previous_gyro = segment_df_sorted.loc[i-1, 'gyro_combined_filtered']
+        current_datetime = segment_df_sorted.loc[i, 'datetime']
+
+        # Condition for detecting a 'falling edge' where the signal crosses below the threshold
+        if current_gyro < threshold and previous_gyro >= threshold:
+            # Apply debouncing mechanism
+            if last_detected_lap_turn_time is None or (current_datetime - last_detected_lap_turn_time >= pd.Timedelta(seconds=debounce_seconds)):
+                lap_turn_times.append(current_datetime)
+                last_detected_lap_turn_time = current_datetime
+
+    return lap_turn_times
 
 def estimate_sampling_interval_seconds(df: pd.DataFrame) -> float:
     """Estimate average sampling interval (seconds/sample) from `datetime`."""
@@ -140,18 +161,18 @@ def estimate_sampling_rate(df: pd.DataFrame) -> float:
 
 
 # ---------------------------------------------------------------------------
-# Lap detection (reusing logic from lap_detection_test_again.ipynb)
+# Bout detection (reusing logic from lap_detection_test_again.ipynb)
 # ---------------------------------------------------------------------------
 
 
 @dataclass
-class LapConfig:
+class BoutConfig:
     accel_threshold: float = 12.0
     gap_fill_seconds: float = 7.0
     bout_filter_seconds: float = 30.0
 
 
-def add_is_swimming(df: pd.DataFrame, cfg: LapConfig) -> None:
+def add_is_swimming(df: pd.DataFrame, cfg: BoutConfig) -> None:
     """Create raw `is_swimming` flag from accel_combined threshold (in-place)."""
     if "accel_combined" not in df.columns:
         raise ValueError("DataFrame must have 'accel_combined' column")
@@ -159,7 +180,7 @@ def add_is_swimming(df: pd.DataFrame, cfg: LapConfig) -> None:
     df["is_swimming"] = (df["accel_combined"] > cfg.accel_threshold).astype(int)
 
 
-def clean_is_swimming(df: pd.DataFrame, cfg: LapConfig) -> None:
+def clean_is_swimming(df: pd.DataFrame, cfg: BoutConfig) -> None:
     """Apply gap filling and bout filtering as in lap_detection_test_again.
 
     - Gap filling: binary_closing with window ~gap_fill_seconds
@@ -169,8 +190,8 @@ def clean_is_swimming(df: pd.DataFrame, cfg: LapConfig) -> None:
         raise ValueError("DataFrame must have 'is_swimming' column")
 
     dt = estimate_sampling_interval_seconds(df)
-    gap_fill_samples = max(1, int(cfg.gap_fill_seconds / dt))
-    bout_filter_samples = max(1, int(cfg.bout_filter_seconds / dt))
+    gap_fill_samples = int(cfg.gap_fill_seconds / dt)
+    bout_filter_samples = int(cfg.bout_filter_seconds / dt)
 
     is_swimming_bool = df["is_swimming"].astype(bool).to_numpy()
 
@@ -182,6 +203,56 @@ def clean_is_swimming(df: pd.DataFrame, cfg: LapConfig) -> None:
 
     df["is_swimming_cleaned"] = cleaned.astype(int)
 
+# ---------------------------------------------------------------------------
+# Bout detection (reusing logic from lap_detection_test_again.ipynb)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class LapConfig:
+    window_size_seconds: int = 1
+    cutoff_frequency_hz: float = 3.0
+    lap_turn_threshold: float = 1.2
+    boundary_buffer_seconds: int = 35
+    debounce_seconds: int = 35
+
+def add_gyro_combined_smoothed(df: pd.DataFrame, cfg: LapConfig) -> None:
+    if "gyro_combined" not in df.columns:
+        raise ValueError("DataFrame must have 'gyro_combined' column")
+
+    sampling_interval_seconds = estimate_sampling_interval_seconds(df)
+    window_size_samples = int(cfg.window_size_seconds / sampling_interval_seconds)
+
+    # Ensure window size is at least 1
+    if window_size_samples < 1:
+        window_size_samples = 1
+
+    df['gyro_combined_smoothed'] = df['gyro_combined'].rolling(window=window_size_samples, center=True).mean()
+
+def add_gyro_combined_filtered(df: pd.DataFrame, cfg: LapConfig) -> None:
+    signal_cleaned = df['gyro_combined_smoothed'].bfill().ffill()
+
+    sampling_frequency_hz = estimate_sampling_rate(df)
+    cutoff_frequency_hz = cfg.cutoff_frequency_hz
+
+    dt = 1 / sampling_frequency_hz
+    RC = 1 / (2 * np.pi * cutoff_frequency_hz)
+    alpha = dt / (RC + dt)
+
+    filtered_signal = np.zeros_like(signal_cleaned, dtype=float)
+
+    # Initialize the first element of the filtered signal with the first clean signal value
+    if len(signal_cleaned) > 0:
+        filtered_signal[0] = signal_cleaned.iloc[0] if isinstance(signal_cleaned, pd.Series) else signal_cleaned[0]
+
+    # Apply the filter equation
+    for i in range(1, len(signal_cleaned)):
+        current_value = signal_cleaned.iloc[i] if isinstance(signal_cleaned, pd.Series) else signal_cleaned[i]
+        previous_filtered_value = filtered_signal[i-1]
+        filtered_signal[i] = alpha * current_value + (1 - alpha) * previous_filtered_value
+
+    df['gyro_combined_filtered'] = filtered_signal
+
 
 @dataclass
 class LapInfo:
@@ -191,53 +262,73 @@ class LapInfo:
     lap_time: float  # seconds
 
 
-def detect_laps_from_is_swimming(df: pd.DataFrame) -> List[LapInfo]:
-    """Detect lap-like bouts from `is_swimming_cleaned`.
+def detect_laps(df: pd.DataFrame, cfg: LapConfig) -> List[LapInfo]:
+    all_laps: List[LapInfo] = []
+    current_lap_number = 1
 
-    This reuses the idea from lap_detection_test_again: after cleaning,
-    continuous sequences of 1s represent sustained swimming. Here we treat
-    each continuous sequence of 1s as a "lap" segment.
-    """
-    if "is_swimming_cleaned" not in df.columns:
-        raise ValueError("DataFrame must have 'is_swimming_cleaned' column")
-    if "datetime" not in df.columns:
-        raise ValueError("DataFrame must have 'datetime' column")
+    # 1. Identify swimming blocks safely (without modifying the original dataframe)
+    temp_df = df.copy()
+    temp_df['block_id'] = (temp_df['is_swimming_cleaned'] != temp_df['is_swimming_cleaned'].shift(1)).cumsum()
+    swimming_blocks = temp_df[temp_df['is_swimming_cleaned'] == 1]
 
-    cleaned = df["is_swimming_cleaned"].to_numpy()
-    times = df["datetime"].to_numpy()
+    # 2. Get the start and end times for each swimming bout
+    swimming_ranges = []
+    if not swimming_blocks.empty:
+        for _, group in swimming_blocks.groupby('block_id'):
+            swimming_ranges.append((group['datetime'].min(), group['datetime'].max()))
 
-    laps: List[LapInfo] = []
-    in_bout = False
-    start_idx: Optional[int] = None
-    lap_number = 0
+    for start_time_bout, end_time_bout in swimming_ranges:
 
-    for i, val in enumerate(cleaned):
-        if not in_bout and val == 1:
-            # Start of a new swimming bout
-            in_bout = True
-            start_idx = i
-        elif in_bout and val == 0:
-            # End of the bout
-            end_idx = i - 1
-            if start_idx is not None and end_idx > start_idx:
-                lap_number += 1
-                start_time = times[start_idx]
-                end_time = times[end_idx]
-                lap_time = (end_time - start_time).total_seconds()
-                laps.append(LapInfo(lap_number, start_time, end_time, lap_time))
-            in_bout = False
-            start_idx = None
+        bout_segment_df = temp_df[
+            (temp_df['datetime'] >= start_time_bout) &
+            (temp_df['datetime'] <= end_time_bout)
+        ]
 
-    # Handle case where signal ends in a bout
-    if in_bout and start_idx is not None and start_idx < len(cleaned) - 1:
-        lap_number += 1
-        start_time = times[start_idx]
-        end_time = times[-1]
-        lap_time = (end_time - start_time).total_seconds()
-        laps.append(LapInfo(lap_number, start_time, end_time, lap_time))
+        if bout_segment_df.empty:
+            continue
 
-    return laps
+        # 4. Detect turns
+        detected_lap_turns = detect_lap_turns(bout_segment_df, cfg.lap_turn_threshold, cfg.debounce_seconds)
 
+        # 5. Filter turns near the boundaries
+        filtered_start = start_time_bout + pd.Timedelta(seconds=cfg.boundary_buffer_seconds)
+        filtered_end = end_time_bout - pd.Timedelta(seconds=cfg.boundary_buffer_seconds)
+
+        filtered_lap_turns = [
+            t for t in detected_lap_turns
+            if filtered_start <= t <= filtered_end
+        ]
+
+        # 6. Convert turns into LapInfo objects
+        # A bout starts at `start_time_bout`, has N turns, and ends at `end_time_bout`
+        current_lap_start = start_time_bout
+
+        for turn_time in filtered_lap_turns:
+            lap_time_seconds = (turn_time - current_lap_start).total_seconds()
+
+            all_laps.append(LapInfo(
+                lap_number=current_lap_number,
+                start_time=current_lap_start,
+                end_time=turn_time,
+                lap_time=lap_time_seconds
+            ))
+            current_lap_number += 1
+            current_lap_start = turn_time
+
+        # Add the final lap (from the last turn to the end of the bout)
+        final_lap_time_seconds = (end_time_bout - current_lap_start).total_seconds()
+
+        # Prevent appending 0-second laps if the start perfectly matches the end
+        if final_lap_time_seconds > 0:
+            all_laps.append(LapInfo(
+                lap_number=current_lap_number,
+                start_time=current_lap_start,
+                end_time=end_time_bout,
+                lap_time=final_lap_time_seconds
+            ))
+            current_lap_number += 1
+
+    return all_laps
 
 # ---------------------------------------------------------------------------
 # Stroke detection (reusing stroke_metric_test.ipynb logic)
@@ -434,6 +525,7 @@ def compute_session_averages(lap_metrics: List[LapMetrics]) -> Dict[str, float]:
 
 def run_pipeline_from_df(
     df: pd.DataFrame,
+    bout_config: BoutConfig = BoutConfig(),
     lap_config: LapConfig = LapConfig(),
     stroke_type_col: str = "stroke_type",
 ) -> Tuple[List[Dict], Dict[str, float]]:
@@ -453,10 +545,14 @@ def run_pipeline_from_df(
     add_accel_combined(df)
     add_gyro_combined(df)
 
-    # Swimming detection / lap detection
-    add_is_swimming(df, lap_config)
-    clean_is_swimming(df, lap_config)
-    laps = detect_laps_from_is_swimming(df)
+    # Swimming bout detection
+    add_is_swimming(df, bout_config)
+    clean_is_swimming(df, bout_config)
+
+    # Lap detection
+    add_gyro_combined_smoothed(df, lap_config)
+    add_gyro_combined_filtered(df, lap_config)
+    laps = detect_laps(df, lap_config)
 
     # Stroke metrics per lap
     lap_metrics = compute_lap_metrics(df, laps, stroke_type_col=stroke_type_col)
@@ -471,18 +567,20 @@ def run_pipeline_from_db(
     db_path: str,
     table_name: str = "sensor_data",
     stroke_type_col: str = "stroke_type",
+    bout_config: BoutConfig = BoutConfig(),
     lap_config: LapConfig = LapConfig(),
 ) -> Tuple[List[Dict], Dict[str, float]]:
     """Convenience wrapper: load from DB and run the full pipeline."""
     df = load_from_db(db_path, table_name=table_name)
-    return run_pipeline_from_df(df, lap_config=lap_config, stroke_type_col=stroke_type_col)
+    return run_pipeline_from_df(df, bout_config=bout_config, lap_config=lap_config, stroke_type_col=stroke_type_col)
 
 
 def run_pipeline_from_csv(
     csv_path: str,
     stroke_type_col: str = "stroke_type",
+    bout_config: BoutConfig = BoutConfig(),
     lap_config: LapConfig = LapConfig(),
 ) -> Tuple[List[Dict], Dict[str, float]]:
     """Convenience wrapper: load from CSV and run the full pipeline."""
     df = load_from_csv(csv_path)
-    return run_pipeline_from_df(df, lap_config=lap_config, stroke_type_col=stroke_type_col)
+    return run_pipeline_from_df(df, bout_config=bout_config, lap_config=lap_config, stroke_type_col=stroke_type_col)
