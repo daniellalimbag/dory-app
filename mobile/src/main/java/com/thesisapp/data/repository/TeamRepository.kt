@@ -135,6 +135,9 @@ class TeamRepository @Inject constructor(
                     )
                 )
 
+                // Create General Training exercises for this team
+                createGeneralTrainingExercises(remoteTeam.id)
+
                 remoteTeam.id.toString()
             }
         }
@@ -274,6 +277,41 @@ class TeamRepository @Inject constructor(
         return buildString(length) {
             repeat(length) {
                 append(alphabet.random())
+            }
+        }
+    }
+
+    private suspend fun createGeneralTrainingExercises(teamId: Int) {
+        // Create General Training exercises for SPRINT and DISTANCE categories
+        val generalTrainingExercises = listOf(
+            buildJsonObject {
+                put("team_id", teamId)
+                put("name", "General Training")
+                put("category", "SPRINT")
+                put("description", "General swim training session")
+                put("distance", 0)
+                put("sets", 1)
+                put("rest_time", 0)
+                put("effort_level", 50)
+            },
+            buildJsonObject {
+                put("team_id", teamId)
+                put("name", "General Training")
+                put("category", "DISTANCE")
+                put("description", "General swim training session")
+                put("distance", 0)
+                put("sets", 1)
+                put("rest_time", 0)
+                put("effort_level", 50)
+            }
+        )
+
+        generalTrainingExercises.forEach { payload ->
+            try {
+                supabase.from("exercises").insert(payload)
+            } catch (e: Exception) {
+                // Log but don't fail team creation if exercise creation fails
+                android.util.Log.e("TeamRepository", "Failed to create General Training exercise", e)
             }
         }
     }

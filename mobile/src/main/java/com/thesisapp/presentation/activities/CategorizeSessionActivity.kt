@@ -272,7 +272,7 @@ class CategorizeSessionActivity : AppCompatActivity() {
         if (exercisePosition < 0 || exercisePosition >= exercises.size) return
         
         val selectedExercise = exercises[exercisePosition]
-        val isGeneralTraining = selectedExercise.id == -1
+        val isGeneralTraining = selectedExercise.id in listOf(-1, -2)
         
         // Only allow editing energy zone and season phase for General Training
         spinnerEnergyZone.isEnabled = isGeneralTraining
@@ -307,8 +307,15 @@ class CategorizeSessionActivity : AppCompatActivity() {
             }
             
             exercises.addAll(allExercises.filter { it.category == swimmerCategory })
+            
+            // Add General Training with category-specific ID
+            val generalTrainingId = when (swimmerCategory) {
+                ExerciseCategory.SPRINT -> -1
+                ExerciseCategory.DISTANCE -> -2
+            }
+            
             exercises.add(0, Exercise(
-                id = -1, teamId = -1, name = "General Training", category = swimmerCategory,
+                id = generalTrainingId, teamId = -1, name = "General Training", category = swimmerCategory,
                 description = "General swim training", sets = 1, distance = 0, effortLevel = 50
             ))
 
@@ -353,8 +360,8 @@ class CategorizeSessionActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             val session = db.mlResultDao().getBySessionId(sessionId)
             if (session != null) {
-                // Allow -1 for "General Training" to mark session as categorized
-                val finalExerciseId = if (selectedExercise.id == -1) -1 else selectedExercise.id.takeIf { it > 0 }
+                // Allow negative IDs for "General Training" to mark session as categorized
+                val finalExerciseId = if (selectedExercise.id < 0) selectedExercise.id else selectedExercise.id.takeIf { it > 0 }
                 android.util.Log.d("CategorizeSession", "Original exerciseId: ${selectedExercise.id}, Final exerciseId: $finalExerciseId")
                 
                 val updated = session.copy(
