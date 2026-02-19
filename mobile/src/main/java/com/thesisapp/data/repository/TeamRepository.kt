@@ -104,13 +104,27 @@ class TeamRepository @Inject constructor(
                 val remoteTeam = json.decodeFromString<List<RemoteTeamRow>>(teamJson).firstOrNull()
                     ?: error("Team was inserted but could not be fetched (join_code=$joinCode)")
 
-                val membershipPayload = buildJsonObject {
-                    put("team_id", remoteTeam.id)
-                    put("user_id", coachId)
-                    put("role", "coach")
-                }
+                val existingMembershipJson = supabase.from("team_memberships").select {
+                    filter {
+                        eq("team_id", remoteTeam.id)
+                        eq("user_id", coachId)
+                    }
+                    limit(1)
+                }.data
 
-                supabase.from("team_memberships").insert(membershipPayload)
+                val membershipExists = runCatching {
+                    json.decodeFromString<List<Map<String, Any>>>(existingMembershipJson).isNotEmpty()
+                }.getOrDefault(false)
+
+                if (!membershipExists) {
+                    val membershipPayload = buildJsonObject {
+                        put("team_id", remoteTeam.id)
+                        put("user_id", coachId)
+                        put("role", "coach")
+                    }
+
+                    supabase.from("team_memberships").insert(membershipPayload)
+                }
 
                 teamDao.insert(
                     Team(
