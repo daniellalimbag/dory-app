@@ -194,13 +194,22 @@ class SwimmerHomeFragment : Fragment() {
             val allSessions = remoteSessionsResult.getOrNull()
                 ?: db.mlResultDao().getResultsForSwimmer(swimmerLocal.id)
 
-            // Load all categorized sessions (not just recent)
+            android.util.Log.d("SwimmerHome", "Total sessions fetched: ${allSessions.size}")
+            allSessions.forEach { session ->
+                android.util.Log.d("SwimmerHome", "Session ${session.sessionId}: exerciseId=${session.exerciseId}, exerciseName=${session.exerciseName}")
+            }
+
+            // Load all categorized sessions (both team and personal)
+            // exerciseId = -1 means "General Training" which is categorized
             sessions = allSessions
                 .filter { it.exerciseId != null }
                 .sortedByDescending { it.date } // Most recent first
 
-            // Count uncategorized sessions separately
+            android.util.Log.d("SwimmerHome", "Categorized sessions: ${sessions.size}")
+
+            // Count uncategorized sessions separately (null exerciseId only)
             val uncategorizedCount = allSessions.count { it.exerciseId == null }
+            android.util.Log.d("SwimmerHome", "Uncategorized sessions: $uncategorizedCount")
 
             withContext(Dispatchers.Main) {
                 updateGoalUI()

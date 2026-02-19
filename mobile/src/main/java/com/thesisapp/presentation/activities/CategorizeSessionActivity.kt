@@ -127,6 +127,13 @@ class CategorizeSessionActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        spinnerExercise.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                updateFieldsBasedOnExercise(position)
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
         btnSkip.setOnClickListener {
             finish()
         }
@@ -261,6 +268,23 @@ class CategorizeSessionActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateFieldsBasedOnExercise(exercisePosition: Int) {
+        if (exercisePosition < 0 || exercisePosition >= exercises.size) return
+        
+        val selectedExercise = exercises[exercisePosition]
+        val isGeneralTraining = selectedExercise.id == -1
+        
+        // Only allow editing energy zone and season phase for General Training
+        spinnerEnergyZone.isEnabled = isGeneralTraining
+        spinnerSeasonPhase.isEnabled = isGeneralTraining
+        
+        if (!isGeneralTraining) {
+            // Reset to default if a specific exercise is selected
+            spinnerEnergyZone.setSelection(0)
+            spinnerSeasonPhase.setSelection(0)
+        }
+    }
+
     private fun loadExercisesForContext(contextPosition: Int) {
         if (contextPosition < 0 || contextPosition >= contexts.size) return
         val selectedContext = contexts[contextPosition]
@@ -275,6 +299,11 @@ class CategorizeSessionActivity : AppCompatActivity() {
                 db.exerciseDao().getExercisesForTeam(-1)
             } else {
                 db.exerciseDao().getExercisesForTeam(selectedContext.second!!)
+            }
+            
+            android.util.Log.d("CategorizeSession", "Loaded ${allExercises.size} exercises for context: ${selectedContext.first}")
+            allExercises.forEach { ex ->
+                android.util.Log.d("CategorizeSession", "Exercise: id=${ex.id}, name=${ex.name}, teamId=${ex.teamId}")
             }
             
             exercises.addAll(allExercises.filter { it.category == swimmerCategory })
@@ -305,6 +334,8 @@ class CategorizeSessionActivity : AppCompatActivity() {
         }
 
         val selectedExercise = exercises[exercisePosition]
+        android.util.Log.d("CategorizeSession", "Selected exercise: id=${selectedExercise.id}, name=${selectedExercise.name}, teamId=${selectedExercise.teamId}")
+        
         val effortLabel = selectedExercise.effortLevel?.let { percent ->
             when {
                 percent <= 40 -> "Easy"
@@ -322,8 +353,12 @@ class CategorizeSessionActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             val session = db.mlResultDao().getBySessionId(sessionId)
             if (session != null) {
+                // Allow -1 for "General Training" to mark session as categorized
+                val finalExerciseId = if (selectedExercise.id == -1) -1 else selectedExercise.id.takeIf { it > 0 }
+                android.util.Log.d("CategorizeSession", "Original exerciseId: ${selectedExercise.id}, Final exerciseId: $finalExerciseId")
+                
                 val updated = session.copy(
-                    exerciseId = selectedExercise.id.takeIf { it > 0 },
+                    exerciseId = finalExerciseId,
                     exerciseName = selectedExercise.name,
                     distance = selectedExercise.distance,
                     sets = selectedExercise.sets,
@@ -333,7 +368,11 @@ class CategorizeSessionActivity : AppCompatActivity() {
                     energyZone = selectedEnergyZone,
                     seasonPhase = selectedSeasonPhase
                 )
+                android.util.Log.d("CategorizeSession", "Updating session: $updated")
                 db.mlResultDao().update(updated)
+                
+                val verified = db.mlResultDao().getBySessionId(sessionId)
+                android.util.Log.d("CategorizeSession", "Verified after update: exerciseId=${verified?.exerciseId}, exerciseName=${verified?.exerciseName}")
 
                 try {
                     swimSessionUploadRepository.uploadSession(sessionId = sessionId, includeSamples = false)

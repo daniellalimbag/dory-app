@@ -12,12 +12,19 @@ import androidx.recyclerview.widget.RecyclerView
 import com.thesisapp.R
 import com.thesisapp.data.AppDatabase
 import com.thesisapp.data.non_dao.MlResult
+import com.thesisapp.data.repository.SwimSessionsRepository
 import com.thesisapp.presentation.adapters.SessionAdapter
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class UncategorizedSessionsActivity : AppCompatActivity() {
+
+    @Inject
+    lateinit var swimSessionsRepository: SwimSessionsRepository
 
     private lateinit var db: AppDatabase
     private lateinit var sessionsRecyclerView: RecyclerView
@@ -53,7 +60,14 @@ class UncategorizedSessionsActivity : AppCompatActivity() {
             Log.d("UncategorizedSessions", "Loading for swimmerId: $swimmerId")
             
             sessions = if (swimmerId != -1) {
-                val allSessions = db.mlResultDao().getResultsForSwimmer(swimmerId)
+                // Try to fetch from Supabase first
+                val remoteSessionsResult = runCatching {
+                    swimSessionsRepository.getSessionsForSwimmer(swimmerId.toLong())
+                }
+                
+                val allSessions = remoteSessionsResult.getOrNull()
+                    ?: db.mlResultDao().getResultsForSwimmer(swimmerId)
+                
                 Log.d("UncategorizedSessions", "Total sessions: ${allSessions.size}")
                 val uncategorized = allSessions.filter { session -> session.exerciseId == null }
                 Log.d("UncategorizedSessions", "Uncategorized sessions: ${uncategorized.size}")
