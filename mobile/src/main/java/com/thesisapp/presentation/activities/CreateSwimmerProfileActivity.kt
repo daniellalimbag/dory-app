@@ -294,6 +294,9 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
                             throw IllegalStateException("Swimmer not found")
                         }
 
+                        android.util.Log.d("CreateSwimmerProfile", "Updating swimmer ID: $existingSwimmerId")
+                        android.util.Log.d("CreateSwimmerProfile", "Existing: $existingSwimmer")
+
                         val updatedSwimmer = existingSwimmer.copy(
                             name = name,
                             birthday = birthday,
@@ -305,12 +308,26 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
                             specialty = specialty
                         )
 
+                        android.util.Log.d("CreateSwimmerProfile", "Updated: $updatedSwimmer")
+
                         db.swimmerDao().updateSwimmer(updatedSwimmer)
+                        
+                        android.util.Log.d("CreateSwimmerProfile", "Update complete, verifying...")
+                        val verified = db.swimmerDao().getById(existingSwimmerId!!)
+                        android.util.Log.d("CreateSwimmerProfile", "Verified from DB: $verified")
 
                         // Update in Supabase if authenticated
                         val authUser = AuthManager.currentUser(this@CreateSwimmerProfileActivity)
                         if (authUser != null && !existingSwimmer.userId.isNullOrBlank()) {
-                            upsertRemoteSwimmer(userId = existingSwimmer.userId, swimmer = updatedSwimmer)
+                            android.util.Log.d("CreateSwimmerProfile", "Updating Supabase for user: ${existingSwimmer.userId}")
+                            val supabaseResult = runCatching {
+                                upsertRemoteSwimmer(userId = existingSwimmer.userId, swimmer = updatedSwimmer)
+                            }
+                            if (supabaseResult.isFailure) {
+                                android.util.Log.e("CreateSwimmerProfile", "Supabase update failed", supabaseResult.exceptionOrNull())
+                            } else {
+                                android.util.Log.d("CreateSwimmerProfile", "Supabase update successful: ${supabaseResult.getOrNull()}")
+                            }
                         }
 
                         withContext(Dispatchers.Main) {
@@ -426,15 +443,21 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
     }
 
     private suspend fun upsertRemoteSwimmer(userId: String, swimmer: Swimmer): Int? {
+        android.util.Log.d("CreateSwimmerProfile", "upsertRemoteSwimmer called for userId: $userId")
+        
         // Try to find existing swimmer row for this auth user
         val existingJson = supabase.from("swimmers").select {
             filter { eq("user_id", userId) }
             limit(1)
         }.data
 
+        android.util.Log.d("CreateSwimmerProfile", "Existing swimmer query result: $existingJson")
+
         val existing = runCatching {
             json.decodeFromString<List<RemoteSwimmerRow>>(existingJson).firstOrNull()
         }.getOrNull()
+
+        android.util.Log.d("CreateSwimmerProfile", "Parsed existing swimmer: $existing")
 
         val payload = buildJsonObject {
             put("user_id", userId)
@@ -448,12 +471,17 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
             swimmer.specialty?.let { put("specialty", it) }
         }
 
+        android.util.Log.d("CreateSwimmerProfile", "Payload to send: $payload")
+
         if (existing == null) {
+            android.util.Log.d("CreateSwimmerProfile", "No existing swimmer found, inserting new record")
             supabase.from("swimmers").insert(payload)
         } else {
+            android.util.Log.d("CreateSwimmerProfile", "Existing swimmer found (id=${existing.id}), updating")
             supabase.from("swimmers").update(payload) {
                 filter { eq("id", existing.id) }
             }
+            android.util.Log.d("CreateSwimmerProfile", "Update query executed")
         }
 
         val updatedJson = supabase.from("swimmers").select {
@@ -461,7 +489,11 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
             limit(1)
         }.data
 
-        return json.decodeFromString<List<RemoteSwimmerRow>>(updatedJson).firstOrNull()?.id
+        android.util.Log.d("CreateSwimmerProfile", "Verification query result: $updatedJson")
+
+        val result = json.decodeFromString<List<RemoteSwimmerRow>>(updatedJson).firstOrNull()?.id
+        android.util.Log.d("CreateSwimmerProfile", "Returning swimmer ID: $result")
+        return result
     }
 
     private suspend fun ensureRemoteMembership(teamId: Int, swimmerUserId: String) {
