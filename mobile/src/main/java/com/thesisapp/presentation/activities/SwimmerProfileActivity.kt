@@ -139,7 +139,15 @@ class SwimmerProfileActivity : AppCompatActivity() {
             val teams: List<Team> = teamIds.mapNotNull { db.teamDao().getById(it) }
             withContext(Dispatchers.Main) {
                 if (teams.isEmpty()) {
-                    Toast.makeText(this@SwimmerProfileActivity, "No teams", Toast.LENGTH_SHORT).show()
+                    // No teams yet - show dialog with only join option
+                    AlertDialog.Builder(this@SwimmerProfileActivity)
+                        .setTitle("Join a Team")
+                        .setMessage("You haven't joined any teams yet. Enter a team code to get started!")
+                        .setPositiveButton("Join Team") { _, _ ->
+                            startActivity(Intent(this@SwimmerProfileActivity, EnrollViaCodeActivity::class.java))
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
                     return@withContext
                 }
 
@@ -173,7 +181,7 @@ class SwimmerProfileActivity : AppCompatActivity() {
                             }
                         }
                     }
-                    .setNeutralButton("+ Enroll in Another Team") { _, _ ->
+                    .setNeutralButton("+ Join Another Team") { _, _ ->
                         startActivity(Intent(this@SwimmerProfileActivity, EnrollViaCodeActivity::class.java))
                     }
                     .show()

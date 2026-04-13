@@ -158,10 +158,28 @@ class SwimSessionUploadRepository @Inject constructor(
     }
 
     private suspend fun upsertRemoteSession(session: MlResult, resolvedRemoteSwimmerId: Long?) {
-        val effectiveRemoteSwimmerId = resolvedRemoteSwimmerId
+        Log.d("DEBUG", "upsertRemoteSession: sessionId=${session.sessionId}, swimmerId=${session.swimmerId}, resolvedRemoteSwimmerId=$resolvedRemoteSwimmerId")
+        
+        var effectiveRemoteSwimmerId = resolvedRemoteSwimmerId
             ?: resolveRemoteSwimmerIdForSessionOrNull(session)
-            ?: error("Could not resolve remote swimmer_id for sessionId=${session.sessionId}. Please re-login as the swimmer and try again.")
+        
+        Log.d("DEBUG", "After resolveRemoteSwimmerIdForSessionOrNull: effectiveRemoteSwimmerId=$effectiveRemoteSwimmerId")
+        
+        // If we still can't resolve the swimmer ID, try to create the swimmer in Supabase
+        if (effectiveRemoteSwimmerId == null) {
+            Log.d("DEBUG", "Remote swimmer not found, attempting to create swimmer for session ${session.sessionId}")
+            effectiveRemoteSwimmerId = ensureSwimmerExistsInSupabase(session.swimmerId)
+            Log.d("DEBUG", "After ensureSwimmerExistsInSupabase: effectiveRemoteSwimmerId=$effectiveRemoteSwimmerId")
+        }
+        
+        if (effectiveRemoteSwimmerId == null) {
+            val localSwimmer = swimmerDao.getById(session.swimmerId)
+            Log.e("DEBUG", "FAILED: Could not resolve swimmer. Local swimmer: id=${localSwimmer?.id}, userId=${localSwimmer?.userId}, name=${localSwimmer?.name}")
+            error("Could not resolve or create remote swimmer_id for sessionId=${session.sessionId}. Swimmer may not have a user_id set.")
+        }
 
+        Log.d("DEBUG", "Using swimmer_id=$effectiveRemoteSwimmerId for session upload")
+        
         val payload = buildJsonObject {
             put("session_id", session.sessionId)
             put("swimmer_id", effectiveRemoteSwimmerId)
@@ -255,6 +273,59 @@ class SwimSessionUploadRepository @Inject constructor(
         return runCatching {
             json.decodeFromString<List<RemoteSwimmerIdRow>>(swimmerJson).firstOrNull()?.id
         }.getOrNull()
+    }
+
+    private suspend fun ensureSwimmerExistsInSupabase(localSwimmerId: Int): Long? {
+        val localSwimmer = swimmerDao.getById(localSwimmerId) ?: return null
+        
+        if (localSwimmer.userId.isBlank()) {
+            Log.d("DEBUG", "Local swimmer $localSwimmerId has no userId, cannot create in Supabase")
+            return null
+        }
+
+        // Check if swimmer already exists
+        val existingJson = supabase.from("swimmers").select {
+            filter { eq("user_id", localSwimmer.userId) }
+            limit(1)
+        }.data
+
+        val existing = runCatching {
+            json.decodeFromString<List<RemoteSwimmerIdRow>>(existingJson).firstOrNull()
+        }.getOrNull()
+
+        if (existing != null) {
+            Log.d("DEBUG", "Swimmer already exists in Supabase with id=${existing.id}")
+            return existing.id
+        }
+
+        // Create swimmer in Supabase
+        Log.d("DEBUG", "Creating swimmer in Supabase: userId=${localSwimmer.userId}, name=${localSwimmer.name}")
+        val payload = buildJsonObject {
+            put("user_id", localSwimmer.userId)
+            put("name", localSwimmer.name)
+            put("birthday", localSwimmer.birthday)
+            put("height", localSwimmer.height)
+            put("weight", localSwimmer.weight)
+            put("sex", localSwimmer.sex)
+            put("wingspan", localSwimmer.wingspan)
+            put("category", localSwimmer.category.name)
+            localSwimmer.specialty?.let { put("specialty", it) }
+        }
+
+        supabase.from("swimmers").insert(payload)
+
+        // Retrieve the created swimmer's ID
+        val createdJson = supabase.from("swimmers").select {
+            filter { eq("user_id", localSwimmer.userId) }
+            limit(1)
+        }.data
+
+        val createdId = runCatching {
+            json.decodeFromString<List<RemoteSwimmerIdRow>>(createdJson).firstOrNull()?.id
+        }.getOrNull()
+
+        Log.d("DEBUG", "Created swimmer in Supabase with id=$createdId")
+        return createdId
     }
 
     private fun SwimData.toRemotePayload() = buildJsonObject {

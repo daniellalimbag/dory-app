@@ -72,12 +72,16 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
     private lateinit var btnReturn: ImageButton
 
     private var teamId: Int = -1
+    private var existingSwimmerId: Int? = null
+    private var isEditMode: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_create_swimmer_profile)
 
         teamId = intent.getIntExtra("TEAM_ID", -1)
+        existingSwimmerId = intent.getIntExtra("SWIMMER_ID", -1).takeIf { it != -1 }
+        isEditMode = existingSwimmerId != null
 
         val user = AuthManager.currentUser(this)
 
@@ -189,6 +193,21 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
 
         val db = AppDatabase.getInstance(this)
 
+        // If editing existing swimmer, load their data
+        if (isEditMode && existingSwimmerId != null) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                val swimmer = db.swimmerDao().getById(existingSwimmerId!!)
+                withContext(Dispatchers.Main) {
+                    if (swimmer != null) {
+                        prefillSwimmerData(swimmer)
+                    } else {
+                        Toast.makeText(this@CreateSwimmerProfileActivity, "Swimmer not found", Toast.LENGTH_SHORT).show()
+                        finish()
+                    }
+                }
+            }
+        }
+
         btnReturn.setOnClickListener {
             it.animateClick()
             finish()
@@ -265,97 +284,150 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Create swimmer profile (team-independent)
-            val authUser = AuthManager.currentUser(this)
-            val initialUserId = if (authUser != null) null else null
-            val swimmer = Swimmer(
-                userId = initialUserId ?: "",
-                name = name,
-                birthday = birthday,
-                height = height,
-                weight = weight,
-                sex = sex,
-                wingspan = wingspan,
-                category = swimmerType,
-                specialty = specialty
-            )
-
             // Save to database
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    val resolvedUserId = if (authUser != null) {
-                        LocalUserBootstrapper.ensureRoomUserForAuth(this@CreateSwimmerProfileActivity, db)
-                    } else {
-                        LocalUserBootstrapper.createStandaloneSwimmerUser(db)
-                    }
+                    if (isEditMode && existingSwimmerId != null) {
+                        // Update existing swimmer
+                        val existingSwimmer = db.swimmerDao().getById(existingSwimmerId!!)
+                        if (existingSwimmer == null) {
+                            throw IllegalStateException("Swimmer not found")
+                        }
 
-                    if (authUser != null && resolvedUserId.isNullOrBlank()) {
-                        throw IllegalStateException("Unable to resolve local user id")
-                    }
+                        android.util.Log.d("CreateSwimmerProfile", "Updating swimmer ID: $existingSwimmerId")
+                        android.util.Log.d("CreateSwimmerProfile", "Existing: $existingSwimmer")
 
-                    val finalUserId = resolvedUserId ?: swimmer.userId
-                    if (finalUserId.isBlank()) {
-                        throw IllegalStateException("Unable to resolve local user id")
-                    }
-
-                    // If authenticated, write to Supabase first so Room IDs match remote IDs.
-                    val remoteSwimmerId: Int? = if (authUser != null) {
-                        upsertRemoteSwimmer(userId = finalUserId, swimmer = swimmer)
-                    } else {
-                        null
-                    }
-
-                    if (authUser != null && remoteSwimmerId == null) {
-                        throw IllegalStateException("Unable to create/update swimmer profile in Supabase")
-                    }
-
-                    val existing = db.swimmerDao().getByUserId(finalUserId)
-
-                    val resolvedLocalId = remoteSwimmerId ?: existing?.id
-                    val newId = if (resolvedLocalId != null) {
-                        val upsert = swimmer.copy(id = resolvedLocalId, userId = finalUserId)
-                        db.swimmerDao().insertSwimmer(upsert)
-                        resolvedLocalId
-                    } else {
-                        db.swimmerDao().insertSwimmer(swimmer.copy(userId = finalUserId)).toInt()
-                    }
-                    
-                    // If this screen was launched for joining a specific team, create membership.
-                    if (teamId != -1) {
-                        db.teamMembershipDao().insert(
-                            TeamMembership(
-                                teamId = teamId,
-                                swimmerId = newId
-                            )
+                        val updatedSwimmer = existingSwimmer.copy(
+                            name = name,
+                            birthday = birthday,
+                            height = height,
+                            weight = weight,
+                            sex = sex,
+                            wingspan = wingspan,
+                            category = swimmerType,
+                            specialty = specialty
                         )
 
-                        if (authUser != null) {
-                            runCatching {
-                                ensureRemoteMembership(teamId = teamId, swimmerUserId = finalUserId)
+                        android.util.Log.d("CreateSwimmerProfile", "Updated: $updatedSwimmer")
+
+                        db.swimmerDao().updateSwimmer(updatedSwimmer)
+                        
+                        android.util.Log.d("CreateSwimmerProfile", "Update complete, verifying...")
+                        val verified = db.swimmerDao().getById(existingSwimmerId!!)
+                        android.util.Log.d("CreateSwimmerProfile", "Verified from DB: $verified")
+
+                        // Update in Supabase if authenticated
+                        val authUser = AuthManager.currentUser(this@CreateSwimmerProfileActivity)
+                        if (authUser != null && !existingSwimmer.userId.isNullOrBlank()) {
+                            android.util.Log.d("CreateSwimmerProfile", "Updating Supabase for user: ${existingSwimmer.userId}")
+                            val supabaseResult = runCatching {
+                                upsertRemoteSwimmer(userId = existingSwimmer.userId, swimmer = updatedSwimmer)
+                            }
+                            if (supabaseResult.isFailure) {
+                                android.util.Log.e("CreateSwimmerProfile", "Supabase update failed", supabaseResult.exceptionOrNull())
+                            } else {
+                                android.util.Log.d("CreateSwimmerProfile", "Supabase update successful: ${supabaseResult.getOrNull()}")
                             }
                         }
-                    }
-                    
-                    // Link swimmer to user account
-                    val user = AuthManager.currentUser(this@CreateSwimmerProfileActivity)
-                    if (user != null && teamId != -1) {
-                        AuthManager.linkSwimmerToTeam(this@CreateSwimmerProfileActivity, user.email, teamId, newId)
-                        AuthManager.setCurrentTeamId(this@CreateSwimmerProfileActivity, teamId)
-                    }
 
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            this@CreateSwimmerProfileActivity,
-                            "✓ Profile created! Welcome to the team!",
-                            Toast.LENGTH_LONG
-                        ).show()
-
-                        val intent = Intent(this@CreateSwimmerProfileActivity, SwimmerProfileActivity::class.java).apply {
-                            putExtra(SwimmerProfileActivity.EXTRA_SWIMMER_ID, newId)
-                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@CreateSwimmerProfileActivity,
+                                "✓ Swimmer profile updated!",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            finish()
                         }
-                        startActivity(intent)
-                        finish()
+                    } else {
+                        // Create new swimmer profile
+                        val authUser = AuthManager.currentUser(this@CreateSwimmerProfileActivity)
+                        val initialUserId = if (authUser != null) null else null
+                        val swimmer = Swimmer(
+                            userId = initialUserId ?: "",
+                            name = name,
+                            birthday = birthday,
+                            height = height,
+                            weight = weight,
+                            sex = sex,
+                            wingspan = wingspan,
+                            category = swimmerType,
+                            specialty = specialty
+                        )
+
+                        val resolvedUserId = if (authUser != null) {
+                            LocalUserBootstrapper.ensureRoomUserForAuth(this@CreateSwimmerProfileActivity, db)
+                        } else {
+                            LocalUserBootstrapper.createStandaloneSwimmerUser(db)
+                        }
+
+                        if (authUser != null && resolvedUserId.isNullOrBlank()) {
+                            throw IllegalStateException("Unable to resolve local user id")
+                        }
+
+                        val finalUserId = resolvedUserId ?: swimmer.userId
+                        if (finalUserId.isBlank()) {
+                            throw IllegalStateException("Unable to resolve local user id")
+                        }
+
+                        // If authenticated, write to Supabase first so Room IDs match remote IDs.
+                        val remoteSwimmerId: Int? = if (authUser != null) {
+                            upsertRemoteSwimmer(userId = finalUserId, swimmer = swimmer)
+                        } else {
+                            null
+                        }
+
+                        if (authUser != null && remoteSwimmerId == null) {
+                            throw IllegalStateException("Unable to create/update swimmer profile in Supabase")
+                        }
+
+                        val existing = db.swimmerDao().getByUserId(finalUserId)
+
+                        val resolvedLocalId = remoteSwimmerId ?: existing?.id
+                        val newId = if (resolvedLocalId != null) {
+                            val upsert = swimmer.copy(id = resolvedLocalId, userId = finalUserId)
+                            db.swimmerDao().insertSwimmer(upsert)
+                            resolvedLocalId
+                        } else {
+                            db.swimmerDao().insertSwimmer(swimmer.copy(userId = finalUserId)).toInt()
+                        }
+                        
+                        // If this screen was launched for joining a specific team, create membership.
+                        if (teamId != -1) {
+                            db.teamMembershipDao().insert(
+                                TeamMembership(
+                                    teamId = teamId,
+                                    swimmerId = newId
+                                )
+                            )
+
+                            if (authUser != null) {
+                                runCatching {
+                                    ensureRemoteMembership(teamId = teamId, swimmerUserId = finalUserId)
+                                }
+                            }
+                        }
+                        
+                        // Link swimmer to user account
+                        val user = AuthManager.currentUser(this@CreateSwimmerProfileActivity)
+                        if (user != null && teamId != -1) {
+                            AuthManager.linkSwimmerToTeam(this@CreateSwimmerProfileActivity, user.email, teamId, newId)
+                            AuthManager.setCurrentTeamId(this@CreateSwimmerProfileActivity, teamId)
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                this@CreateSwimmerProfileActivity,
+                                "✓ Profile created! Welcome to the team!",
+                                Toast.LENGTH_LONG
+                            ).show()
+
+                            val intent = Intent(this@CreateSwimmerProfileActivity, SwimmerProfileActivity::class.java).apply {
+                                putExtra(SwimmerProfileActivity.EXTRA_SWIMMER_ID, newId)
+                                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                            }
+                            startActivity(intent)
+                            finish()
+                        }
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
@@ -371,15 +443,21 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
     }
 
     private suspend fun upsertRemoteSwimmer(userId: String, swimmer: Swimmer): Int? {
+        android.util.Log.d("CreateSwimmerProfile", "upsertRemoteSwimmer called for userId: $userId")
+        
         // Try to find existing swimmer row for this auth user
         val existingJson = supabase.from("swimmers").select {
             filter { eq("user_id", userId) }
             limit(1)
         }.data
 
+        android.util.Log.d("CreateSwimmerProfile", "Existing swimmer query result: $existingJson")
+
         val existing = runCatching {
             json.decodeFromString<List<RemoteSwimmerRow>>(existingJson).firstOrNull()
         }.getOrNull()
+
+        android.util.Log.d("CreateSwimmerProfile", "Parsed existing swimmer: $existing")
 
         val payload = buildJsonObject {
             put("user_id", userId)
@@ -393,12 +471,17 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
             swimmer.specialty?.let { put("specialty", it) }
         }
 
+        android.util.Log.d("CreateSwimmerProfile", "Payload to send: $payload")
+
         if (existing == null) {
+            android.util.Log.d("CreateSwimmerProfile", "No existing swimmer found, inserting new record")
             supabase.from("swimmers").insert(payload)
         } else {
+            android.util.Log.d("CreateSwimmerProfile", "Existing swimmer found (id=${existing.id}), updating")
             supabase.from("swimmers").update(payload) {
                 filter { eq("id", existing.id) }
             }
+            android.util.Log.d("CreateSwimmerProfile", "Update query executed")
         }
 
         val updatedJson = supabase.from("swimmers").select {
@@ -406,7 +489,11 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
             limit(1)
         }.data
 
-        return json.decodeFromString<List<RemoteSwimmerRow>>(updatedJson).firstOrNull()?.id
+        android.util.Log.d("CreateSwimmerProfile", "Verification query result: $updatedJson")
+
+        val result = json.decodeFromString<List<RemoteSwimmerRow>>(updatedJson).firstOrNull()?.id
+        android.util.Log.d("CreateSwimmerProfile", "Returning swimmer ID: $result")
+        return result
     }
 
     private suspend fun ensureRemoteMembership(teamId: Int, swimmerUserId: String) {
@@ -457,6 +544,39 @@ class CreateSwimmerProfileActivity : AppCompatActivity() {
         pickerYear.maxValue = currentYear
         pickerYear.value = currentYear - 18 // Default to 18 years ago
         pickerYear.wrapSelectorWheel = false
+    }
+
+    private fun prefillSwimmerData(swimmer: Swimmer) {
+        inputName.setText(swimmer.name)
+        swimmer.specialty?.let { inputSpecialty.setText(it) }
+        inputHeight.setText(swimmer.height.toString())
+        inputWeight.setText(swimmer.weight.toString())
+        inputWingspan.setText(swimmer.wingspan.toString())
+
+        // Set sex radio button
+        when (swimmer.sex.lowercase()) {
+            "male" -> radioGroupSex.check(R.id.radioMale)
+            "female" -> radioGroupSex.check(R.id.radioFemale)
+        }
+
+        // Set swimmer type radio button
+        val radioGroupSwimmerType = findViewById<RadioGroup>(R.id.radioGroupSwimmerType)
+        when (swimmer.category) {
+            ExerciseCategory.SPRINT -> radioGroupSwimmerType.check(R.id.radioSprint)
+            ExerciseCategory.DISTANCE -> radioGroupSwimmerType.check(R.id.radioDistance)
+        }
+
+        // Parse and set birthday
+        try {
+            val parts = swimmer.birthday.split("-")
+            if (parts.size == 3) {
+                pickerYear.value = parts[0].toInt()
+                pickerMonth.value = parts[1].toInt()
+                pickerDay.value = parts[2].toInt()
+            }
+        } catch (e: Exception) {
+            // Keep default values if parsing fails
+        }
     }
     
     // Hide keyboard when touching outside of EditText
